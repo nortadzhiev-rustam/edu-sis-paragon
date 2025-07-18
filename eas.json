@@ -1,0 +1,45 @@
+{
+  "cli": {
+    "version": ">= 16.7.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development"
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview"
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "gradleCommand": ":app:bundleRelease",
+        "image": "latest",
+        "buildType": "app-bundle",
+        "credentialsSource": "local",
+        "env": {
+          "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g",
+          "GOOGLE_SERVICE_ACCOUNT_KEY": "$GOOGLE_SERVICE_ACCOUNT_KEY"
+        }
+      },
+      "ios": {
+        
+        "cache": {
+          "disabled": true
+        }
+      },
+      "channel": "production"
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account-key.json",
+        "track": "internal"
+      }
+    }
+  }
+}

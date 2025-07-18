@@ -1,0 +1,161 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# Note: Keep one lock file for consistent dependency versions
+# package-lock.json - DO NOT IGNORE: needed for consistent npm builds
+yarn.lock
+pnpm-lock.yaml
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+# Thumbnails
+._*
+# Files that might appear in the root of a volume
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Build Output
+build/
+dist/
+out/
+coverage/
+*.js.map
+*.tsbuildinfo
+
+# Expo specific
+.expo/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+# Expo Go
+.expo-shared/
+# EAS
+# Note: Keep EAS configuration files for builds
+# eas.json - DO NOT IGNORE: needed for EAS/Xcode Cloud builds
+# .easignore - DO NOT IGNORE: needed for EAS builds
+# Expo development
+expo-env.d.ts
+
+# iOS
+ios/Pods/
+ios/build/
+# Note: Keep .xcworkspace files for Xcode Cloud builds
+# ios/*.xcworkspace - DO NOT IGNORE: needed for Xcode Cloud
+# Note: Only ignore user-specific data in project.xcworkspace, keep shared data
+ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+ios/*.xcodeproj/xcuserdata/
+ios/DerivedData/
+ios/*.hmap
+ios/*.ipa
+*.ipa
+*.app
+# Xcode - User specific
+*.xcuserdatad
+*.xcuserstate
+# CocoaPods
+# Note: Keep Podfile.lock for consistent dependency versions across environments
+# ios/Podfile.lock - DO NOT IGNORE: needed for Xcode Cloud and consistent builds
+# Xcode project files that can be auto-generated
+# Note: Keep xcshareddata for shared build settings and schemes
+# ios/*.xcodeproj/project.xcworkspace/xcshareddata/ - DO NOT IGNORE: needed for Xcode Cloud
+# iOS build artifacts
+ios/build/
+ios/Index/
+
+# Android
+android/app/build/
+android/build/
+android/.gradle/
+# Note: Keep gradle wrapper files for builds
+# android/gradle/ - DO NOT IGNORE: needed for gradle wrapper
+android/app/src/main/assets/app.manifest
+android/app/src/main/assets/index.android.bundle
+android/app/src/main/java/com/helloworld/MainApplication.java
+android/local.properties
+# android/gradle.properties - DO NOT IGNORE: needed for EAS builds (contains hermesEnabled, etc.)
+# Keystore files
+*.keystore
+*.jks
+android/app/debug.keystore
+# Android Studio
+.idea/
+*.iml
+# Buck
+buck-out/
+\.buckd/
+android/app/debug/
+android/app/release/
+# Gradle
+.gradle/
+# Note: Keep gradle-wrapper.properties for builds
+# gradle-wrapper.properties - DO NOT IGNORE: needed for gradle wrapper
+# Android auto-generated files
+android/app/src/main/assets/index.android.js
+android/app/src/main/res/raw/
+# android/app/src/main/res/drawable-*/ - DO NOT IGNORE: contains app icons and splash screens needed for builds
+# Proguard
+# android/app/proguard-rules.pro - DO NOT IGNORE: needed for release builds
+
+# React Native
+# Metro
+.metro-health-check*
+metro.config.js.bak
+
+# React Native debugger
+.flipper/
+
+# Other
+*.log
+.env
+.env.*
+!.env.example
+# Temporary files
+*.tmp
+*~
+# Crash reports
+*.crash
+
+# Development
+.watchmanconfig
+.flowconfig
+
+# Testing
+coverage/
+.nyc_output/
+
+# Firebase / Google Services
+# Note: Firebase config files are included in version control for EAS builds
+# These files contain project identifiers but not sensitive secrets
+# android/app/google-services.json
+# ios/*/GoogleService-Info.plist
+
+# Credentials and Signing Keys
+credentials.json
+*.keystore
+*.jks
+# Google Cloud Service Account files
+*-service-account*.json
+edunova-bfi-*.json
+
+# Misc
+*.tgz
+*.tar.gz
+.cache/
