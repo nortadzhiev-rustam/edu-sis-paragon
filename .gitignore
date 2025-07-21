@@ -159,3 +159,17 @@ edunova-bfi-*.json
 *.tgz
 *.tar.gz
 .cache/
+
+# Secrets in src folder
+src/secrets/
+src/**/*secret*
+src/**/*key*
+src/**/*password*
+src/**/*token*
+src/**/*.pem
+src/**/*.p12
+src/**/*.pfx
+src/**/*service*
+src/**/*-service.*
+src/**/*_service.*
+src/**/*.service.*
