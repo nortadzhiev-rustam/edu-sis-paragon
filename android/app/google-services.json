@@ -1,40 +1,21 @@
 {
   "project_info": {
-    "project_number": "1031201187766",
-    "project_id": "edunova-bfi",
-    "storage_bucket": "edunova-bfi.firebasestorage.app"
+    "project_number": "734632008133",
+    "project_id": "paragonisc-7ef64",
+    "storage_bucket": "paragonisc-7ef64.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1031201187766:android:7b8f0345855d65bdf90317",
+        "mobilesdk_app_id": "1:734632008133:android:d8ef55c5a68e952973d3ac",
         "android_client_info": {
-          "package_name": "com.edunovaasia.app.edunova"
+          "package_name": "com.edunovaasia.paragon"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAknK73yo28qH3hnRRbjzo8Uui4Tbb_F2g"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:1031201187766:android:ef006e2ea9dfe3b2f90317",
-        "android_client_info": {
-          "package_name": "com.edunovaasia.edusis"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAknK73yo28qH3hnRRbjzo8Uui4Tbb_F2g"
+          "current_key": "AIzaSyBDnHd5RsAP7tDTN73_0D_Owc_79mC-aHg"
         }
       ],
       "services": {

@@ -86,13 +86,13 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.edunovaasia.edusis'
+    namespace 'com.edunovaasia.paragon'
     defaultConfig {
-        applicationId 'com.edunovaasia.edusis'
+        applicationId 'com.edunovaasia.paragon'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 31
-        versionName "1.0.1"
+        versionCode 1
+        versionName "1.0.0"
     }
     signingConfigs {
         debug {
@@ -153,7 +153,6 @@ dependencies {
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
     def isWebpAnimatedEnabled = (findProperty('expo.webp.animated') ?: "") == "true";
-    def isHermesEnabled = (findProperty('hermesEnabled') ?: "true").toBoolean();
 
     if (isGifEnabled) {
         // For animated gif support
@@ -169,7 +168,7 @@ dependencies {
         }
     }
 
-    if (isHermesEnabled) {
+    if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
