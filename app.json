@@ -1,10 +1,11 @@
 {
   "expo": {
     "name": "EduNova School",
-    "slug": "edu-sis",
-    "version": "1.0.1",
+    "slug": "edu-sis-paragan",
+    "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/app_logo.png",
+    "darkIcon": "./assets/app_logo_dark.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "plugins": [
@@ -43,19 +44,19 @@
       ]
     ],
     "splash": {
-      "image": "./assets/app_logo.png",
+      "image": "./assets/ParagonISC App_LOGO.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff",
       "dark": {
-        "image": "./assets/app_logo_dark.png",
+        "image": "./assets/ParagonISC App_LOGO_DARK.png",
         "resizeMode": "contain",
         "backgroundColor": "#000000"
       }
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.edunovaasia.edusis",
-      "buildNumber": "30",
+      "bundleIdentifier": "com.edunovaasia.paragon",
+      "buildNumber": "1",
       "runtimeVersion": "1.0.0",
       "googleServicesFile": "./GoogleService-Info.plist",
       "config": {
@@ -76,16 +77,18 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/app_logo.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#ffffff",
+        "darkForegroundImage": "./assets/app_logo_dark.png",
+        "darkBackgroundColor": "#000000"
       },
-      "package": "com.edunovaasia.edusis",
-      "runtimeVersion": "1.0.1",
+      "package": "com.edunovaasia.paragon",
+      "runtimeVersion": "1.0.0",
       "googleServicesFile": "./google-services.json",
       "screenOrientation": "portrait",
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
       "minSdkVersion": 24,
-      "versionCode": 31
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/app_logo.png"

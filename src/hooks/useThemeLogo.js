@@ -10,8 +10,8 @@ export const useThemeLogo = () => {
 
   return useMemo(() => {
     return theme.mode === 'dark'
-      ? require('../../assets/app_logo_dark.png')
-      : require('../../assets/app_logo.png');
+      ? require('../../assets/ParagonISC App_LOGO_DARK.png')
+      : require('../../assets/ParagonISC App_LOGO.png');
   }, [theme.mode]);
 };
 
