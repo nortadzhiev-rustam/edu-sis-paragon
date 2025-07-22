@@ -585,7 +585,7 @@ const createStyles = (
       minHeight: '100%', // Ensure content takes full height
     },
     logo: {
-      width: isIPadDevice ? Math.min(width * 0.3, 300) : width * 0.4,
+      width: isIPadDevice ? Math.min(width * 0.3, 300) : width * 0.8,
       height: isIPadDevice ? Math.min(height * 0.12, 150) : height * 0.15,
       // marginTop: isIPadDevice ? height * 0.03 : height * 0.001,
       marginBottom: isIPadDevice ? responsiveSpacing.lg : 20,

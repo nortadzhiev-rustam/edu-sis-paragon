@@ -4,8 +4,8 @@
 // API Configuration
 export const Config = {
   // Base API Configuration
-  API_BASE_URL: 'https://sis.bfi.edu.mm/mobile-api',
-  API_DOMAIN: 'sis.bfi.edu.mm',
+  API_BASE_URL: 'https://sis.paragonisc.edu.kh/mobile-api',
+  API_DOMAIN: 'sis.paragonisc.edu.kh',
 
   // API Endpoints
   API_ENDPOINTS: {
@@ -118,8 +118,8 @@ export const Config = {
   // App Configuration
   APP: {
     NAME: 'EduSIS',
-    VERSION: '1.0.1',
-    BUNDLE_ID: 'com.edunovaasia.edusis',
+    VERSION: '1.0.0',
+    BUNDLE_ID: 'com.edunovaasia.paragon',
   },
 
   // Development Configuration

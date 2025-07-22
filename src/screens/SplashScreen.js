@@ -16,8 +16,8 @@ import { lockOrientationForDevice } from '../utils/orientationLock';
 const { width, height } = Dimensions.get('window');
 const TYPING_SPEED = 50; // Increased for better visibility
 const LOGO_ANIMATION_DURATION = 1000;
-const TEXT_LINE1 = 'Inspiring Brilliance';
-const TEXT_LINE2 = 'Building Brighter Futures';
+const TEXT_LINE1 = 'Learn Today';
+const TEXT_LINE2 = 'For Better Tomorrow';
 const FULL_TEXT = TEXT_LINE1 + '\n' + TEXT_LINE2;
 
 export default function SplashScreen({ onAnimationComplete }) {
@@ -133,8 +133,8 @@ const createStyles = (theme) => {
       justifyContent: 'center',
     },
     logo: {
-      width: isIPadDevice ? Math.min(width * 0.4, 400) : width * 0.5,
-      height: isIPadDevice ? Math.min(height * 0.4, 400) : height * 0.5,
+      width: isIPadDevice ? Math.min(width * 0.4, 400) : width * 0.8,
+      height: isIPadDevice ? Math.min(height * 0.4, 400) : height * 0.30,
       // Add subtle shadow for better visibility in both themes
       ...Platform.select({
         ios: {
