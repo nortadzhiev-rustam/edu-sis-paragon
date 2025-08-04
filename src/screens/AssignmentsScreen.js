@@ -45,12 +45,15 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useScreenOrientation } from '../hooks/useScreenOrientation';
 import { useTheme } from '../contexts/ThemeContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { getHtmlPreview } from '../utils/htmlUtils';
 import { createSmallShadow, createMediumShadow } from '../utils/commonStyles';
 import { getDemoStudentHomeworkData } from '../services/demoModeService';
+import { getStudentHomeworkList } from '../services/homeworkService';
 
 export default function AssignmentsScreen({ navigation, route }) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
   const { studentName, authCode } = route.params || {};
   const [assignments, setAssignments] = useState([]);
@@ -293,7 +296,7 @@ export default function AssignmentsScreen({ navigation, route }) {
         assignment.subject_name ||
         assignment.subjectName ||
         assignment.Subject ||
-        'Unknown Subject';
+        t('unknownSubject');
 
       if (!acc[subject]) {
         acc[subject] = [];
@@ -344,7 +347,7 @@ export default function AssignmentsScreen({ navigation, route }) {
 
   // Helper function to format date
   const formatDate = (dateString) => {
-    if (!dateString) return 'No date';
+    if (!dateString) return t('noDate');
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       month: 'short',
@@ -364,35 +367,35 @@ export default function AssignmentsScreen({ navigation, route }) {
         status: 'completed',
         color: '#34C759',
         icon: faCheckCircle,
-        label: 'Completed',
+        label: t('assignmentCompleted'),
       };
     } else if (deadline < today) {
       return {
         status: 'overdue',
         color: '#FF3B30',
         icon: faExclamationTriangle,
-        label: 'Overdue',
+        label: t('assignmentOverdue'),
       };
     } else if (deadline.toDateString() === today.toDateString()) {
       return {
         status: 'due_today',
         color: '#FF9500',
         icon: faCalendarAlt,
-        label: 'Due Today',
+        label: t('assignmentDueToday'),
       };
     } else {
       return {
         status: 'pending',
         color: '#007AFF',
         icon: faClock,
-        label: 'Pending',
+        label: t('assignmentPending'),
       };
     }
   };
 
   const fetchAssignmentsData = async () => {
     if (!authCode) {
-      Alert.alert('Error', 'Authentication code is missing');
+      Alert.alert(t('error'), t('authCodeMissing'));
       return;
     }
 
@@ -407,26 +410,28 @@ export default function AssignmentsScreen({ navigation, route }) {
         return;
       }
 
-      const url = buildApiUrl(Config.API_ENDPOINTS.GET_STUDENT_HOMEWORK, {
-        authCode,
-      });
+      // Use homework assignment API
+      const response = await getStudentHomeworkList(authCode);
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
+      if (response.success && Array.isArray(response.data)) {
+        // The API returns assignments directly in the data array
+        // Transform the data to ensure compatibility with existing UI components
+        const transformedData = response.data.map((assignment) => ({
+          ...assignment,
+          // Ensure compatibility with existing component expectations
+          subject: assignment.subject_name,
+          completed: assignment.is_completed === 1,
+          // Add any missing fields that the UI might expect
+          days_remaining: assignment.is_overdue ? 0 : null,
+        }));
 
-      if (response.ok) {
-        const data = await response.json();
-        setAssignments(data);
+        setAssignments(transformedData);
       } else {
-        Alert.alert('Error', `Failed to fetch assignments: ${response.status}`);
+        Alert.alert(t('error'), response.message || t('failedToFetchClasses'));
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to connect to server');
+      console.error('Error fetching assignments:', error);
+      Alert.alert(t('error'), t('failedToConnect'));
     } finally {
       setLoading(false);
     }
@@ -477,7 +482,7 @@ export default function AssignmentsScreen({ navigation, route }) {
             return prevAssignments;
           });
 
-          Alert.alert('Success', 'Assignment marked as completed!');
+          Alert.alert(t('success'), t('assignmentMarkedCompleted'));
         } else {
           const errorResponse = await response.text();
 
@@ -486,32 +491,29 @@ export default function AssignmentsScreen({ navigation, route }) {
 
             if (errorData.error === 'Homework has already been submitted') {
               Alert.alert(
-                'Already Completed',
-                'This assignment has already been marked as completed.',
+                t('alreadyCompleted'),
+                t('assignmentAlreadySubmitted'),
                 [{ text: 'OK', style: 'default' }]
               );
             } else {
-              Alert.alert(
-                'Error',
-                errorData.error || 'Failed to mark assignment as done'
-              );
+              Alert.alert(t('error'), errorData.error || t('failedToMarkDone'));
             }
           } catch (parseError) {
-            Alert.alert('Error', 'Failed to mark assignment as done');
+            Alert.alert(t('error'), t('failedToMarkDone'));
           }
         }
       } catch (error) {
-        Alert.alert('Error', 'Failed to connect to server');
+        Alert.alert(t('error'), t('failedToConnect'));
       }
     };
 
     Alert.alert(
-      'Mark as Done',
-      `Are you sure you want to mark "${assignment.title}" as completed?`,
+      t('markAsDone'),
+      t('confirmMarkDone').replace('{title}', assignment.title),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Mark Done',
+          text: t('markDone'),
           style: 'default',
           onPress: () => {
             handleMarkDone();
@@ -658,7 +660,7 @@ export default function AssignmentsScreen({ navigation, route }) {
                 showCompleted && styles.filterButtonTextActive,
               ]}
             >
-              {showCompleted ? 'Show All' : 'Show Completed'}
+              {showCompleted ? t('showAll') : t('showCompleted')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -673,8 +675,8 @@ export default function AssignmentsScreen({ navigation, route }) {
           <View style={styles.emptyAssignmentsContainer}>
             <Text style={styles.emptyAssignmentsText}>
               {showCompleted
-                ? 'No completed assignments'
-                : 'No pending assignments'}
+                ? t('noCompletedAssignments')
+                : t('noPendingAssignments')}
             </Text>
           </View>
         ) : (
@@ -699,7 +701,7 @@ export default function AssignmentsScreen({ navigation, route }) {
                   <View style={styles.assignmentCardHeader}>
                     <View style={styles.assignmentCardLeft}>
                       <Text style={styles.modernAssignmentTitle}>
-                        {assignment.title || 'Untitled Assignment'}
+                        {assignment.title || t('untitledAssignment')}
                       </Text>
                       <Text style={styles.assignmentDate}>
                         Due: {formatDate(assignment.deadline)}
@@ -790,7 +792,7 @@ export default function AssignmentsScreen({ navigation, route }) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size='large' color='#007AFF' />
-          <Text style={styles.loadingText}>Loading assignments data...</Text>
+          <Text style={styles.loadingText}>{t('loadingAssignments')}</Text>
         </View>
       );
     }
@@ -830,8 +832,12 @@ export default function AssignmentsScreen({ navigation, route }) {
         {/* Student Info Subheader - Hidden in landscape mode */}
         {!isLandscape && (
           <View style={styles.subHeader}>
-            <Text style={styles.studentName}>{studentName || 'Student'}</Text>
-            <Text style={styles.sectionSubtitle}>Assignments & Homework</Text>
+            <Text style={styles.studentName}>
+              {studentName || t('student')}
+            </Text>
+            <Text style={styles.sectionSubtitle}>
+              {t('assignmentsHomework')}
+            </Text>
           </View>
         )}
       </View>

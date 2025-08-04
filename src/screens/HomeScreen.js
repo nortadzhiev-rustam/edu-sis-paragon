@@ -7,6 +7,8 @@ import {
   Image,
   Dimensions,
   Alert,
+  AccessibilityInfo,
+  PixelRatio,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -20,7 +22,6 @@ import {
   faQuestionCircle,
   faShareAlt,
   faCog,
-  faFolder,
 } from '@fortawesome/free-solid-svg-icons';
 import {
   faFacebookF,
@@ -42,6 +43,21 @@ import {
 import { lockOrientationForDevice } from '../utils/orientationLock';
 import { createSmallShadow, createMediumShadow } from '../utils/commonStyles';
 import { updateCurrentUserLastLogin } from '../services/deviceService';
+import {
+  getValidatedUserData,
+  getValidatedStudentAccounts,
+  validateAndSanitizeAllData,
+} from '../utils/dataValidation';
+import {
+  runHomescreenDiagnostics,
+  generateUserFriendlyErrorMessage,
+  logDiagnostics,
+  clearAllUserData,
+} from '../utils/homescreenDiagnostics';
+import {
+  wrapWithTimeout,
+  usePerformanceMonitoring,
+} from '../utils/performanceMonitor';
 
 const { width, height } = Dimensions.get('window');
 
@@ -51,10 +67,234 @@ export default function HomeScreen({ navigation }) {
   const fontSizes = getLanguageFontSizes(currentLanguage);
   const logoSource = useThemeLogo();
   const schoolLogoSource = useSchoolLogo();
-  // Lock orientation based on device type
+
+  // iOS fallback state to ensure content appears
+  const [contentVisible, setContentVisible] = React.useState(
+    Platform.OS !== 'ios'
+  );
+
+  // Device state tracking for debugging
+  const [deviceState, setDeviceState] = React.useState({
+    reduceMotion: false,
+    fontScale: 1.0,
+    screenReader: false,
+    debugInfo: '',
+  });
+
+  // Debug logging for iOS content visibility
   React.useEffect(() => {
-    lockOrientationForDevice();
+    if (Platform.OS === 'ios') {
+      console.log('🍎 iOS: Content visibility state changed:', contentVisible);
+      console.log('🍎 iOS: Device state:', deviceState);
+    }
+  }, [contentVisible, deviceState]);
+
+  // Use performance monitoring
+  const { logMetrics } = usePerformanceMonitoring();
+
+  // Comprehensive iOS accessibility and device state detection
+  React.useEffect(() => {
+    if (Platform.OS === 'ios') {
+      console.log('🍎 iOS: Starting comprehensive device state detection...');
+
+      const detectDeviceState = async () => {
+        try {
+          // Get device accessibility and performance info
+          const [reduceMotion, screenReader] = await Promise.all([
+            AccessibilityInfo.isReduceMotionEnabled(),
+            AccessibilityInfo.isScreenReaderEnabled(),
+          ]);
+
+          const fontScale = PixelRatio.getFontScale();
+          const pixelRatio = PixelRatio.get();
+
+          // Create debug info string
+          const debugInfo = `FontScale: ${fontScale}, PixelRatio: ${pixelRatio}, ReduceMotion: ${reduceMotion}, ScreenReader: ${screenReader}`;
+
+          // Update device state
+          const newDeviceState = {
+            reduceMotion,
+            fontScale,
+            screenReader,
+            debugInfo,
+          };
+
+          setDeviceState(newDeviceState);
+
+          console.log('🍎 iOS: Device State Detection Results:');
+          console.log(`- Reduce Motion: ${reduceMotion}`);
+          console.log(`- Font Scale: ${fontScale}`);
+          console.log(`- Screen Reader: ${screenReader}`);
+          console.log(`- Pixel Ratio: ${pixelRatio}`);
+
+          // Determine if we should skip animations and show content immediately
+          const shouldSkipAnimation =
+            reduceMotion || // User has Reduce Motion enabled
+            fontScale > 1.3 || // User has large text enabled
+            screenReader; // User has screen reader enabled
+
+          if (shouldSkipAnimation) {
+            console.log(
+              '🍎 iOS: Accessibility settings detected - showing content immediately'
+            );
+            console.log(
+              `- Reason: ${
+                reduceMotion
+                  ? 'Reduce Motion'
+                  : fontScale > 1.3
+                  ? 'Large Text'
+                  : 'Screen Reader'
+              }`
+            );
+            setContentVisible(true);
+            return;
+          }
+
+          // If no accessibility issues, use progressive fallback timers
+          console.log(
+            '🍎 iOS: No accessibility issues detected - using fallback timers'
+          );
+
+          // Immediate fallback for performance issues
+          const immediateTimer = setTimeout(() => {
+            console.log('🍎 iOS: Immediate fallback (100ms) - showing content');
+            setContentVisible(true);
+          }, 100);
+
+          // Secondary fallback
+          const secondaryTimer = setTimeout(() => {
+            console.log(
+              '🍎 iOS: Secondary fallback (500ms) - ensuring content visibility'
+            );
+            setContentVisible(true);
+          }, 500);
+
+          // Final fallback
+          const finalTimer = setTimeout(() => {
+            console.log(
+              '🍎 iOS: Final fallback (1500ms) - forcing content visibility'
+            );
+            setContentVisible(true);
+          }, 1500);
+
+          // Cleanup function
+          return () => {
+            clearTimeout(immediateTimer);
+            clearTimeout(secondaryTimer);
+            clearTimeout(finalTimer);
+          };
+        } catch (error) {
+          console.error('🍎 iOS: Error detecting device state:', error);
+          // Fallback to showing content immediately if detection fails
+          setContentVisible(true);
+        }
+      };
+
+      // Run detection
+      const cleanup = detectDeviceState();
+
+      // Return cleanup function if it exists
+      return () => {
+        if (cleanup && typeof cleanup.then === 'function') {
+          cleanup.then((cleanupFn) => cleanupFn && cleanupFn());
+        }
+      };
+    }
   }, []);
+
+  // Lock orientation based on device type with iOS-specific handling
+  React.useEffect(() => {
+    const handleOrientationLock = async () => {
+      try {
+        if (Platform.OS === 'ios') {
+          console.log('🍎 iOS: Setting up orientation lock with timeout...');
+          // Use timeout protection for iOS orientation lock
+          await wrapWithTimeout(
+            lockOrientationForDevice,
+            5000, // 5 second timeout for iOS
+            'iOS Orientation Lock'
+          );
+        } else {
+          await lockOrientationForDevice();
+        }
+      } catch (error) {
+        console.warn('⚠️ HOME: Orientation lock failed:', error);
+        // Continue without orientation lock on iOS
+        if (Platform.OS === 'ios') {
+          console.log('🍎 iOS: Continuing despite orientation lock failure');
+        }
+      }
+    };
+
+    handleOrientationLock();
+  }, []);
+
+  // Validate and sanitize data on component mount with timeout protection
+  React.useEffect(() => {
+    const validateData = async () => {
+      try {
+        console.log('🔍 HOME: Validating stored data on mount...');
+
+        // Wrap validation with timeout protection
+        const validationResults = await wrapWithTimeout(
+          validateAndSanitizeAllData,
+          15000, // 15 second timeout
+          'Data Validation'
+        );
+
+        if (
+          !validationResults.userData.valid &&
+          !validationResults.studentAccounts.count
+        ) {
+          console.log('⚠️ HOME: No valid user data found');
+        } else {
+          console.log('✅ HOME: Data validation complete:', validationResults);
+        }
+
+        // Log performance metrics after validation
+        logMetrics();
+      } catch (error) {
+        console.error('❌ HOME: Error during data validation:', error);
+
+        // If validation times out or fails, continue anyway
+        console.log('🔄 HOME: Continuing despite validation error...');
+      }
+    };
+
+    validateData();
+  }, []);
+
+  // Diagnostic function for troubleshooting navigation issues
+  const runDiagnostics = async () => {
+    try {
+      console.log('🔍 HOME: Running diagnostics...');
+      const diagnostics = await runHomescreenDiagnostics();
+      logDiagnostics(diagnostics);
+
+      const userMessage = generateUserFriendlyErrorMessage(diagnostics);
+
+      Alert.alert(t('navigationDiagnostics'), userMessage, [
+        { text: t('ok'), style: 'default' },
+        {
+          text: t('clearDataRestart'),
+          style: 'destructive',
+          onPress: async () => {
+            const cleared = await clearAllUserData();
+            if (cleared) {
+              Alert.alert(t('dataCleared'), t('dataClearedMessage'), [
+                { text: t('ok') },
+              ]);
+            } else {
+              Alert.alert(t('error'), t('failedToClearData'));
+            }
+          },
+        },
+      ]);
+    } catch (error) {
+      console.error('❌ HOME: Diagnostics failed:', error);
+      Alert.alert(t('diagnosticsError'), t('unableToRunDiagnostics'));
+    }
+  };
 
   // iPad-specific configurations
   const isIPadDevice = isIPad();
@@ -71,46 +311,76 @@ export default function HomeScreen({ navigation }) {
 
   const handleTeacherPress = async () => {
     try {
-      // Check if teacher is already logged in
-      const userData = await AsyncStorage.getItem('userData');
-      if (userData) {
-        const parsedUserData = JSON.parse(userData);
-        // Only navigate to teacher screen if the logged in user is a teacher
-        if (parsedUserData.userType === 'teacher') {
-          // Update last login timestamp when user opens the app
-          console.log(
-            '⏰ HOME: Updating last login for existing teacher user...'
+      console.log('👨‍🏫 HOME: Teacher button pressed, starting navigation...');
+
+      // Use validated user data with timeout protection
+      const userData = await wrapWithTimeout(
+        getValidatedUserData,
+        10000, // 10 second timeout
+        'Get Teacher Data'
+      );
+
+      if (userData && userData.userType === 'teacher') {
+        // Update last login timestamp when user opens the app
+        console.log(
+          '⏰ HOME: Updating last login for existing teacher user...'
+        );
+        try {
+          // Wrap last login update with timeout
+          const updateResult = await wrapWithTimeout(
+            updateCurrentUserLastLogin,
+            5000, // 5 second timeout
+            'Update Last Login'
           );
-          try {
-            const updateResult = await updateCurrentUserLastLogin();
-            if (updateResult.success) {
-              console.log('✅ HOME: Last login updated successfully');
-            } else {
-              console.warn(
-                '⚠️ HOME: Failed to update last login:',
-                updateResult.error
-              );
-              // Continue with navigation even if update fails
-            }
-          } catch (updateError) {
-            console.error('❌ HOME: Error updating last login:', updateError);
+
+          if (updateResult.success) {
+            console.log('✅ HOME: Last login updated successfully');
+          } else {
+            console.warn(
+              '⚠️ HOME: Failed to update last login:',
+              updateResult.error
+            );
             // Continue with navigation even if update fails
           }
-
-          navigation.navigate('TeacherScreen', { userData: parsedUserData });
-          return;
+        } catch (updateError) {
+          console.error('❌ HOME: Error updating last login:', updateError);
+          // Continue with navigation even if update fails
         }
+
+        console.log('🚀 HOME: Navigating to teacher screen...');
+        navigation.navigate('TeacherScreen', { userData });
+        return;
       }
+
       // If not logged in or not a teacher, go to login screen with teacher type
+      console.log('🔄 HOME: No valid teacher data found, redirecting to login');
       navigation.navigate('Login', { loginType: 'teacher' });
     } catch (error) {
-      navigation.navigate('Login', { loginType: 'teacher' });
+      console.error('❌ HOME: Unexpected error in handleTeacherPress:', error);
+      Alert.alert(t('navigationError'), t('unableToAccessTeacherScreen'), [
+        { text: t('tryAgain'), onPress: () => handleTeacherPress() },
+        { text: t('runDiagnostics'), onPress: () => runDiagnostics() },
+        {
+          text: t('goToLogin'),
+          onPress: () => navigation.navigate('Login', { loginType: 'teacher' }),
+        },
+      ]);
     }
   };
 
   const handleParentPress = async () => {
-    // Navigate to parent screen - no login check needed as parents can add students later
-    navigation.navigate('ParentScreen');
+    try {
+      // Navigate to parent screen - no login check needed as parents can add students later
+      console.log('👨‍👩‍👧‍👦 HOME: Navigating to parent screen');
+      navigation.navigate('ParentScreen');
+    } catch (error) {
+      console.error('❌ HOME: Error navigating to parent screen:', error);
+      Alert.alert(t('navigationError'), t('unableToAccessParentScreen'), [
+        { text: t('tryAgain'), onPress: () => handleParentPress() },
+        { text: t('runDiagnostics'), onPress: () => runDiagnostics() },
+        { text: t('cancel'), style: 'cancel' },
+      ]);
+    }
   };
 
   // Helper function to get all available user data for school resources
@@ -118,19 +388,17 @@ export default function HomeScreen({ navigation }) {
     const allUsers = [];
 
     try {
-      // Check for direct login userData (teacher or student)
-      const userData = await AsyncStorage.getItem('userData');
+      // Use validated user data utilities
+      const userData = await getValidatedUserData();
       if (userData) {
-        const user = JSON.parse(userData);
-        allUsers.push(user);
+        allUsers.push(userData);
       }
 
-      // Check for student accounts in parent system
-      const studentAccountsStr = await AsyncStorage.getItem('studentAccounts');
-      if (studentAccountsStr) {
-        const studentAccounts = JSON.parse(studentAccountsStr);
-        allUsers.push(...studentAccounts);
-      }
+      // Get validated student accounts
+      const studentAccounts = await getValidatedStudentAccounts();
+      allUsers.push(...studentAccounts);
+
+      console.log(`📊 HOME: Found ${allUsers.length} valid user accounts`);
     } catch (error) {
       console.error('❌ HOME: Error getting user data:', error);
     }
@@ -169,21 +437,21 @@ export default function HomeScreen({ navigation }) {
       if (allUsers.length === 0) {
         // No user data found - show options
         Alert.alert(
-          `Access ${screenName}`,
-          'To view school information, you can either login directly or add a student account.',
+          t('accessScreen').replace('{screenName}', screenName),
+          t('schoolInfoAccessMessage'),
           [
-            { text: 'Cancel', style: 'cancel' },
+            { text: t('cancel'), style: 'cancel' },
             {
-              text: 'Add Student',
+              text: t('addStudent'),
               onPress: () => navigation.navigate('ParentScreen'),
             },
             {
-              text: 'Login as Teacher',
+              text: t('loginAsTeacher'),
               onPress: () =>
                 navigation.navigate('Login', { loginType: 'teacher' }),
             },
             {
-              text: 'Login as Student',
+              text: t('loginAsStudent'),
               onPress: () =>
                 navigation.navigate('Login', { loginType: 'student' }),
             },
@@ -203,7 +471,18 @@ export default function HomeScreen({ navigation }) {
       navigation.navigate(screenName);
     } catch (error) {
       console.error(`❌ HOME: Error accessing ${screenName}:`, error);
-      Alert.alert('Error', `Unable to access ${screenName}. Please try again.`);
+      Alert.alert(
+        'Navigation Error',
+        `Unable to access ${screenName}. This might be due to data issues.`,
+        [
+          {
+            text: 'Try Again',
+            onPress: () => handleSchoolResourcePress(screenName),
+          },
+          { text: 'Run Diagnostics', onPress: () => runDiagnostics() },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     }
   };
 
@@ -337,18 +616,25 @@ export default function HomeScreen({ navigation }) {
       );
     } catch (error) {
       console.error('❌ HOME: Error checking user data for calendar:', error);
-      // Show login options on error
-      Alert.alert('Login Required', 'Please log in to access the calendar.', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Login as Teacher',
-          onPress: () => navigation.navigate('Login', { loginType: 'teacher' }),
-        },
-        {
-          text: 'Login as Student',
-          onPress: () => navigation.navigate('Login', { loginType: 'student' }),
-        },
-      ]);
+      // Show enhanced error options
+      Alert.alert(
+        'Calendar Access Error',
+        'Unable to access calendar. This might be due to data issues or missing login information.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Run Diagnostics', onPress: () => runDiagnostics() },
+          {
+            text: 'Login as Teacher',
+            onPress: () =>
+              navigation.navigate('Login', { loginType: 'teacher' }),
+          },
+          {
+            text: 'Login as Student',
+            onPress: () =>
+              navigation.navigate('Login', { loginType: 'student' }),
+          },
+        ]
+      );
     }
   };
 
@@ -378,11 +664,33 @@ export default function HomeScreen({ navigation }) {
           style={styles.secondaryLogo}
           resizeMode='contain'
         />
-        <Text style={styles.subtitle}>Choose your role to continue</Text>
+        <Text style={styles.subtitle}>{t('chooseYourRole')}</Text>
+
+        {/* Debug info for iOS devices (only in development) */}
+        {__DEV__ && Platform.OS === 'ios' && (
+          <Text style={styles.debugText}>Debug: {deviceState.debugInfo}</Text>
+        )}
 
         <Animated.View
-          entering={FadeInDown.delay(300).springify()}
-          style={styles.buttonsContainer}
+          key={
+            Platform.OS === 'ios'
+              ? `ios-content-${contentVisible}-${deviceState.debugInfo}`
+              : 'android-content'
+          }
+          entering={
+            Platform.OS === 'ios'
+              ? deviceState.reduceMotion || deviceState.fontScale > 1.3
+                ? undefined // Skip animation for accessibility settings
+                : FadeInDown.delay(0).springify() // No delay on iOS
+              : FadeInDown.delay(300).springify()
+          }
+          style={[
+            styles.buttonsContainer,
+            Platform.OS === 'ios' && {
+              opacity: contentVisible ? 1 : 0.3, // Minimum opacity to ensure visibility
+              minHeight: deviceState.fontScale > 1.3 ? 500 : 400, // Adjust height for large fonts
+            },
+          ]}
         >
           {/* First row with Teacher and Parent cards */}
           <View style={styles.roleRow}>
@@ -399,7 +707,7 @@ export default function HomeScreen({ navigation }) {
               </View>
               <Text style={styles.roleText}>{t('teacher')}</Text>
               <Text style={styles.roleDescription} numberOfLines={2}>
-                {t('Access classes and grades')}
+                {t('teacherDescription')}
               </Text>
             </TouchableOpacity>
 
@@ -416,13 +724,13 @@ export default function HomeScreen({ navigation }) {
               </View>
               <Text style={styles.roleText}>{t('parent')}</Text>
               <Text style={styles.roleDescription} numberOfLines={2}>
-                {t('Monitor student progress')}
+                {t('parentDescription')}
               </Text>
             </TouchableOpacity>
           </View>
 
           {/* Second row with additional buttons */}
-          <Text style={styles.sectionTitle}>School Resources</Text>
+          <Text style={styles.sectionTitle}>{t('schoolResources')}</Text>
           <View style={styles.resourcesContainer}>
             <TouchableOpacity
               style={styles.resourceButton}
@@ -440,9 +748,15 @@ export default function HomeScreen({ navigation }) {
                   color='#5856D6'
                 />
               </View>
-              <Text style={styles.resourceText}>Calendar</Text>
+              <Text
+                style={styles.resourceText}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+              >
+                {t('calendar')}
+              </Text>
             </TouchableOpacity>
-                        
+
             <TouchableOpacity
               style={styles.resourceButton}
               onPress={() => handleSchoolResourcePress('AboutUs')}
@@ -459,7 +773,13 @@ export default function HomeScreen({ navigation }) {
                   color='#34C759'
                 />
               </View>
-              <Text style={styles.resourceText}>About Us</Text>
+              <Text
+                style={styles.resourceText}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+              >
+                {t('aboutUs')}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -474,7 +794,13 @@ export default function HomeScreen({ navigation }) {
               >
                 <FontAwesomeIcon icon={faEnvelope} size={20} color='#FF3B30' />
               </View>
-              <Text style={styles.resourceText}>Contact Us</Text>
+              <Text
+                style={styles.resourceText}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+              >
+                {t('contactUs')}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -493,7 +819,13 @@ export default function HomeScreen({ navigation }) {
                   color='#FF9500'
                 />
               </View>
-              <Text style={styles.resourceText}>FAQ</Text>
+              <Text
+                style={styles.resourceText}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+              >
+                {t('faq')}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -501,39 +833,43 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.socialMediaSection}>
             <TouchableOpacity
               style={styles.socialMediaButton}
-              onPress={() => alert('Connect with us on social media!')}
+              onPress={() => alert(t('connectWithUsSocial'))}
             >
               <View style={styles.socialMediaIconContainer}>
                 <FontAwesomeIcon icon={faShareAlt} size={20} color='#fff' />
               </View>
-              <Text style={styles.socialMediaText}>Connect With Us</Text>
+              <Text style={styles.socialMediaText}>{t('connectWithUs')}</Text>
             </TouchableOpacity>
 
             <View style={styles.socialIconsRow}>
               <TouchableOpacity
                 style={styles.socialIcon}
-                onPress={() => alert('Facebook page coming soon!')}
+                onPress={() => alert(t('facebookComingSoon'))}
               >
                 <FontAwesomeIcon icon={faFacebookF} size={18} color='#3b5998' />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.socialIcon}
-                onPress={() => alert('Twitter page coming soon!')}
+                onPress={() => alert(t('twitterComingSoon'))}
               >
-                <FontAwesomeIcon icon={faXTwitter} size={18} color='#000000' />
+                <FontAwesomeIcon
+                  icon={faXTwitter}
+                  size={18}
+                  color={theme.mode === 'dark' ? '#fff' : '#000000'}
+                />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.socialIcon}
-                onPress={() => alert('Instagram page coming soon!')}
+                onPress={() => alert(t('instagramComingSoon'))}
               >
                 <FontAwesomeIcon icon={faInstagram} size={18} color='#C13584' />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.socialIcon}
-                onPress={() => alert('YouTube channel coming soon!')}
+                onPress={() => alert(t('youtubeComingSoon'))}
               >
                 <FontAwesomeIcon icon={faYoutube} size={18} color='#FF0000' />
               </TouchableOpacity>
@@ -585,7 +921,7 @@ const createStyles = (
       minHeight: '100%', // Ensure content takes full height
     },
     logo: {
-      width: isIPadDevice ? Math.min(width * 0.3, 300) : width * 0.8,
+      width: isIPadDevice ? Math.min(width * 0.3, 300) : width * 1,
       height: isIPadDevice ? Math.min(height * 0.12, 150) : height * 0.15,
       // marginTop: isIPadDevice ? height * 0.03 : height * 0.001,
       marginBottom: isIPadDevice ? responsiveSpacing.lg : 20,
@@ -605,8 +941,9 @@ const createStyles = (
     subtitle: {
       fontSize: isIPadDevice ? responsiveFonts.subtitle : fontSizes.body,
       color: theme.colors.textSecondary,
-      marginBottom: isIPadDevice ? responsiveSpacing.lg : 20,
+      marginBottom: isIPadDevice ? responsiveSpacing.lg : 10,
       textAlign: 'center',
+      lineHeight: fontSizes.bodyLineHeight,
     },
     buttonsContainer: {
       width: '100%',
@@ -621,7 +958,8 @@ const createStyles = (
     roleButton: {
       backgroundColor: theme.colors.surface,
       borderRadius: 15,
-      padding: 15,
+      paddingHorizontal: 15,
+      paddingVertical: 10,
       marginBottom: 10,
       ...theme.shadows.small,
       marginLeft: 0,
@@ -629,7 +967,7 @@ const createStyles = (
     },
     roleButtonHorizontal: {
       width: '48%',
-      height: 160,
+      height: 150,
     },
     iconContainer: {
       width: 60,
@@ -649,18 +987,20 @@ const createStyles = (
       fontSize: fontSizes.body,
       fontWeight: '600',
       color: theme.colors.text,
+      lineHeight: fontSizes.bodyLineHeight,
     },
     roleDescription: {
       fontSize: fontSizes.bodySmall,
       color: theme.colors.textSecondary,
-      lineHeight: fontSizes.bodySmall + 2,
+      lineHeight: fontSizes.bodySmallLineHeight,
     },
     sectionTitle: {
       fontSize: fontSizes.subtitle,
       fontWeight: '600',
       color: theme.colors.text,
-      marginBottom: 10,
+      marginBottom: 5,
       alignSelf: 'flex-start',
+      lineHeight: fontSizes.subtitleLineHeight,
     },
     resourcesContainer: {
       flexDirection: 'row',
@@ -671,9 +1011,10 @@ const createStyles = (
     resourceButton: {
       backgroundColor: theme.colors.surface,
       borderRadius: 12,
-      padding: 12,
+      padding: 15,
       marginBottom: 15,
       width: '48%',
+      minHeight: 70,
       flexDirection: 'row',
       alignItems: 'center',
       ...theme.shadows.small,
@@ -691,6 +1032,9 @@ const createStyles = (
       fontSize: fontSizes.body,
       fontWeight: '500',
       color: theme.colors.text,
+      lineHeight: fontSizes.bodyLineHeight,
+      flex: 1,
+      textAlign: 'left',
     },
     socialMediaSection: {
       width: '100%',
@@ -718,6 +1062,7 @@ const createStyles = (
       color: '#fff',
       fontSize: fontSizes.body,
       fontWeight: '600',
+      lineHeight: fontSizes.bodyLineHeight,
     },
     socialIconsRow: {
       flexDirection: 'row',
@@ -733,5 +1078,13 @@ const createStyles = (
       alignItems: 'center',
       marginHorizontal: 10,
       ...theme.shadows.small,
+    },
+    debugText: {
+      fontSize: 10,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 10,
+      paddingHorizontal: 20,
+      fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     },
   });

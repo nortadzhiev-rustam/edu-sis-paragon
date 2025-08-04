@@ -3165,7 +3165,7 @@ export const getDemoStudentLibraryData = () => {
       {
         id: 2,
         title: 'Physics: Principles and Applications',
-        author: 'Prof. Michael Johnson',
+        author: 'Prof. Michael Johnson, Dr. Jane Davis',
         isbn: '978-0-987654-32-1',
         barcode: 'LIB002345678',
         borrowed_date: '2024-01-08',
@@ -3179,7 +3179,7 @@ export const getDemoStudentLibraryData = () => {
       {
         id: 3,
         title: 'World Literature: Classic and Contemporary',
-        author: 'Emma Thompson',
+        author: 'Emma Thompson, John Smith, Sarah Wilson',
         isbn: '978-0-456789-01-2',
         barcode: 'LIB003456789',
         borrowed_date: '2024-01-12',
@@ -3525,9 +3525,9 @@ export const getDemoStudentHealthInfo = () => ({
       student_id: 123,
       medical_conditions: 'Mild asthma',
       regularly_used_medication: 'Inhaler (Salbutamol)',
-      has_vision_problem: 'No',
+      has_vision_problem: null,
       vision_check_date: '2023-09-01',
-      hearing_issue: 'None',
+      hearing_issue: null,
       special_food_consideration: 'No nuts, No shellfish',
       allergies: 'Peanuts, Shellfish, Pollen',
       allergy_symtoms: 'Swelling, difficulty breathing, skin rash',
@@ -3537,6 +3537,33 @@ export const getDemoStudentHealthInfo = () => ({
       emergency_name_2: 'Bob Doe',
       emergency_phone_1: '+1234567890',
       emergency_phone_2: '+0987654321',
+    },
+    measurements: {
+      latest_measurement: {
+        id: 220,
+        height: '139.00',
+        weight: '46.00',
+        date: '2025-07-16',
+        created_at: '2025-07-25T09:53:56.000000Z',
+      },
+      measurement_history: [
+        {
+          id: 220,
+          height: '139.00',
+          weight: '46.00',
+          date: '2025-07-16',
+          created_at: '2025-07-25T09:53:56.000000Z',
+        },
+        {
+          id: 219,
+          height: '137.00',
+          weight: '44.50',
+          date: '2025-01-15',
+          created_at: '2025-01-20T10:30:00.000000Z',
+        },
+      ],
+      total_measurements: 2,
+      has_measurements: true,
     },
   },
 });

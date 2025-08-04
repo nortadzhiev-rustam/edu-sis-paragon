@@ -62,7 +62,7 @@ export default function LibraryScreen({ navigation, route }) {
   // Fetch library data from API
   const fetchLibraryData = async () => {
     if (!authCode) {
-      Alert.alert('Error', 'Authentication required');
+      Alert.alert(t('error'), t('authenticationRequired'));
       return;
     }
 
@@ -94,14 +94,14 @@ export default function LibraryScreen({ navigation, route }) {
         if (data.success) {
           setLibraryData(data);
         } else {
-          Alert.alert('Error', 'Failed to load library data');
+          Alert.alert(t('error'), t('failedToLoadLibraryData'));
         }
       } else {
-        Alert.alert('Error', 'Failed to connect to library system');
+        Alert.alert(t('error'), t('failedToConnectLibrarySystem'));
       }
     } catch (error) {
       console.error('Library data fetch error:', error);
-      Alert.alert('Error', 'Network error occurred');
+      Alert.alert(t('error'), t('networkErrorOccurred'));
     } finally {
       setLoading(false);
     }
@@ -167,11 +167,11 @@ export default function LibraryScreen({ navigation, route }) {
   // Get status color
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
-      case 'borrowed':
+      case 'current':
         return '#007AFF';
-      case 'overdue':
+      case 'returned_late':
         return '#FF3B30';
-      case 'returned':
+      case 'returned_on_time':
         return '#34C759';
       case 'renewed':
         return '#FF9500';
@@ -180,14 +180,53 @@ export default function LibraryScreen({ navigation, route }) {
     }
   };
 
+  // author name split by comma and separated by 'and' if more than one
+  const renderAuthorName = (authorName) => {
+    if (!authorName) return null;
+    console.log('Original author name:', authorName);
+
+    // Split by comma (with or without space) and clean up any extra spaces
+    const authors = authorName.split(',').map((author) => author.trim());
+    console.log('Split authors:', authors);
+
+    let result;
+    if (authors.length === 1) {
+      result = authors[0];
+    } else if (authors.length === 2) {
+      result = authors.join(' & ');
+    } else {
+      const lastAuthor = authors.pop();
+      result = `${authors.join(' & ')} & ${lastAuthor}`;
+    }
+
+    console.log('Final result:', result);
+    return result;
+  };
+
+  // Get status label
+  const getStatusLabel = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'current':
+        return 'Current';
+      case 'returned_late':
+        return 'Returned Late';
+      case 'returned_on_time':
+        return 'Returned';
+      case 'renewed':
+        return 'Renewed';
+      default:
+        return 'Unknown';
+    }
+  };
+
   // Get status icon
   const getStatusIcon = (status) => {
     switch (status?.toLowerCase()) {
-      case 'borrowed':
+      case 'current':
         return faBookOpen;
-      case 'overdue':
+      case 'returned_late':
         return faExclamationTriangle;
-      case 'returned':
+      case 'returned_on_time':
         return faCheckCircle;
       case 'renewed':
         return faRedo;
@@ -370,7 +409,11 @@ export default function LibraryScreen({ navigation, route }) {
                 {book.title || 'Unknown Title'}
               </Text>
               <Text style={styles.bookAuthor}>
-                {book.author || 'Unknown Author'}
+                {renderAuthorName(book.author_name || book.author) ||
+                  'Unknown Author'}
+              </Text>
+              <Text style={styles.bookAuthor}>
+                Category: {book.category_name || 'Unknown Category'}
               </Text>
               <Text style={styles.bookISBN}>ISBN: {book.isbn || 'N/A'}</Text>
 
@@ -382,13 +425,13 @@ export default function LibraryScreen({ navigation, route }) {
                     color='#8E8E93'
                   />
                   <Text style={styles.dateText}>
-                    Borrowed: {formatDate(book.borrowed_date)}
+                    Borrowed: {formatDate(book.issue_date)}
                   </Text>
                 </View>
                 <View style={styles.dateItem}>
                   <FontAwesomeIcon icon={faClock} size={12} color='#8E8E93' />
                   <Text style={styles.dateText}>
-                    Due: {formatDate(book.due_date)}
+                    Due: {formatDate(book.should_return_date)}
                   </Text>
                 </View>
               </View>
@@ -451,15 +494,20 @@ export default function LibraryScreen({ navigation, route }) {
                 {record.title || 'Unknown Title'}
               </Text>
               <Text style={styles.historyAuthor}>
-                {record.author || 'Unknown Author'}
+                {renderAuthorName(record.author_name || record.author) ||
+                  'Unknown Author'}
+              </Text>
+              {/* category */}
+              <Text style={styles.historyAuthor}>
+                Category: {record.category_name || 'Unknown Category'}
               </Text>
 
               <View style={styles.historyDates}>
                 <Text style={styles.historyDate}>
-                  Borrowed: {formatDate(record.borrowed_date)}
+                  Borrowed: {formatDate(record.issue_date)}
                 </Text>
                 <Text style={styles.historyDate}>
-                  Returned: {formatDate(record.returned_date)}
+                  Returned: {formatDate(record.return_date)}
                 </Text>
               </View>
             </View>
@@ -476,7 +524,7 @@ export default function LibraryScreen({ navigation, route }) {
                 color='#fff'
               />
               <Text style={styles.historyStatusText}>
-                {record.status || 'Returned'}
+                {getStatusLabel(record.status) || 'Returned'}
               </Text>
             </View>
           </View>
@@ -513,7 +561,13 @@ export default function LibraryScreen({ navigation, route }) {
                 {book.title || 'Unknown Title'}
               </Text>
               <Text style={styles.availableBookAuthor}>
-                {book.author_name || 'Unknown Author'}
+                Author:{' '}
+                {renderAuthorName(book.author_name || book.author) ||
+                  'Unknown Author'}
+              </Text>
+              {/* book category */}
+              <Text style={styles.availableBookAuthor}>
+                Category: {book.category_name || 'Unknown Category'}
               </Text>
               <Text style={styles.availableBookISBN}>
                 ISBN: {book.isbn || 'N/A'}
@@ -549,26 +603,20 @@ export default function LibraryScreen({ navigation, route }) {
   if (loading && !libraryData) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <FontAwesomeIcon icon={faArrowLeft} size={20} color='#fff' />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Library</Text>
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={() =>
-              navigation.navigate('NotificationScreen', {
-                userType: 'student',
-                authCode: authCode,
-              })
-            }
-          >
-            <FontAwesomeIcon icon={faBell} size={18} color='#fff' />
-            <NotificationBadge />
-          </TouchableOpacity>
+        <View style={styles.compactHeaderContainer}>
+          {/* Navigation Header */}
+          <View style={styles.navigationHeader}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
+            </TouchableOpacity>
+
+            <Text style={styles.headerTitle}>Library</Text>
+
+            <View style={styles.headerRight} />
+          </View>
         </View>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading library data...</Text>
@@ -602,10 +650,10 @@ export default function LibraryScreen({ navigation, route }) {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.tabScrollContent}
           >
-            {renderTabButton('overview', 'Overview', faBook)}
-            {renderTabButton('borrowed', 'Borrowed', faBookOpen)}
-            {renderTabButton('history', 'History', faClock)}
-            {renderTabButton('available', 'Available', faCheckCircle)}
+            {renderTabButton('overview', t('overview'), faBook)}
+            {renderTabButton('borrowed', t('borrowed'), faBookOpen)}
+            {renderTabButton('history', t('history'), faClock)}
+            {renderTabButton('available', t('available'), faCheckCircle)}
           </ScrollView>
         </View>
       </View>
@@ -1036,7 +1084,7 @@ const createStyles = (theme) =>
       alignItems: 'center',
       paddingHorizontal: 8,
       paddingVertical: 4,
-      borderRadius: 12,
+      borderRadius: 14,
       height: 28,
     },
     historyStatusText: {

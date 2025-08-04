@@ -9,23 +9,44 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useTheme } from '../contexts/ThemeContext'; // Import useTheme
+import { useLanguage } from '../contexts/LanguageContext';
 import useThemeLogo from '../hooks/useThemeLogo';
 import { isIPad } from '../utils/deviceDetection';
 import { lockOrientationForDevice } from '../utils/orientationLock';
 
 const { width, height } = Dimensions.get('window');
-const TYPING_SPEED = 50; // Increased for better visibility
-const LOGO_ANIMATION_DURATION = 1000;
-const TEXT_LINE1 = 'Learn Today';
-const TEXT_LINE2 = 'For Better Tomorrow';
-const FULL_TEXT = TEXT_LINE1 + '\n' + TEXT_LINE2;
+const TYPING_SPEED = 30; // Faster typing animation
+const LOGO_ANIMATION_DURATION = 500;
 
 export default function SplashScreen({ onAnimationComplete }) {
   const { theme } = useTheme(); // Get theme from context
+  const { t } = useLanguage();
   const logoSource = useThemeLogo();
   const [displayText, setDisplayText] = useState('');
   const [startTyping, setStartTyping] = useState(false);
   const animation = useSharedValue(0);
+
+  // Extract completion handler to reduce nesting
+  const handleAnimationComplete = () => {
+    if (!onAnimationComplete) return;
+
+    // Start the final animation
+    animation.value = withTiming(2, {
+      duration: 500,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    });
+
+    // Call the completion callback after animation duration
+    setTimeout(() => {
+      onAnimationComplete();
+    }, 600); // 500ms animation + 100ms buffer
+  };
+
+  // Extract typing completion handler
+  const handleTypingComplete = () => {
+    // Add a small delay to ensure the text is fully visible
+    setTimeout(handleAnimationComplete, 400);
+  };
 
   // Create styles based on current theme
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -79,6 +100,8 @@ export default function SplashScreen({ onAnimationComplete }) {
   useEffect(() => {
     if (!startTyping) return;
 
+    const FULL_TEXT =
+      t('inspiringBrilliance') + '\n' + t('buildingBrighterFutures');
     let currentIndex = 0;
     const typewriterInterval = setInterval(() => {
       if (currentIndex <= FULL_TEXT.length) {
@@ -86,27 +109,13 @@ export default function SplashScreen({ onAnimationComplete }) {
         currentIndex++;
       } else {
         clearInterval(typewriterInterval);
-        // Animation is complete, call the callback if provided
-        if (onAnimationComplete) {
-          // Add a small delay to ensure the text is fully visible
-          setTimeout(() => {
-            // Start the final animation
-            animation.value = withTiming(2, {
-              duration: 500,
-              easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-            });
-
-            // Call the completion callback after a delay that matches the animation duration
-            setTimeout(() => {
-              onAnimationComplete();
-            }, 600); // 500ms animation + 100ms buffer
-          }, 1000);
-        }
+        // Animation is complete, call the extracted handler
+        handleTypingComplete();
       }
     }, TYPING_SPEED);
 
     return () => clearInterval(typewriterInterval);
-  }, [startTyping]);
+  }, [startTyping, t]);
 
   return (
     <SafeAreaView style={[styles.container]} edges={[]}>
@@ -133,8 +142,8 @@ const createStyles = (theme) => {
       justifyContent: 'center',
     },
     logo: {
-      width: isIPadDevice ? Math.min(width * 0.4, 400) : width * 0.8,
-      height: isIPadDevice ? Math.min(height * 0.4, 400) : height * 0.30,
+      width: isIPadDevice ? Math.min(width * 0.4, 400) : width * 1,
+      height: isIPadDevice ? Math.min(height * 0.4, 400) : height * 0.5,
       // Add subtle shadow for better visibility in both themes
       ...Platform.select({
         ios: {

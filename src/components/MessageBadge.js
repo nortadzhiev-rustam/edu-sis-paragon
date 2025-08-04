@@ -73,10 +73,9 @@ const createStyles = (theme) =>
       justifyContent: 'center',
       alignItems: 'center',
       position: 'absolute',
-      top: -10,
-      right: -10,
-      borderWidth: 2,
-      borderColor: theme.colors.background,
+      top: -1,
+      right: -1,
+      
     },
     badgeText: {
       color: '#FFFFFF',

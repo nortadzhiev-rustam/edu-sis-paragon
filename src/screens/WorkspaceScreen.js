@@ -1,761 +1,1498 @@
+/**
+ * Unified Workspace Screen
+ * Handles Google Drive workspace for all user types (teacher/parent/student)
+ * Adapts UI and functionality based on user permissions
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
-  RefreshControl,
   Alert,
   ActivityIndicator,
-  TextInput,
-  Modal,
+  RefreshControl,
+  FlatList,
+  Linking,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import {
+  faArrowLeft,
   faFolder,
   faFile,
   faSearch,
   faPlus,
   faUpload,
-  faArrowLeft,
-  faEllipsisV,
+  faDownload,
+  faTrash,
+  faEye,
   faChartBar,
-  faHome,
+  faClock,
+  faBuilding,
+  faUsers,
+  faGraduationCap,
+  faClipboardList,
+  faBookOpen,
+  faBook,
+  faSquareShareNodes,
+  faChalkboard,
 } from '@fortawesome/free-solid-svg-icons';
-import {
-  getResponsiveHeaderFontSize,
-  createMediumShadow,
-} from '../utils/commonStyles';
+
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getLanguageFontSizes } from '../contexts/ThemeContext';
+import { createSmallShadow } from '../utils/commonStyles';
+import { getResponsiveHeaderFontSize } from '../utils/commonStyles';
+
 import {
   getWorkspaceStructure,
   getFolderContents,
-  getFileTypeIcon,
-  formatFileSize,
+  uploadWorkspaceFile,
   createWorkspaceFolder,
   searchWorkspaceFiles,
+  getRecentWorkspaceFiles,
+  getWorkspaceStatistics,
+  deleteWorkspaceItem,
+  getUserPermissions,
 } from '../services/workspaceService';
-import { createSmallShadow } from '../utils/commonStyles';
-import {
-  FileUploadHandler,
-  WorkspaceStatistics,
-} from '../components/workspace';
-import {
-  canUploadFiles,
-  canCreateFolders,
-  canDeleteItems,
-  canAccessFolder,
-  getCurrentUser,
-  getAccessibleFolders,
-} from '../utils/workspacePermissions';
 
 export default function WorkspaceScreen({ navigation, route }) {
   const { theme } = useTheme();
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
+  const fontSizes = getLanguageFontSizes(currentLanguage);
 
-  // Safety check for theme
-  if (!theme || !theme.colors) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <View
-          style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <ActivityIndicator size='large' color='#007AFF' />
-          <Text style={{ marginTop: 16, fontSize: 16, color: '#666666' }}>
-            Loading workspace...
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Fallback theme in case of issues
-  const fallbackTheme = {
-    colors: {
-      background: '#FFFFFF',
-      surface: '#F8F9FA',
-      primary: '#007AFF',
-      accent: '#FF6B6B',
-      text: '#000000',
-      textSecondary: '#666666',
-      textTertiary: '#999999',
-      border: '#E0E0E0',
-      error: '#FF3B30',
-    },
-  };
-
-  const safeTheme = theme || fallbackTheme;
-  const styles = createStyles(safeTheme);
-
-  // Navigation state
-  const [currentFolder, setCurrentFolder] = useState(null);
+  // Get user data and parameters
+  const { userData, studentData } = route.params || {};
+  const [currentUserData, setCurrentUserData] = useState(userData);
+  const [currentFolderId, setCurrentFolderId] = useState(null);
   const [folderPath, setFolderPath] = useState([]);
-  const [isRootView, setIsRootView] = useState(true);
 
-  // Data state
-  const [workspaceData, setWorkspaceData] = useState(null);
-  const [folderContents, setFolderContents] = useState(null);
-  const [searchResults, setSearchResults] = useState(null);
+  // State management
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const [error, setError] = useState(null);
-  const [isMockData, setIsMockData] = useState(false);
-
-  // UI state
+  const [uploading, setUploading] = useState(false);
+  const [workspaceData, setWorkspaceData] = useState(null);
+  const [currentView, setCurrentView] = useState('structure'); // 'structure', 'folder', 'search', 'recent', 'stats'
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
-  const [showActions, setShowActions] = useState(false);
-  const [showStatistics, setShowStatistics] = useState(false);
-  const [showCreateFolder, setShowCreateFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
-  const [newFolderDescription, setNewFolderDescription] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [recentFiles, setRecentFiles] = useState([]);
+  const [statistics, setStatistics] = useState(null);
 
-  // Permission state
-  const [permissions, setPermissions] = useState({
-    canUpload: false,
-    canCreateFolder: false,
-    canDelete: false,
-  });
-  const [currentUser, setCurrentUser] = useState(null);
+  const styles = createStyles(theme, fontSizes);
 
-  // Load user permissions
-  const loadUserPermissions = useCallback(async () => {
-    try {
-      const user = await getCurrentUser();
-      setCurrentUser(user);
+  // Get user data from AsyncStorage if not provided
+  useEffect(() => {
+    const getUserData = async () => {
+      if (!currentUserData) {
+        try {
+          const storedUserData = await AsyncStorage.getItem('userData');
+          if (storedUserData) {
+            const parsedData = JSON.parse(storedUserData);
+            setCurrentUserData(parsedData);
+          }
+        } catch (error) {
+          console.error('Error loading user data:', error);
+        }
+      }
+    };
 
-      const [canUpload, canCreateFolder, canDelete] = await Promise.all([
-        canUploadFiles(),
-        canCreateFolders(),
-        canDeleteItems(),
-      ]);
+    getUserData();
+  }, [currentUserData]);
 
-      setPermissions({
-        canUpload,
-        canCreateFolder,
-        canDelete,
-      });
-    } catch (error) {
-      console.error('Error loading user permissions:', error);
+  // Load workspace data on mount
+  useEffect(() => {
+    if (currentUserData) {
+      loadWorkspaceData();
     }
-  }, []);
+  }, [currentUserData]);
 
-  // Load initial workspace structure
-  const loadWorkspaceStructure = useCallback(async () => {
+  /**
+   * Load workspace structure
+   */
+  const loadWorkspaceData = async () => {
     try {
       setLoading(true);
-      setError(null);
 
-      const response = await getWorkspaceStructure();
-      if (response.success) {
-        // Store the raw workspace data - filtering will be done in render
-        setWorkspaceData(response.workspace);
-        setIsRootView(true);
-        setCurrentFolder(null);
-        setFolderPath([]);
-        setIsMockData(response._isMockData || false);
-      } else {
-        setError('Failed to load workspace');
-      }
+      // Use student's authCode if accessing as parent
+      const studentAuthCode = studentData?.authCode;
+      console.log(
+        '🔍 WORKSPACE SCREEN: Using student authCode:',
+        !!studentAuthCode
+      );
+
+      const data = await getWorkspaceStructure(studentAuthCode);
+      setWorkspaceData(data);
+      setCurrentView('structure');
+
+      // Clear folder path when returning to root
+      setCurrentFolderId(null);
+      setFolderPath([]);
     } catch (error) {
       console.error('Error loading workspace:', error);
-      setError('Failed to load workspace: ' + error.message);
+      Alert.alert(t('error'), t('failedToLoadWorkspace'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Handle refresh
+   */
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (currentView === 'structure') {
+        await loadWorkspaceData();
+      } else if (currentView === 'folder' && currentFolderId) {
+        await loadFolderContents(currentFolderId);
+      } else if (currentView === 'recent') {
+        await loadRecentFiles();
+      } else if (currentView === 'stats') {
+        await loadStatistics();
+      }
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    } finally {
       setRefreshing(false);
     }
-  }, []); // Remove currentUser dependency
+  }, [currentView, currentFolderId]);
 
-  // Load folder contents
-  const loadFolderContents = useCallback(async (folderId, folderName) => {
+  /**
+   * Load folder contents
+   */
+  const loadFolderContents = async (
+    folderId,
+    folderName = '',
+    isBackNavigation = false
+  ) => {
     try {
       setLoading(true);
-      setError(null);
 
-      const response = await getFolderContents(folderId);
-      if (response.success) {
-        setFolderContents(response);
-        setCurrentFolder({ id: folderId, name: folderName });
-        setIsRootView(false);
-      } else {
-        setError('Failed to load folder contents');
+      // Use student's authCode if accessing as parent
+      const studentAuthCode = studentData?.authCode;
+      console.log(
+        '🔍 WORKSPACE SCREEN: Loading folder contents with student authCode:',
+        !!studentAuthCode
+      );
+      console.log(
+        '🔍 WORKSPACE SCREEN: Folder ID:',
+        folderId,
+        'Name:',
+        folderName
+      );
+      console.log('🔍 WORKSPACE SCREEN: Is back navigation:', isBackNavigation);
+
+      const contents = await getFolderContents(folderId, studentAuthCode);
+      setWorkspaceData(contents);
+      setCurrentFolderId(folderId);
+      setCurrentView('folder');
+
+      // Update folder path only if not back navigation
+      if (folderName && !isBackNavigation) {
+        console.log('🔍 WORKSPACE SCREEN: Adding to folder path:', folderName);
+        setFolderPath((prev) => {
+          const newPath = [...prev, { id: folderId, name: folderName }];
+          console.log(
+            '🔍 WORKSPACE SCREEN: New folder path:',
+            newPath.map((f) => f.name)
+          );
+          return newPath;
+        });
       }
     } catch (error) {
       console.error('Error loading folder contents:', error);
-      setError('Failed to load folder contents: ' + error.message);
+      Alert.alert(t('error'), t('failedToLoadFolderContents'));
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
-  }, []);
+  };
 
-  // Navigate to folder
-  const navigateToFolder = useCallback(
-    (folder) => {
-      const newPath = [...folderPath, { id: folder.id, name: folder.name }];
-      setFolderPath(newPath);
-      loadFolderContents(folder.id, folder.name);
-    },
-    [folderPath, loadFolderContents]
-  );
-
-  // Navigate back
-  const navigateBack = useCallback(() => {
-    if (isRootView && folderPath.length === 0) {
-      // At root level - go back to the calling screen (TeacherScreen or ParentScreen)
-      navigation.goBack();
-    } else if (folderPath.length === 0) {
-      // Go back to root
-      loadWorkspaceStructure();
-    } else {
-      // Go back to previous folder
-      const newPath = [...folderPath];
-      newPath.pop();
-      setFolderPath(newPath);
-
-      if (newPath.length === 0) {
-        loadWorkspaceStructure();
-      } else {
-        const parentFolder = newPath[newPath.length - 1];
-        loadFolderContents(parentFolder.id, parentFolder.name);
-      }
-    }
-  }, [
-    isRootView,
-    folderPath,
-    navigation,
-    loadWorkspaceStructure,
-    loadFolderContents,
-  ]);
-
-  // Handle file press
-  const handleFilePress = useCallback((file) => {
-    if (file.web_view_link) {
-      // Open file in browser or show preview
-      Alert.alert(file.name, 'Choose an action:', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'View Online',
-          onPress: () => {
-            // TODO: Open in browser or WebView
-            console.log('Opening file:', file.web_view_link);
-          },
-        },
-        {
-          text: 'Download',
-          onPress: () => {
-            // TODO: Download file
-            console.log('Downloading file:', file.web_content_link);
-          },
-        },
-      ]);
-    }
-  }, []);
-
-  // Handle file upload success
-  const handleUploadSuccess = useCallback(
-    (uploadedFile) => {
-      console.log('File uploaded successfully:', uploadedFile);
-      // Refresh current folder contents
-      onRefresh();
-    },
-    [onRefresh]
-  );
-
-  // Handle file upload error
-  const handleUploadError = useCallback((error) => {
-    console.error('File upload error:', error);
-  }, []);
-
-  // Handle search
-  const handleSearch = useCallback(async (query) => {
-    if (!query.trim()) {
-      setSearchResults(null);
-      return;
-    }
-
+  /**
+   * Load recent files
+   */
+  const loadRecentFiles = async () => {
     try {
-      setSearching(true);
-      setError(null);
-
-      const response = await searchWorkspaceFiles(query.trim());
-      if (response.success) {
-        setSearchResults(response.results);
-      } else {
-        setError('Search failed');
-      }
+      setLoading(true);
+      const data = await getRecentWorkspaceFiles(20);
+      setRecentFiles(data.recent_files || []);
+      setCurrentView('recent');
     } catch (error) {
-      console.error('Error searching files:', error);
-      setError('Search failed: ' + error.message);
+      console.error('Error loading recent files:', error);
+      Alert.alert(t('error'), t('failedToLoadRecentFiles'));
     } finally {
-      setSearching(false);
+      setLoading(false);
     }
-  }, []);
+  };
 
-  // Debounced search
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchQuery.trim()) {
-        handleSearch(searchQuery);
-      } else {
-        setSearchResults(null);
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery, handleSearch]);
-
-  // Handle folder creation
-  const handleCreateFolder = useCallback(async () => {
-    if (!newFolderName.trim()) {
-      Alert.alert('Error', 'Please enter a folder name');
-      return;
-    }
-
+  /**
+   * Load workspace statistics
+   */
+  const loadStatistics = async () => {
     try {
-      const parentFolderId =
-        currentFolder?.id || workspaceData?.root_folder?.id;
-      if (!parentFolderId) {
-        Alert.alert('Error', 'Cannot determine parent folder');
-        return;
-      }
-
-      const response = await createWorkspaceFolder(
-        newFolderName.trim(),
-        parentFolderId,
-        newFolderDescription.trim()
-      );
-
-      if (response.success) {
-        Alert.alert('Success', 'Folder created successfully!');
-        setShowCreateFolder(false);
-        setNewFolderName('');
-        setNewFolderDescription('');
-        onRefresh();
-      } else {
-        Alert.alert('Error', 'Failed to create folder');
-      }
+      setLoading(true);
+      const data = await getWorkspaceStatistics();
+      setStatistics(data.statistics || null);
+      setCurrentView('stats');
     } catch (error) {
-      console.error('Error creating folder:', error);
-      Alert.alert('Error', 'Failed to create folder: ' + error.message);
+      console.error('Error loading statistics:', error);
+      Alert.alert('Error', 'Failed to load statistics. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  }, [
-    newFolderName,
-    newFolderDescription,
-    currentFolder,
-    workspaceData,
-    onRefresh,
-  ]);
+  };
 
-  // Refresh data
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    if (isRootView) {
-      loadWorkspaceStructure();
-    } else if (currentFolder) {
-      loadFolderContents(currentFolder.id, currentFolder.name);
+  /**
+   * Handle folder press
+   */
+  const handleFolderPress = (folder) => {
+    loadFolderContents(folder.id, folder.name);
+  };
+
+  /**
+   * Handle file press
+   */
+  const handleFilePress = (file) => {
+    console.log('📄 WORKSPACE: File pressed:', formatFileName(file.name));
+    console.log('📄 WORKSPACE: File details:', {
+      web_content_link: file.web_content_link,
+      web_view_link: file.web_view_link,
+      mime_type: file.mime_type,
+      has_thumbnail: file.thumbnail?.has_thumbnail,
+    });
+
+    // Use web_content_link for download, fallback to web_view_link for viewing
+    const fileUrl = file.web_content_link || file.web_view_link;
+
+    if (fileUrl) {
+      console.log('📄 WORKSPACE: Opening file URL:', fileUrl);
+      Linking.openURL(fileUrl).catch((err) => {
+        console.error('Error opening file:', err);
+        Alert.alert(
+          'Error',
+          'Could not open file. Please check your internet connection.'
+        );
+      });
+    } else {
+      Alert.alert(
+        'File Info',
+        `File: ${formatFileName(file.name)}\nSize: ${
+          file.size_formatted || file.formatted_size
+        }\nType: ${file.mime_type}\nUploaded by: ${
+          file.uploaded_by || file.uploader_name
+        }`
+      );
     }
-  }, [isRootView, currentFolder, loadWorkspaceStructure, loadFolderContents]);
+  };
 
-  // Initial load
-  useEffect(() => {
-    const initializeWorkspace = async () => {
-      await loadUserPermissions();
-      await loadWorkspaceStructure();
-    };
+  /**
+   * Handle upload file
+   */
+  const handleUploadFile = () => {
+    const currentLocation =
+      currentView === 'folder'
+        ? workspaceData?.folder_info?.name || 'Current Folder'
+        : 'Root Workspace';
 
-    initializeWorkspace();
-  }, []); // Empty dependency array to run only once
+    Alert.alert(
+      'Upload File',
+      `Upload to: ${currentLocation}\n\nChoose upload method:`,
+      [
+        {
+          text: 'Camera',
+          onPress: async () => {
+            try {
+              // Request camera permissions
+              const { status } =
+                await ImagePicker.requestCameraPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert(
+                  'Permission Required',
+                  'Camera permission is required to take photos.'
+                );
+                return;
+              }
 
-  // Render folder item
-  const renderFolderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.itemContainer}
-      onPress={() => navigateToFolder(item)}
-    >
-      <View style={styles.itemIcon}>
-        <FontAwesomeIcon
-          icon={faFolder}
-          size={24}
-          color={safeTheme.colors.primary}
-        />
-      </View>
-      <View style={styles.itemContent}>
-        <Text style={styles.itemName} numberOfLines={1}>
-          {item.name}
-        </Text>
-        <Text style={styles.itemDescription} numberOfLines={2}>
-          {item.description || 'Folder'}
-        </Text>
-        {item.file_count !== undefined && (
-          <Text style={styles.itemMeta}>
-            {item.file_count} files
-            {item.total_size && ` • ${item.total_size}`}
-          </Text>
-        )}
-      </View>
-      <FontAwesomeIcon
-        icon={faEllipsisV}
-        size={16}
-        color={safeTheme.colors.textSecondary}
-      />
-    </TouchableOpacity>
-  );
+              // Launch camera
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+              });
 
-  // Render file item
-  const renderFileItem = ({ item }) => {
-    const fileIcon = getFileTypeIcon(item.name, item.mime_type);
+              if (
+                !result.canceled &&
+                result.assets &&
+                result.assets.length > 0
+              ) {
+                const asset = result.assets[0];
+                await handleFileUpload(asset, currentLocation);
+              }
+            } catch (error) {
+              console.error('Camera upload error:', error);
+              Alert.alert('Error', 'Camera upload failed: ' + error.message);
+            }
+          },
+        },
+        {
+          text: 'Gallery',
+          onPress: async () => {
+            try {
+              // Request media library permissions
+              const { status } =
+                await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert(
+                  'Permission Required',
+                  'Media library permission is required to select photos.'
+                );
+                return;
+              }
 
-    return (
-      <TouchableOpacity
-        style={styles.itemContainer}
-        onPress={() => handleFilePress(item)}
-      >
-        <View style={styles.itemIcon}>
-          <FontAwesomeIcon
-            icon={fileIcon}
-            size={24}
-            color={safeTheme.colors.accent}
-          />
-        </View>
-        <View style={styles.itemContent}>
-          <Text style={styles.itemName} numberOfLines={1}>
-            {item.name}
-          </Text>
-          <Text style={styles.itemDescription} numberOfLines={2}>
-            {item.description || item.file_type?.toUpperCase() || 'File'}
-          </Text>
-          <Text style={styles.itemMeta}>
-            {item.formatted_size || formatFileSize(item.size || 0)}
-            {item.uploader_name && ` • ${item.uploader_name}`}
-          </Text>
-        </View>
-        <FontAwesomeIcon
-          icon={faEllipsisV}
-          size={16}
-          color={safeTheme.colors.textSecondary}
-        />
-      </TouchableOpacity>
+              // Launch image picker
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+              });
+
+              if (
+                !result.canceled &&
+                result.assets &&
+                result.assets.length > 0
+              ) {
+                const asset = result.assets[0];
+                await handleFileUpload(asset, currentLocation);
+              }
+            } catch (error) {
+              console.error('Gallery upload error:', error);
+              Alert.alert('Error', 'Gallery upload failed: ' + error.message);
+            }
+          },
+        },
+        {
+          text: 'Documents',
+          onPress: async () => {
+            try {
+              // Launch document picker
+              const result = await DocumentPicker.getDocumentAsync({
+                type: '*/*',
+                copyToCacheDirectory: true,
+                multiple: false,
+              });
+
+              if (
+                !result.canceled &&
+                result.assets &&
+                result.assets.length > 0
+              ) {
+                const asset = result.assets[0];
+                await handleFileUpload(asset, currentLocation);
+              }
+            } catch (error) {
+              console.error('Document upload error:', error);
+              Alert.alert('Error', 'Document upload failed: ' + error.message);
+            }
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
     );
   };
 
-  // Render header
-  const renderHeader = () => (
-    <View style={styles.compactHeaderContainer}>
-      <View style={styles.navigationHeader}>
-        <TouchableOpacity style={styles.backButton} onPress={navigateBack}>
-          <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
-        </TouchableOpacity>
+  /**
+   * Handle file upload from picker result
+   */
+  const handleFileUpload = async (asset, location) => {
+    const fileName = formatFileName(
+      asset.name || asset.fileName || 'uploaded_file'
+    );
 
-        <Text
-          style={[
-            styles.headerTitle,
-            {
-              fontSize: getResponsiveHeaderFontSize(2, 'Workspace'),
+    try {
+      setUploading(true);
+
+      const folderId = currentView === 'folder' ? currentFolderId : null;
+      const studentAuthCode = studentData?.authCode;
+
+      console.log('📤 Uploading file:', fileName, 'to folder:', folderId);
+      console.log('📤 File details:', {
+        uri: asset.uri,
+        name: fileName,
+        type: asset.mimeType || asset.type,
+        size: asset.fileSize || asset.size,
+      });
+
+      // Extract file information
+      const fileUri = asset.uri;
+      const mimeType =
+        asset.mimeType || asset.type || 'application/octet-stream';
+      const description = `Uploaded to ${location}`;
+
+      // Call the actual upload API and wait for response
+      const result = await uploadWorkspaceFile(
+        folderId,
+        fileUri,
+        fileName,
+        mimeType,
+        description,
+        studentAuthCode
+      );
+
+      console.log('📤 Upload result:', result);
+
+      // The uploadWorkspaceFile function already throws an error if upload fails
+      // If we reach here, the upload was successful
+      setUploading(false);
+
+      Alert.alert(
+        'Upload Successful',
+        `File "${fileName}" has been uploaded successfully to ${location}!`,
+        [
+          {
+            text: 'OK',
+            onPress: async () => {
+              // Refresh the current view after user acknowledges success
+              if (currentView === 'folder') {
+                await loadFolderContents(
+                  currentFolderId,
+                  workspaceData?.folder_info?.name,
+                  true
+                );
+              } else {
+                await loadWorkspaceData();
+              }
             },
-          ]}
-          numberOfLines={1}
-        >
-          {searchResults
-            ? 'Search Results'
-            : isRootView
-            ? 'Workspace'
-            : currentFolder?.name || 'Folder'}
-        </Text>
+          },
+        ]
+      );
+    } catch (error) {
+      setUploading(false);
+      console.error('❌ Upload error:', error);
 
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.headerActionButton}
-            onPress={() => setShowActions(true)}
-          >
-            <FontAwesomeIcon icon={faEllipsisV} size={18} color='#fff' />
-          </TouchableOpacity>
-        </View>
-      </View>
+      // Show specific error message
+      const errorMessage =
+        error.message ||
+        'Failed to upload file. Please check your connection and try again.';
 
-      {/* Subtitle section */}
-      {(searchResults || isMockData || folderPath.length > 0) && (
-        <View style={styles.subtitleContainer}>
-          {searchResults ? (
-            <Text style={styles.headerSubtitle} numberOfLines={1}>
-              {searching
-                ? 'Searching...'
-                : `${searchResults.length} results found`}
-            </Text>
-          ) : isMockData ? (
-            <Text
-              style={[
-                styles.headerSubtitle,
-                { color: safeTheme.colors.accent },
-              ]}
-              numberOfLines={1}
-            >
-              Demo Mode - API Not Connected
-            </Text>
-          ) : (
-            folderPath.length > 0 && (
-              <Text style={styles.headerSubtitle} numberOfLines={1}>
-                {folderPath.map((p) => p.name).join(' / ')}
-              </Text>
-            )
-          )}
-        </View>
-      )}
+      Alert.alert('Upload Failed', errorMessage, [{ text: 'OK' }]);
+    }
+  };
 
-      {showSearch && (
-        <View style={styles.searchContainer}>
-          <FontAwesomeIcon
-            icon={faSearch}
-            size={16}
-            color={safeTheme.colors.textSecondary}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder='Search files and folders...'
-            placeholderTextColor={safeTheme.colors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoFocus
-          />
-        </View>
-      )}
-    </View>
-  );
+  /**
+   * Handle create folder
+   */
+  const handleCreateFolder = () => {
+    const currentLocation =
+      currentView === 'folder'
+        ? workspaceData?.folder_info?.name || 'Current Folder'
+        : 'Root Workspace';
+
+    Alert.prompt(
+      'Create Folder',
+      `Create folder in: ${currentLocation}\n\nEnter folder name:`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Create',
+          onPress: async (folderName) => {
+            if (!folderName || folderName.trim() === '') {
+              Alert.alert('Error', 'Please enter a valid folder name.');
+              return;
+            }
+
+            try {
+              const parentFolderId =
+                currentView === 'folder' ? currentFolderId : null;
+              const studentAuthCode = studentData?.authCode;
+
+              console.log(
+                '📁 Creating folder:',
+                folderName,
+                'in parent:',
+                parentFolderId
+              );
+
+              // Call the actual API
+              await createWorkspaceFolder(
+                parentFolderId,
+                folderName.trim(),
+                '', // description
+                studentAuthCode
+              );
+
+              Alert.alert(
+                'Success',
+                `Folder "${folderName}" created successfully!`
+              );
+
+              // Refresh the current view after creation
+              if (currentView === 'folder') {
+                await loadFolderContents(
+                  currentFolderId,
+                  workspaceData?.folder_info?.name,
+                  true
+                );
+              } else {
+                await loadWorkspaceData();
+              }
+            } catch (error) {
+              console.error('Error creating folder:', error);
+              Alert.alert(
+                'Error',
+                error.message || 'Failed to create folder. Please try again.'
+              );
+            }
+          },
+        },
+      ],
+      'plain-text'
+    );
+  };
+
+  /**
+   * Handle delete item
+   */
+  const handleDeleteItem = (item, isFolder = false) => {
+    const itemType = isFolder ? 'folder' : 'file';
+
+    Alert.alert(
+      `Delete ${itemType}`,
+      `Are you sure you want to delete "${item.name}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const studentAuthCode = studentData?.authCode;
+
+              console.log(
+                '🗑️ Deleting item:',
+                item.name,
+                'isFolder:',
+                isFolder
+              );
+
+              // Call the actual API
+              await deleteWorkspaceItem(item.id, isFolder, studentAuthCode);
+
+              Alert.alert(
+                'Success',
+                `${itemType} "${item.name}" deleted successfully!`
+              );
+
+              // Refresh the current view after deletion
+              if (currentView === 'folder') {
+                await loadFolderContents(
+                  currentFolderId,
+                  workspaceData?.folder_info?.name,
+                  true
+                );
+              } else {
+                await loadWorkspaceData();
+              }
+            } catch (error) {
+              console.error('Error deleting item:', error);
+              Alert.alert(
+                'Error',
+                error.message ||
+                  `Failed to delete ${itemType}. Please try again.`
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  /**
+   * Handle upload to specific subfolder
+   */
+  const handleSubfolderUpload = (folder) => {
+    // Temporarily set the current folder context for upload
+    const originalFolderId = currentFolderId;
+    const originalView = currentView;
+
+    // Set context to the target subfolder
+    setCurrentFolderId(folder.id);
+    setCurrentView('folder');
+
+    Alert.alert(
+      'Upload File',
+      `Upload to: ${folder.name}\n\nChoose upload method:`,
+      [
+        {
+          text: 'Camera',
+          onPress: async () => {
+            try {
+              const { status } =
+                await ImagePicker.requestCameraPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert(
+                  'Permission Required',
+                  'Camera permission is required to take photos.'
+                );
+                return;
+              }
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+              });
+              if (
+                !result.canceled &&
+                result.assets &&
+                result.assets.length > 0
+              ) {
+                await handleFileUpload(result.assets[0], folder.name);
+              }
+            } catch (error) {
+              Alert.alert(
+                'Camera Upload Failed',
+                error.message || 'Failed to upload photo from camera.',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              // Restore original context
+              setCurrentFolderId(originalFolderId);
+              setCurrentView(originalView);
+            }
+          },
+        },
+        {
+          text: 'Gallery',
+          onPress: async () => {
+            try {
+              const { status } =
+                await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert(
+                  'Permission Required',
+                  'Media library permission is required to select photos.'
+                );
+                return;
+              }
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+              });
+              if (
+                !result.canceled &&
+                result.assets &&
+                result.assets.length > 0
+              ) {
+                await handleFileUpload(result.assets[0], folder.name);
+              }
+            } catch (error) {
+              Alert.alert(
+                'Gallery Upload Failed',
+                error.message || 'Failed to upload photo from gallery.',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              // Restore original context
+              setCurrentFolderId(originalFolderId);
+              setCurrentView(originalView);
+            }
+          },
+        },
+        {
+          text: 'Documents',
+          onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: '*/*',
+                copyToCacheDirectory: true,
+                multiple: false,
+              });
+              if (
+                !result.canceled &&
+                result.assets &&
+                result.assets.length > 0
+              ) {
+                await handleFileUpload(result.assets[0], folder.name);
+              }
+            } catch (error) {
+              Alert.alert(
+                'Document Upload Failed',
+                error.message || 'Failed to upload document.',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              // Restore original context
+              setCurrentFolderId(originalFolderId);
+              setCurrentView(originalView);
+            }
+          },
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            // Restore original context on cancel
+            setCurrentFolderId(originalFolderId);
+            setCurrentView(originalView);
+          },
+        },
+      ]
+    );
+  };
+
+  /**
+   * Handle create folder in specific subfolder
+   */
+  const handleSubfolderCreateFolder = (folder) => {
+    Alert.prompt(
+      'Create Folder',
+      `Create folder in: ${folder.name}\n\nEnter folder name:`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Create',
+          onPress: async (folderName) => {
+            if (!folderName || folderName.trim() === '') {
+              Alert.alert('Error', 'Please enter a valid folder name.');
+              return;
+            }
+
+            try {
+              const studentAuthCode = studentData?.authCode;
+
+              console.log(
+                '📁 Creating subfolder:',
+                folderName,
+                'in:',
+                folder.name
+              );
+
+              // Call the actual API with the subfolder ID as parent
+              await createWorkspaceFolder(
+                folder.id,
+                folderName.trim(),
+                '', // description
+                studentAuthCode
+              );
+
+              Alert.alert(
+                'Success',
+                `Folder "${folderName}" created successfully in ${folder.name}!`
+              );
+
+              // Refresh the current view
+              if (currentView === 'folder') {
+                await loadFolderContents(
+                  currentFolderId,
+                  workspaceData?.folder_info?.name,
+                  true
+                );
+              } else {
+                await loadWorkspaceData();
+              }
+            } catch (error) {
+              console.error('Error creating subfolder:', error);
+              Alert.alert(
+                'Error',
+                error.message || 'Failed to create folder. Please try again.'
+              );
+            }
+          },
+        },
+      ],
+      'plain-text'
+    );
+  };
+
+  /**
+   * Handle back navigation
+   */
+  const handleBackPress = () => {
+    console.log('🔙 WORKSPACE: Back pressed - Current view:', currentView);
+    console.log('🔙 WORKSPACE: Folder path length:', folderPath.length);
+    console.log(
+      '🔙 WORKSPACE: Folder path:',
+      folderPath.map((f) => f.name)
+    );
+
+    if (currentView === 'folder') {
+      if (folderPath.length > 1) {
+        // Navigate back to parent folder (not root)
+        const newPath = [...folderPath];
+        newPath.pop(); // Remove current folder
+        setFolderPath(newPath);
+
+        const parentFolder = newPath[newPath.length - 1];
+        console.log(
+          '🔙 WORKSPACE: Navigating to parent folder:',
+          parentFolder.name
+        );
+        loadFolderContents(parentFolder.id, parentFolder.name, true);
+      } else {
+        // Back to root structure (from first level folder)
+        console.log('🔙 WORKSPACE: Navigating to root structure');
+        loadWorkspaceData();
+      }
+    } else {
+      // Exit workspace from root view
+      console.log('🔙 WORKSPACE: Exiting workspace');
+      navigation.goBack();
+    }
+  };
+
+  /**
+   * Get user permissions
+   */
+  const permissions = currentUserData
+    ? getUserPermissions(currentUserData.userType)
+    : {};
+
+  /**
+   * Get screen title based on current view and folder
+   */
+  const getScreenTitle = () => {
+    if (currentView === 'folder' && workspaceData?.folder_info?.name) {
+      return workspaceData.folder_info.name;
+    }
+
+    if (currentUserData?.userType === 'parent') {
+      return 'Materials';
+    }
+    return 'Resources';
+  };
+
+  /**
+   * Build breadcrumb path for current folder
+   */
+  const getBreadcrumbPath = () => {
+    if (currentView !== 'folder' || folderPath.length === 0) {
+      return '';
+    }
+
+    const rootName =
+      currentUserData?.userType === 'parent' ? 'Materials' : 'Resources';
+    const pathNames = [rootName, ...folderPath.map((folder) => folder.name)];
+    const breadcrumb = pathNames.join(' > ');
+
+    console.log('🍞 WORKSPACE: Breadcrumb path:', breadcrumb);
+    console.log(
+      '🍞 WORKSPACE: Folder path items:',
+      folderPath.map((f) => f.name)
+    );
+
+    return breadcrumb;
+  };
+
+  /**
+   * Get folder icon based on type
+   */
+  const getFolderIcon = (folderType) => {
+    const iconMap = {
+      branch_root: faBuilding,
+      assessments: faChalkboard,
+      curriculum: faBookOpen,
+      staff_resources: faUsers,
+      student_materials: faGraduationCap,
+      homework: faClipboardList,
+      homework_parent: faClipboardList,
+      shared_projects: faSquareShareNodes,
+      library: faBook,
+      custom: faFolder,
+      administrative: faBuilding,
+    };
+    return iconMap[folderType] || faFolder;
+  };
+
+  /**
+   * Get file icon based on type
+   */
+  const getFileIcon = (fileType) => {
+    const iconMap = {
+      pdf: faFile,
+      office: faFile,
+      image: faFile,
+      video: faFile,
+      audio: faFile,
+      archive: faFile,
+    };
+    return iconMap[fileType] || faFile;
+  };
+
+  /**
+   * Get file type color based on MIME type (Google Drive style)
+   */
+  const getFileTypeColor = (mimeType) => {
+    if (mimeType?.includes('image')) return '#34a853'; // Green for images
+    if (mimeType?.includes('pdf')) return '#ea4335'; // Red for PDFs
+    if (mimeType?.includes('document') || mimeType?.includes('word'))
+      return '#4285f4'; // Blue for docs
+    if (mimeType?.includes('spreadsheet') || mimeType?.includes('excel'))
+      return '#0f9d58'; // Green for sheets
+    if (mimeType?.includes('presentation') || mimeType?.includes('powerpoint'))
+      return '#ff6d01'; // Orange for slides
+    if (mimeType?.includes('video')) return '#ff6d01'; // Orange for videos
+    if (mimeType?.includes('audio')) return '#ff6d01'; // Orange for audio
+    return '#5f6368'; // Gray for others
+  };
+
+  /**
+   * Get file extension from filename
+   */
+  const getFileExtension = (filename) => {
+    const extension = filename?.split('.').pop();
+    return extension || 'FILE';
+  };
+
+  /**
+   * Format file name to handle URL encoding and clean display
+   */
+  const formatFileName = (filename) => {
+    if (!filename) return 'Untitled';
+
+    try {
+      // Decode URL encoding (like %20 for spaces)
+      let decodedName = decodeURIComponent(filename);
+
+      // Replace any remaining encoded characters
+      decodedName = decodedName
+        .replace(/%20/g, ' ') // Spaces
+        .replace(/%21/g, '!') // Exclamation mark
+        .replace(/%22/g, '"') // Quote
+        .replace(/%23/g, '#') // Hash
+        .replace(/%24/g, '$') // Dollar
+        .replace(/%25/g, '%') // Percent
+        .replace(/%26/g, '&') // Ampersand
+        .replace(/%27/g, "'") // Apostrophe
+        .replace(/%28/g, '(') // Left parenthesis
+        .replace(/%29/g, ')') // Right parenthesis
+        .replace(/%2A/g, '*') // Asterisk
+        .replace(/%2B/g, '+') // Plus
+        .replace(/%2C/g, ',') // Comma
+        .replace(/%2D/g, '-') // Hyphen
+        .replace(/%2E/g, '.') // Period
+        .replace(/%2F/g, '/') // Forward slash
+        .replace(/%3A/g, ':') // Colon
+        .replace(/%3B/g, ';') // Semicolon
+        .replace(/%3C/g, '<') // Less than
+        .replace(/%3D/g, '=') // Equals
+        .replace(/%3E/g, '>') // Greater than
+        .replace(/%3F/g, '?') // Question mark
+        .replace(/%40/g, '@') // At symbol
+        .replace(/%5B/g, '[') // Left bracket
+        .replace(/%5C/g, '\\') // Backslash
+        .replace(/%5D/g, ']') // Right bracket
+        .replace(/%5E/g, '^') // Caret
+        .replace(/%5F/g, '_') // Underscore
+        .replace(/%60/g, '`') // Backtick
+        .replace(/%7B/g, '{') // Left brace
+        .replace(/%7C/g, '|') // Pipe
+        .replace(/%7D/g, '}') // Right brace
+        .replace(/%7E/g, '~'); // Tilde
+
+      // Trim whitespace and return
+      return decodedName.trim();
+    } catch (error) {
+      console.log('Error formatting filename:', filename, error);
+      // If decoding fails, just replace %20 with spaces as fallback
+      return filename.replace(/%20/g, ' ').trim();
+    }
+  };
+
+  /**
+   * Format file size
+   */
+  const formatFileSize = (bytes) => {
+    if (bytes >= 1073741824) {
+      return (bytes / 1073741824).toFixed(2) + ' GB';
+    } else if (bytes >= 1048576) {
+      return (bytes / 1048576).toFixed(2) + ' MB';
+    } else if (bytes >= 1024) {
+      return (bytes / 1024).toFixed(2) + ' KB';
+    } else {
+      return bytes + ' bytes';
+    }
+  };
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.container}>
-        {renderHeader()}
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size='large' color={safeTheme.colors.primary} />
+          <ActivityIndicator size='large' color={theme.colors.primary} />
           <Text style={styles.loadingText}>Loading workspace...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  if (error) {
+  if (uploading) {
     return (
-      <SafeAreaView style={styles.container}>
-        {renderHeader()}
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size='large' color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Uploading file...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  // Prepare data for rendering
-  const renderData = searchResults
-    ? searchResults
-    : isRootView
-    ? currentUser && workspaceData?.folders
-      ? getAccessibleFolders(currentUser.userType, workspaceData.folders)
-      : workspaceData?.folders || []
-    : [...(folderContents?.folders || []), ...(folderContents?.files || [])];
-
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {renderHeader()}
+      {/* Compact Header */}
+      <View style={styles.compactHeaderContainer}>
+        {/* Navigation Header */}
+        <View style={styles.navigationHeader}>
+          <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+            <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
+          </TouchableOpacity>
 
-      <View style={styles.content}>
-        <FlatList
-          data={renderData}
-          keyExtractor={(item) => item.id}
-          renderItem={
-            searchResults
-              ? (item) =>
-                  item.item.type === 'folder'
-                    ? renderFolderItem(item)
-                    : renderFileItem(item)
-              : isRootView
-              ? renderFolderItem
-              : (item) =>
-                  item.item.type === 'folder'
-                    ? renderFolderItem(item)
-                    : renderFileItem(item)
-          }
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[safeTheme.colors.primary]}
-              tintColor={safeTheme.colors.primary}
-            />
-          }
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
+          <Text
+            style={[
+              styles.headerTitle,
+              { fontSize: getResponsiveHeaderFontSize(2, getScreenTitle()) },
+            ]}
+          >
+            {getScreenTitle()}
+          </Text>
 
-      {/* Action Menu Modal */}
-      <Modal
-        visible={showActions}
-        transparent
-        animationType='fade'
-        onRequestClose={() => setShowActions(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.actionMenuContainer}>
-            <Text style={styles.actionMenuTitle}>Workspace Actions</Text>
-
+          <View style={styles.headerActions}>
+            {/* Show upload button - always show for now to test */}
             <TouchableOpacity
-              style={styles.actionMenuItem}
-              onPress={() => {
-                setShowActions(false);
-                setShowSearch(!showSearch);
-              }}
+              style={styles.headerActionButton}
+              onPress={handleUploadFile}
             >
-              <FontAwesomeIcon
-                icon={faSearch}
-                size={20}
-                color={safeTheme.colors.primary}
-              />
-              <Text style={styles.actionMenuText}>
-                {showSearch ? 'Hide Search' : 'Search Files'}
-              </Text>
+              <FontAwesomeIcon icon={faUpload} size={18} color='#fff' />
             </TouchableOpacity>
 
-            {!isRootView && permissions.canCreateFolder && (
-              <TouchableOpacity
-                style={styles.actionMenuItem}
-                onPress={() => {
-                  setShowActions(false);
-                  setShowCreateFolder(true);
-                }}
-              >
-                <FontAwesomeIcon
-                  icon={faPlus}
-                  size={20}
-                  color={safeTheme.colors.primary}
-                />
-                <Text style={styles.actionMenuText}>Create Folder</Text>
-              </TouchableOpacity>
-            )}
+            {/* Show create folder button - always show for now to test */}
+            <TouchableOpacity
+              style={styles.headerActionButton}
+              onPress={handleCreateFolder}
+            >
+              <FontAwesomeIcon icon={faPlus} size={18} color='#fff' />
+            </TouchableOpacity>
 
-            {!isRootView && permissions.canUpload && (
-              <View style={styles.uploadSection}>
-                <FileUploadHandler
-                  folderId={currentFolder?.id}
-                  onUploadSuccess={handleUploadSuccess}
-                  onUploadError={handleUploadError}
-                />
+            {/* Delete current folder button (only in folder view) */}
+            {currentView === 'folder' &&
+              workspaceData?.folder_info?.can_manage && (
+                <TouchableOpacity
+                  style={[styles.headerActionButton, styles.headerDeleteButton]}
+                  onPress={() => {
+                    Alert.alert(
+                      'Delete Folder',
+                      `Are you sure you want to delete the entire "${workspaceData.folder_info.name}" folder and all its contents? This action cannot be undone.`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: async () => {
+                            try {
+                              const studentAuthCode = studentData?.authCode;
+                              await deleteWorkspaceItem(
+                                workspaceData.folder_info.id,
+                                true,
+                                studentAuthCode
+                              );
+                              Alert.alert(
+                                'Success',
+                                `Folder "${workspaceData.folder_info.name}" deleted successfully!`
+                              );
+                              // Navigate back to root after deleting current folder
+                              await loadWorkspaceData();
+                            } catch (error) {
+                              console.error('Error deleting folder:', error);
+                              Alert.alert(
+                                'Error',
+                                error.message ||
+                                  'Failed to delete folder. Please try again.'
+                              );
+                            }
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <FontAwesomeIcon icon={faTrash} size={18} color='#fff' />
+                </TouchableOpacity>
+              )}
+
+            <TouchableOpacity
+              style={styles.headerActionButton}
+              onPress={() => {
+                // TODO: Implement search
+                Alert.alert(
+                  'Coming Soon',
+                  'Search functionality will be available soon.'
+                );
+              }}
+            >
+              <FontAwesomeIcon icon={faSearch} size={18} color='#fff' />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Subheader with breadcrumb or root folder info */}
+        <View style={styles.subHeader}>
+          {currentView === 'folder' && getBreadcrumbPath() ? (
+            <Text style={styles.breadcrumbText} numberOfLines={1}>
+              {getBreadcrumbPath()}
+            </Text>
+          ) : (
+            workspaceData?.workspace?.root_folder && (
+              <View style={styles.rootFolderInfo}>
+                <View style={styles.rootFolderHeader}>
+                  <View style={styles.rootFolderIconContainer}>
+                    <FontAwesomeIcon
+                      icon={faBuilding}
+                      size={24}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                  <Text style={styles.rootFolderName}>
+                    {workspaceData.workspace.root_folder.name}
+                  </Text>
+                </View>
+                <Text style={styles.rootFolderDescription} numberOfLines={1}>
+                  {workspaceData.workspace.root_folder.description}
+                </Text>
+              </View>
+            )
+          )}
+        </View>
+      </View>
+
+      {/* Content */}
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
+        {currentView === 'structure' && workspaceData && (
+          <View style={styles.content}>
+            {/* Folders List */}
+            <View style={styles.foldersSection}>
+              <Text style={styles.sectionTitle}>Folders</Text>
+              {workspaceData.workspace.folders.map((folder) => (
+                <TouchableOpacity
+                  key={folder.id}
+                  style={styles.folderCard}
+                  onPress={() => handleFolderPress(folder)}
+                  onLongPress={() => {
+                    // Only admin can delete root folders
+                    if (currentUserData?.userType === 'admin') {
+                      handleDeleteItem(folder, true);
+                    } else {
+                      Alert.alert(
+                        'Permission Denied',
+                        'Only administrators can delete main workspace folders.',
+                        [{ text: 'OK' }]
+                      );
+                    }
+                  }}
+                >
+                  <View style={styles.folderIconContainer}>
+                    <FontAwesomeIcon
+                      icon={getFolderIcon(folder.type)}
+                      size={20}
+                      color={
+                        folder.color === 'success'
+                          ? theme.colors.success
+                          : folder.color === 'info'
+                          ? theme.colors.info
+                          : folder.color === 'warning'
+                          ? theme.colors.warning
+                          : theme.colors.primary
+                      }
+                    />
+                  </View>
+                  <View style={styles.folderInfo}>
+                    <Text style={styles.folderName}>{folder.name}</Text>
+                    <Text style={styles.folderDescription}>
+                      {folder.description}
+                    </Text>
+                    {folder.file_count !== undefined && (
+                      <Text style={styles.folderStats}>
+                        {folder.file_count} files • {folder.total_size}
+                      </Text>
+                    )}
+                  </View>
+
+                  {/* Main folder action buttons */}
+                  <View style={styles.folderActions}>
+                    {/* Delete button for main folders - only admin can delete root folders */}
+                    {currentUserData?.userType === 'admin' && (
+                      <TouchableOpacity
+                        style={[
+                          styles.itemActionButton,
+                          styles.deleteActionButton,
+                        ]}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleDeleteItem(folder, true);
+                        }}
+                      >
+                        <FontAwesomeIcon
+                          icon={faTrash}
+                          size={12}
+                          color={theme.colors.error}
+                        />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {currentView === 'folder' && workspaceData && (
+          <View style={styles.content}>
+            {/* Subfolders */}
+            {workspaceData.folders && workspaceData.folders.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Folders</Text>
+                {workspaceData.folders.map((folder) => (
+                  <TouchableOpacity
+                    key={folder.id}
+                    style={styles.itemCard}
+                    onPress={() => handleFolderPress(folder)}
+                    onLongPress={() => {
+                      if (
+                        folder.creator_name === currentUserData?.name ||
+                        folder.creator_name === currentUserData?.full_name ||
+                        workspaceData?.folder_info?.can_manage ||
+                        currentUserData?.userType === 'admin'
+                      ) {
+                        handleDeleteItem(folder, true);
+                      }
+                    }}
+                  >
+                    <FontAwesomeIcon
+                      icon={faFolder}
+                      size={20}
+                      color={theme.colors.primary}
+                    />
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>{folder.name}</Text>
+                      <Text style={styles.itemDetails}>
+                        {folder.file_count} files
+                      </Text>
+                    </View>
+
+                    {/* Subfolder action buttons */}
+                    <View style={styles.itemActions}>
+                      {folder.user_can_upload && (
+                        <TouchableOpacity
+                          style={styles.itemActionButton}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            // Upload to this specific folder
+                            handleSubfolderUpload(folder);
+                          }}
+                        >
+                          <FontAwesomeIcon
+                            icon={faUpload}
+                            size={12}
+                            color={theme.colors.textSecondary}
+                          />
+                        </TouchableOpacity>
+                      )}
+                      {folder.user_can_create_folder && (
+                        <TouchableOpacity
+                          style={styles.itemActionButton}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            // Create folder in this specific folder
+                            handleSubfolderCreateFolder(folder);
+                          }}
+                        >
+                          <FontAwesomeIcon
+                            icon={faPlus}
+                            size={12}
+                            color={theme.colors.textSecondary}
+                          />
+                        </TouchableOpacity>
+                      )}
+                      {/* Delete button for folders - check if user is creator or has permissions */}
+                      {(folder.creator_name === currentUserData?.name ||
+                        folder.creator_name === currentUserData?.full_name ||
+                        workspaceData?.folder_info?.can_manage ||
+                        currentUserData?.userType === 'admin') && (
+                        <TouchableOpacity
+                          style={[
+                            styles.itemActionButton,
+                            styles.deleteActionButton,
+                          ]}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleDeleteItem(folder, true);
+                          }}
+                        >
+                          <FontAwesomeIcon
+                            icon={faTrash}
+                            size={12}
+                            color={theme.colors.error}
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
 
-            <TouchableOpacity
-              style={styles.actionMenuItem}
-              onPress={() => {
-                setShowActions(false);
-                setShowStatistics(true);
-              }}
-            >
-              <FontAwesomeIcon
-                icon={faChartBar}
-                size={20}
-                color={safeTheme.colors.primary}
-              />
-              <Text style={styles.actionMenuText}>View Statistics</Text>
-            </TouchableOpacity>
+            {/* Files */}
+            {workspaceData.files && workspaceData.files.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Files</Text>
+                {workspaceData.files.map((file) => (
+                  <TouchableOpacity
+                    key={file.id}
+                    style={styles.itemCard}
+                    onPress={() => handleFilePress(file)}
+                    onLongPress={() => {
+                      if (
+                        file.uploaded_by === currentUserData?.name ||
+                        file.uploaded_by === currentUserData?.full_name ||
+                        workspaceData?.folder_info?.can_manage ||
+                        currentUserData?.userType === 'admin'
+                      ) {
+                        handleDeleteItem(file, false);
+                      }
+                    }}
+                  >
+                    {/* File thumbnail or icon */}
+                    <View style={styles.fileThumbnailContainer}>
+                      {file.thumbnail?.has_thumbnail &&
+                      file.thumbnail?.thumbnail_url?.small ? (
+                        <Image
+                          source={{ uri: file.thumbnail.thumbnail_url.small }}
+                          style={styles.fileThumbnail}
+                          resizeMode='cover'
+                          onError={() => {
+                            console.log(
+                              'Failed to load thumbnail for:',
+                              formatFileName(file.name)
+                            );
+                          }}
+                        />
+                      ) : (
+                        <View style={styles.fileIconContainer}>
+                          <FontAwesomeIcon
+                            icon={getFileIcon(file.file_type)}
+                            size={24}
+                            color={getFileTypeColor(file.mime_type)}
+                          />
+                        </View>
+                      )}
+                      {/* File type badge */}
+                      <View style={styles.fileTypeBadge}>
+                        <Text style={styles.fileTypeBadgeText}>
+                          {getFileExtension(file.name).toUpperCase()}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>
+                        {formatFileName(file.name)}
+                      </Text>
+                      <Text style={styles.itemDetails}>
+                        {file.size_formatted} • {file.uploaded_by}
+                      </Text>
+                    </View>
 
-            <TouchableOpacity
-              style={styles.cancelMenuItem}
-              onPress={() => setShowActions(false)}
-            >
-              <Text style={styles.cancelMenuText}>Cancel</Text>
-            </TouchableOpacity>
+                    {/* File action buttons */}
+                    <View style={styles.itemActions}>
+                      {/* Delete button for files - check if user is uploader or has permissions */}
+                      {(file.uploaded_by === currentUserData?.name ||
+                        file.uploaded_by === currentUserData?.full_name ||
+                        workspaceData?.folder_info?.can_manage ||
+                        currentUserData?.userType === 'admin') && (
+                        <TouchableOpacity
+                          style={[
+                            styles.itemActionButton,
+                            styles.deleteActionButton,
+                          ]}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleDeleteItem(file, false);
+                          }}
+                        >
+                          <FontAwesomeIcon
+                            icon={faTrash}
+                            size={12}
+                            color={theme.colors.error}
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Empty State */}
+            {(!workspaceData.folders || workspaceData.folders.length === 0) &&
+              (!workspaceData.files || workspaceData.files.length === 0) && (
+                <View style={styles.emptyState}>
+                  <FontAwesomeIcon
+                    icon={faFolder}
+                    size={48}
+                    color={theme.colors.textLight}
+                  />
+                  <Text style={styles.emptyStateText}>
+                    This folder is empty
+                  </Text>
+                </View>
+              )}
           </View>
-        </View>
-      </Modal>
-
-      {/* Create Folder Modal */}
-      <Modal
-        visible={showCreateFolder}
-        transparent
-        animationType='slide'
-        onRequestClose={() => setShowCreateFolder(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.createFolderContainer}>
-            <Text style={styles.createFolderTitle}>Create New Folder</Text>
-
-            <TextInput
-              style={styles.folderNameInput}
-              placeholder='Folder name'
-              placeholderTextColor={safeTheme.colors.textSecondary}
-              value={newFolderName}
-              onChangeText={setNewFolderName}
-              maxLength={50}
-            />
-
-            <TextInput
-              style={styles.folderDescriptionInput}
-              placeholder='Description (optional)'
-              placeholderTextColor={safeTheme.colors.textSecondary}
-              value={newFolderDescription}
-              onChangeText={setNewFolderDescription}
-              multiline
-              numberOfLines={3}
-              maxLength={200}
-            />
-
-            <View style={styles.createFolderActions}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => {
-                  setShowCreateFolder(false);
-                  setNewFolderName('');
-                  setNewFolderDescription('');
-                }}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.createButton}
-                onPress={handleCreateFolder}
-              >
-                <Text style={styles.createButtonText}>Create</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Statistics Modal */}
-      <Modal
-        visible={showStatistics}
-        animationType='slide'
-        onRequestClose={() => setShowStatistics(false)}
-      >
-        <WorkspaceStatistics onClose={() => setShowStatistics(false)} />
-      </Modal>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-const createStyles = (theme) =>
+/**
+ * Create styles for the workspace screen
+ */
+const createStyles = (theme, fontSizes) =>
   StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    // Compact Header Styles (matching ParentScreen)
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: theme.colors.background,
+    },
+    loadingText: {
+      marginTop: 15,
+      fontSize: 16,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
+    },
+    // Compact Header Styles
     compactHeaderContainer: {
       backgroundColor: theme.colors.surface,
       borderRadius: 16,
       marginHorizontal: 16,
       marginTop: 8,
       marginBottom: 8,
-      ...createMediumShadow(theme),
-      overflow: 'hidden',
+      ...createSmallShadow(theme),
       zIndex: 1,
     },
     navigationHeader: {
@@ -763,6 +1500,52 @@ const createStyles = (theme) =>
       padding: 15,
       flexDirection: 'row',
       justifyContent: 'space-between',
+      alignItems: 'center',
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+    },
+
+    subHeader: {
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
+    },
+    breadcrumbText: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    rootFolderInfo: {
+      alignItems: 'center',
+      paddingHorizontal: 3,
+      paddingVertical: 8,
+    },
+    rootFolderHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    rootFolderName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginLeft: 8,
+      flex: 1,
+    },
+    rootFolderDescription: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      paddingHorizontal: 5,
+    },
+    rootFolderIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: theme.colors.primary + '15',
+      justifyContent: 'center',
       alignItems: 'center',
     },
     backButton: {
@@ -775,16 +1558,16 @@ const createStyles = (theme) =>
     },
     headerTitle: {
       color: '#fff',
-      fontSize: 20,
+      fontSize: 18,
       fontWeight: 'bold',
       flex: 1,
       textAlign: 'center',
-      marginHorizontal: 16,
+      marginHorizontal: 10,
     },
     headerActions: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 2,
+      gap: 8,
     },
     headerActionButton: {
       width: 36,
@@ -794,248 +1577,170 @@ const createStyles = (theme) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    subtitleContainer: {
-      backgroundColor: theme.colors.surface,
-      paddingHorizontal: 15,
-      paddingBottom: 10,
+    headerDeleteButton: {
+      backgroundColor: 'rgba(255, 59, 48, 0.3)', // Red background for delete
     },
-    headerSubtitle: {
-      fontSize: 12,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      marginTop: 2,
-    },
-    // Legacy header styles (keeping for compatibility)
-    header: {
-      backgroundColor: theme.colors.surface,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-      ...createSmallShadow(theme),
-    },
-    headerTop: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    headerButton: {
-      padding: 8,
-      borderRadius: 8,
-      backgroundColor: theme.colors.background,
+    scrollView: {
+      flex: 1,
     },
     content: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
+      padding: 20,
+      // backgroundColor: '#ffffff',
     },
-    searchContainer: {
-      flexDirection: 'row',
+
+    folderIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: theme.colors.primary + '15',
+      justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: theme.colors.background,
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      marginHorizontal: 15,
-      marginBottom: 10,
+      marginRight: 12,
     },
-    searchIcon: {
-      marginRight: 8,
-    },
-    searchInput: {
+    folderInfo: {
       flex: 1,
+    },
+    foldersSection: {
+      marginBottom: 20,
+    },
+    sectionTitle: {
       fontSize: 16,
-      color: theme.colors.text,
+      fontWeight: '600',
+      color: '#202124',
+      marginBottom: 16,
+      marginTop: 8,
     },
-    listContainer: {
-      padding: 16,
-    },
-    itemContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    folderCard: {
       backgroundColor: theme.colors.surface,
       borderRadius: 12,
       padding: 16,
       marginBottom: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
       ...createSmallShadow(theme),
     },
-    itemIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: theme.colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 12,
-    },
-    itemContent: {
-      flex: 1,
-    },
-    itemName: {
+    folderName: {
       fontSize: 16,
       fontWeight: '600',
       color: theme.colors.text,
       marginBottom: 4,
     },
-    itemDescription: {
+    folderDescription: {
       fontSize: 14,
       color: theme.colors.textSecondary,
       marginBottom: 4,
     },
-    itemMeta: {
+    folderStats: {
       fontSize: 12,
-      color: theme.colors.textTertiary,
+      color: theme.colors.textLight,
     },
-    loadingContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 32,
-    },
-    loadingText: {
-      fontSize: 16,
-      color: theme.colors.textSecondary,
-      marginTop: 16,
-    },
-    errorContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 32,
-    },
-    errorText: {
-      fontSize: 16,
-      color: theme.colors.error,
-      textAlign: 'center',
-      marginBottom: 24,
-    },
-    retryButton: {
-      backgroundColor: theme.colors.primary,
-      paddingHorizontal: 24,
-      paddingVertical: 12,
-      borderRadius: 8,
-    },
-    retryButtonText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: theme.colors.surface,
-    },
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    actionMenuContainer: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 16,
-      padding: 20,
-      margin: 20,
-      minWidth: 280,
-      ...createSmallShadow(theme),
-    },
-    actionMenuTitle: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: theme.colors.text,
-      marginBottom: 20,
-      textAlign: 'center',
-    },
-    actionMenuItem: {
+    folderActions: {
+      position: 'absolute',
+      top: 12,
+      right: 12,
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 16,
-      paddingHorizontal: 12,
-      borderRadius: 8,
-      marginBottom: 8,
+      gap: 8,
     },
-    actionMenuText: {
-      fontSize: 16,
-      color: theme.colors.text,
+    section: {
+      marginBottom: 20,
+    },
+    itemCard: {
+      backgroundColor: '#ffffff',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: '#e8eaed',
+      ...createSmallShadow(theme),
+    },
+    fileThumbnail: {
+      width: 48,
+      height: 48,
+      borderRadius: 8,
+      marginRight: 16,
+      backgroundColor: '#f8f9fa',
+      borderWidth: 1,
+      borderColor: '#e8eaed',
+      ...createSmallShadow(theme),
+    },
+    fileIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 8,
+      backgroundColor: '#ffffff',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 16,
+      borderWidth: 1,
+      borderColor: '#e8eaed',
+      ...createSmallShadow(theme),
+    },
+    fileThumbnailContainer: {
+      position: 'relative',
+      marginRight: 16,
+    },
+    fileTypeBadge: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      backgroundColor: '#1a73e8',
+      borderRadius: 4,
+      paddingHorizontal: 4,
+      paddingVertical: 1,
+      minWidth: 20,
+      alignItems: 'center',
+    },
+    fileTypeBadgeText: {
+      fontSize: 9,
+      fontWeight: '600',
+      color: '#ffffff',
+      textAlign: 'center',
+    },
+    itemInfo: {
+      flex: 1,
       marginLeft: 12,
     },
-    uploadSection: {
-      marginVertical: 8,
+    itemName: {
+      fontSize: 15,
+      fontWeight: '500',
+      color: '#202124',
+      marginBottom: 4,
+      lineHeight: 20,
     },
-    cancelMenuItem: {
-      paddingVertical: 16,
-      paddingHorizontal: 12,
-      borderRadius: 8,
-      backgroundColor: theme.colors.background,
-      marginTop: 8,
+    itemDetails: {
+      fontSize: 13,
+      color: '#5f6368',
+      lineHeight: 16,
+    },
+    itemActions: {
+      flexDirection: 'row',
       alignItems: 'center',
+      gap: 8,
     },
-    cancelMenuText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: theme.colors.textSecondary,
-    },
-    createFolderContainer: {
+    itemActionButton: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
-      padding: 20,
-      margin: 20,
-      minWidth: 320,
+      justifyContent: 'center',
+      alignItems: 'center',
       ...createSmallShadow(theme),
     },
-    createFolderTitle: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: theme.colors.text,
-      marginBottom: 20,
+    deleteActionButton: {
+      backgroundColor: theme.colors.error + '15', // Light red background
+    },
+    emptyState: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 60,
+    },
+    emptyStateText: {
+      fontSize: 16,
+      color: theme.colors.textLight,
+      marginTop: 16,
       textAlign: 'center',
-    },
-    folderNameInput: {
-      backgroundColor: theme.colors.background,
-      borderRadius: 8,
-      padding: 12,
-      fontSize: 16,
-      color: theme.colors.text,
-      marginBottom: 16,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    folderDescriptionInput: {
-      backgroundColor: theme.colors.background,
-      borderRadius: 8,
-      padding: 12,
-      fontSize: 16,
-      color: theme.colors.text,
-      textAlignVertical: 'top',
-      minHeight: 80,
-      marginBottom: 20,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    createFolderActions: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-    },
-    cancelButton: {
-      flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 8,
-      backgroundColor: theme.colors.background,
-      marginRight: 8,
-      alignItems: 'center',
-    },
-    cancelButtonText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: theme.colors.textSecondary,
-    },
-    createButton: {
-      flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 8,
-      backgroundColor: theme.colors.primary,
-      marginLeft: 8,
-      alignItems: 'center',
-    },
-    createButtonText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: theme.colors.surface,
     },
   });

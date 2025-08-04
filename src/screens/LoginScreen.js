@@ -25,16 +25,10 @@ import {
 } from '../services/authService';
 
 import { Config } from '../config/env';
-import {
-  checkComplianceStatus,
-  validateComplianceForAccess,
-} from '../services/familiesPolicyService';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import useThemeLogo from '../hooks/useThemeLogo';
 import { createSmallShadow } from '../utils/commonStyles';
-import AgeVerification from '../components/AgeVerification';
-import ParentalConsent from '../components/ParentalConsent';
 import { updateLastLogin } from '../services/deviceService';
 
 const { width, height } = Dimensions.get('window');
@@ -57,11 +51,6 @@ export default function LoginScreen({ route, navigation }) {
 
   // Login type state (teacher or student)
   const [loginType, setLoginType] = useState(routeLoginType || 'teacher');
-
-  // Families policy compliance state
-  const [showAgeVerification, setShowAgeVerification] = useState(false);
-  const [showParentalConsent, setShowParentalConsent] = useState(false);
-  const [pendingUserData, setPendingUserData] = useState(null);
 
   const styles = createStyles(theme, fontSizes);
 
@@ -123,7 +112,7 @@ export default function LoginScreen({ route, navigation }) {
 
   const handleLogin = async () => {
     if (!username || !password) {
-      Alert.alert(t('error'), 'Please enter both username and password');
+      Alert.alert(t('error'), t('pleaseEnterCredentials'));
       return;
     }
 
@@ -161,10 +150,7 @@ export default function LoginScreen({ route, navigation }) {
           );
 
           if (studentExists) {
-            Alert.alert(
-              t('duplicateStudent'),
-              'This student account has already been added.'
-            );
+            Alert.alert(t('duplicateStudent'), t('studentAccountExists'));
             return;
           }
 
@@ -214,10 +200,10 @@ export default function LoginScreen({ route, navigation }) {
           );
 
           // Navigate back to parent screen
-          Alert.alert(t('success'), 'Student account added successfully');
+          Alert.alert(t('success'), t('studentAccountAdded'));
           navigation.goBack();
         } catch (error) {
-          Alert.alert('Error', 'Failed to save student account');
+          Alert.alert(t('error'), t('failedToSaveStudent'));
         }
       } else {
         // Normal login flow - check families policy compliance first
@@ -230,7 +216,10 @@ export default function LoginScreen({ route, navigation }) {
       }
     } else {
       // Handle login failure with detailed error information
-      let errorMessage = `Incorrect ${loginType} ID or password!`;
+      let errorMessage = t('incorrectCredentials').replace(
+        '{loginType}',
+        t(loginType)
+      );
 
       if (userData && userData.error) {
         console.log('🔍 LOGIN DEBUG: Error details received:', userData);
@@ -238,20 +227,17 @@ export default function LoginScreen({ route, navigation }) {
         // Provide more specific error messages based on error type
         switch (userData.errorType) {
           case 'TypeError':
-            errorMessage =
-              'Network connection error. Please check your internet connection.';
+            errorMessage = t('networkConnectionError');
             break;
           case 'NetworkError':
-            errorMessage =
-              'Unable to connect to server. Please try again later.';
+            errorMessage = t('unableToConnectServer');
             break;
           case 'TimeoutError':
-            errorMessage =
-              'Connection timeout. Please check your internet connection and try again.';
+            errorMessage = t('connectionTimeout');
             break;
           default:
-            errorMessage = `Login failed: ${
-              userData.errorMessage || 'Unknown error'
+            errorMessage = `${t('loginFailed')}: ${
+              userData.errorMessage || t('unknownError')
             }`;
         }
 
@@ -267,7 +253,7 @@ export default function LoginScreen({ route, navigation }) {
         });
       }
 
-      Alert.alert('Login Failed', errorMessage);
+      Alert.alert(t('loginFailed'), errorMessage);
     }
   };
 
@@ -280,28 +266,10 @@ export default function LoginScreen({ route, navigation }) {
         return;
       }
 
-      // For students, check compliance status
-      const compliance = await checkComplianceStatus(userData.id);
-
-      if (!compliance.isCompliant) {
-        setPendingUserData(userData);
-
-        if (compliance.reason === 'age_verification_required') {
-          setShowAgeVerification(true);
-          return;
-        }
-
-        if (compliance.reason === 'parental_consent_required') {
-          setShowParentalConsent(true);
-          return;
-        }
-      }
-
-      // User is compliant, proceed with login
+      // Proceed with login
       await proceedWithLogin(userData);
     } catch (error) {
-      console.error('Compliance check error:', error);
-      // In case of error, proceed with login but log the issue
+      console.error('Login error:', error);
       await proceedWithLogin(userData);
     }
   };
@@ -348,11 +316,11 @@ export default function LoginScreen({ route, navigation }) {
           '✅ STUDENT LOGIN: Student logged in successfully, navigating to home'
         );
         Alert.alert(
-          'Login Successful',
-          `Welcome ${userData.name}! You can now access the calendar and other school resources.`,
+          t('loginSuccessful'),
+          t('welcomeMessage').replace('{name}', userData.name),
           [
             {
-              text: 'OK',
+              text: t('ok'),
               onPress: () => navigation.replace('Home'),
             },
           ]
@@ -360,89 +328,9 @@ export default function LoginScreen({ route, navigation }) {
       }
     } catch (error) {
       console.error('Login completion error:', error);
-      Alert.alert('Error', 'Failed to complete login process');
+      Alert.alert(t('error'), t('failedToCompleteLogin'));
     }
   };
-
-  // Handle age verification completion
-  const handleAgeVerified = async (verificationResult) => {
-    try {
-      const { storeAgeVerification } = await import(
-        '../services/familiesPolicyService'
-      );
-      await storeAgeVerification(verificationResult);
-
-      setShowAgeVerification(false);
-
-      // Check if parental consent is required
-      if (verificationResult.requiresParentalConsent) {
-        setShowParentalConsent(true);
-      } else {
-        // Age verified and no parental consent needed, proceed
-        await proceedWithLogin(pendingUserData);
-        setPendingUserData(null);
-      }
-    } catch (error) {
-      console.error('Age verification error:', error);
-      Alert.alert('Error', 'Failed to verify age. Please try again.');
-    }
-  };
-
-  // Handle parental consent completion
-  const handleConsentGranted = async (consentData) => {
-    try {
-      const { storeParentalConsent } = await import(
-        '../services/familiesPolicyService'
-      );
-      await storeParentalConsent(consentData);
-
-      setShowParentalConsent(false);
-
-      // Consent granted, proceed with login
-      await proceedWithLogin(pendingUserData);
-      setPendingUserData(null);
-    } catch (error) {
-      console.error('Parental consent error:', error);
-      Alert.alert(
-        'Error',
-        'Failed to process parental consent. Please try again.'
-      );
-    }
-  };
-
-  // Handle compliance flow cancellation
-  const handleComplianceCancel = () => {
-    setShowAgeVerification(false);
-    setShowParentalConsent(false);
-    setPendingUserData(null);
-    setLoading(false);
-  };
-
-  // Show age verification screen
-  if (showAgeVerification) {
-    return (
-      <AgeVerification
-        onAgeVerified={handleAgeVerified}
-        onCancel={handleComplianceCancel}
-        userType={pendingUserData?.userType || 'student'}
-      />
-    );
-  }
-
-  // Show parental consent screen
-  if (showParentalConsent) {
-    return (
-      <ParentalConsent
-        studentData={pendingUserData}
-        onConsentGranted={handleConsentGranted}
-        onConsentDenied={handleComplianceCancel}
-        onBack={() => {
-          setShowParentalConsent(false);
-          setShowAgeVerification(true);
-        }}
-      />
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -466,7 +354,7 @@ export default function LoginScreen({ route, navigation }) {
         >
           <Text style={styles.title}>
             {isAddingStudent
-              ? 'Add Student Account'
+              ? t('addStudentAccount')
               : routeLoginType
               ? `${t(routeLoginType)} ${t('login')}`
               : t('login')}
@@ -513,7 +401,9 @@ export default function LoginScreen({ route, navigation }) {
 
           <TextInput
             style={styles.input}
-            placeholder={loginType === 'teacher' ? 'Teacher ID' : 'Student ID'}
+            placeholder={
+              loginType === 'teacher' ? t('teacherId') : t('studentId')
+            }
             placeholderTextColor={theme.colors.textLight}
             value={username}
             onChangeText={setUsername}
@@ -600,14 +490,14 @@ const createStyles = (theme, fontSizes) =>
       backgroundColor: theme.colors.background,
     },
     logo: {
-      width: width * 0.8,
-      height: height * 0.20,
+      width: width * 1,
+      height: height * 0.15,
       marginTop: height * 0.1,
     },
     formContainer: {
       width: '100%',
       paddingHorizontal: 30,
-      marginTop: height * 0.01,
+      marginTop: height * 0.05,
     },
     title: {
       fontSize: fontSizes.title,

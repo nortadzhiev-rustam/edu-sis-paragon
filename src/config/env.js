@@ -4,8 +4,8 @@
 // API Configuration
 export const Config = {
   // Base API Configuration
-  API_BASE_URL: 'https://sis.paragonisc.edu.kh/mobile-api',
-  API_DOMAIN: 'sis.paragonisc.edu.kh',
+  API_BASE_URL: 'https://sis.bfi.edu.mm/mobile-api',
+  API_DOMAIN: 'sis.bfi.edu.mm',
 
   // API Endpoints
   API_ENDPOINTS: {
@@ -104,6 +104,45 @@ export const Config = {
     GET_RECENT_WORKSPACE_FILES: '/workspace/recent-files',
     GET_WORKSPACE_STATISTICS: '/workspace/statistics',
     DELETE_WORKSPACE_ITEM: '/workspace/delete-item',
+
+    // Homework Assignment API Endpoints (Primary - Teachers)
+    GET_TEACHER_HOMEWORK_LIST: '/teacher/homework/list',
+    GET_TEACHER_HOMEWORK_DETAILS: '/teacher/homework/details',
+    CREATE_HOMEWORK_ASSIGNMENT: '/teacher/homework/create',
+    CLOSE_HOMEWORK_ASSIGNMENT: '/teacher/homework/close',
+    PROVIDE_HOMEWORK_FEEDBACK: '/teacher/homework/feedback',
+    // Homework Submission API Endpoints (Primary - Students)
+    MARK_HOMEWORK_VIEWED: '/homework/mark-viewed',
+    SUBMIT_HOMEWORK: '/homework/submit',
+    MARK_HOMEWORK_DONE: '/homework/mark-done',
+    UPLOAD_HOMEWORK_FILE: '/homework/upload-file',
+    UPDATE_HOMEWORK_SUBMISSION: '/homework/update-submission',
+
+    // Homework Folder API Endpoints (For Materials/Resources)
+    CREATE_HOMEWORK_FOLDER: '/homework/folder/create',
+    UPLOAD_HOMEWORK_FOLDER_FILE: '/homework/folder/upload-file',
+    GET_TEACHER_HOMEWORK_FOLDERS: '/homework/folder/teacher/list',
+    GET_TEACHER_HOMEWORK_FOLDERS_SIMPLE: '/homework/folder/teacher/list-simple',
+    GET_STUDENT_HOMEWORK_FOLDERS: '/homework/folder/student/list',
+    GET_HOMEWORK_FOLDER_FILES: '/homework/folder/files',
+    SUBMIT_HOMEWORK_FOLDER: '/homework/submission/upload',
+    GET_HOMEWORK_SUBMISSIONS: '/homework/submission/list',
+    GET_TEACHER_HOMEWORK_CLASSES: '/teacher/homework/classes',
+
+    // Reports API Endpoints
+    GET_AVAILABLE_REPORTS: '/reports/available',
+    // Student Reports
+    GET_STUDENT_ATTENDANCE_REPORT: '/reports/student/attendance',
+    GET_STUDENT_GRADES_REPORT: '/reports/student/grades',
+    GET_STUDENT_BPS_REPORT: '/reports/student/bps',
+    GET_STUDENT_HOMEWORK_REPORT: '/reports/student/homework',
+    GET_STUDENT_LIBRARY_REPORT: '/reports/student/library',
+    // Staff Reports
+    GET_STAFF_CLASSES: '/reports/staff/classes',
+    GET_CLASS_ATTENDANCE_REPORT: '/reports/staff/class-attendance',
+    GET_CLASS_ASSESSMENT_REPORT: '/reports/staff/class-assessment',
+    GET_BEHAVIORAL_ANALYTICS_REPORT: '/reports/staff/behavioral-analytics',
+    GET_HOMEWORK_ANALYTICS_REPORT: '/reports/staff/homework-analytics',
   },
 
   // Web Resources
@@ -118,8 +157,8 @@ export const Config = {
   // App Configuration
   APP: {
     NAME: 'EduSIS',
-    VERSION: '1.0.0',
-    BUNDLE_ID: 'com.edunovaasia.paragon',
+    VERSION: '1.0.1',
+    BUNDLE_ID: 'com.edunovaasia.edusis',
   },
 
   // Development Configuration

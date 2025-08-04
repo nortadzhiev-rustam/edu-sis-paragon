@@ -9,6 +9,7 @@ import {
   Alert,
   TextInput,
   Linking,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -20,7 +21,6 @@ import {
   faCheckCircle,
   faExclamationTriangle,
   faFileAlt,
-  faUpload,
   faPaperPlane,
   faEye,
   faPlay,
@@ -29,12 +29,20 @@ import {
   faExternalLinkAlt,
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '../contexts/ThemeContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { buildApiUrl } from '../config/env';
 import { createSmallShadow } from '../utils/commonStyles';
-import { processHtmlContent, containsHtml } from '../utils/htmlUtils';
+import { processHtmlContent } from '../utils/htmlUtils';
+import HomeworkFileUpload from '../components/homework/HomeworkFileUpload';
+import {
+  updateHomeworkSubmission,
+  submitHomeworkFile,
+  submitHomeworkTextWithFile,
+} from '../services/homeworkService';
 
 export default function AssignmentDetailScreen({ navigation, route }) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const { assignment, authCode } = route.params || {};
 
   const [submitting, setSubmitting] = useState(false);
@@ -43,6 +51,7 @@ export default function AssignmentDetailScreen({ navigation, route }) {
   const [fileLink, setFileLink] = useState('');
   const [assignmentData, setAssignmentData] = useState(assignment);
   const [showUpdateForm, setShowUpdateForm] = useState(false);
+  const [thumbnailErrors, setThumbnailErrors] = useState({});
 
   const styles = createStyles(theme);
 
@@ -87,110 +96,156 @@ export default function AssignmentDetailScreen({ navigation, route }) {
   // Submit assignment
   const submitAssignment = () => {
     if (!replyText.trim() && !selectedFile && !fileLink.trim()) {
-      Alert.alert(
-        'Error',
-        'Please provide either a written response, attach a file, or add a file link'
-      );
+      Alert.alert(t('error'), t('pleaseProvideResponse'));
       return;
     }
 
     const handleSubmit = async () => {
       setSubmitting(true);
       try {
-        const formData = new FormData();
-        formData.append('auth_code', authCode);
-        formData.append('detail_id', assignmentData.detail_id.toString());
-        formData.append('reply_data', replyText.trim());
+        // Determine if this is a new submission or an update
+        const isUpdate =
+          assignmentData.is_completed && assignmentData.has_student_submission;
 
-        if (selectedFile) {
-          formData.append('reply_file', {
-            uri: selectedFile.uri,
-            type: selectedFile.type,
-            name: selectedFile.name,
-          });
-        } else if (fileLink.trim()) {
-          // Send file link as reply_file when no physical file is selected
-          formData.append('reply_file', fileLink.trim());
+        let response;
+
+        if (isUpdate) {
+          // For updates, always use updateHomeworkSubmission
+          console.log('📝 Updating existing homework submission...');
+
+          let fileLink = null;
+          // Upload file first if provided
+          if (selectedFile) {
+            console.log('📤 Uploading homework file for update...');
+            const fileUploadResponse = await submitHomeworkFile(
+              assignmentData.homework_id, // Use homework_id for file upload
+              selectedFile,
+              replyText.trim(),
+              authCode
+            );
+
+            if (fileUploadResponse.success) {
+              fileLink =
+                fileUploadResponse.data?.web_view_link ||
+                fileUploadResponse.data?.file_url ||
+                fileUploadResponse.data?.file_link ||
+                fileUploadResponse.data?.url ||
+                fileUploadResponse.web_view_link;
+              console.log(
+                '📤 File uploaded successfully for update, file link:',
+                fileLink
+              );
+            } else {
+              console.warn(
+                '📤 File upload failed for update:',
+                fileUploadResponse.message
+              );
+            }
+          }
+
+          response = await updateHomeworkSubmission(
+            assignmentData.detail_id, // Use detail_id for submission update
+            replyText.trim(),
+            fileLink,
+            authCode
+          );
+        } else {
+          // For new submissions, use different endpoints based on whether there's a file
+          if (selectedFile) {
+            console.log('📝 Creating new homework submission with file...');
+            // Use SUBMIT_HOMEWORK_FOLDER endpoint for file submissions
+            response = await submitHomeworkFile(
+              assignmentData.homework_id, // Use homework_id for file submission
+              selectedFile,
+              replyText.trim(),
+              authCode
+            );
+          } else {
+            console.log('📝 Creating new homework submission (text only)...');
+            // Use SUBMIT_HOMEWORK endpoint for text-only submissions
+            response = await submitHomeworkTextWithFile(
+              assignmentData.detail_id, // Use detail_id for text submission
+              replyText.trim(),
+              null, // No file link
+              authCode
+            );
+          }
         }
 
-        const url = buildApiUrl('/homework/submit');
-
-        const response = await fetch(url, {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (response.ok) {
-          await response.json();
-
+        if (response.success) {
           setAssignmentData((prev) => ({
             ...prev,
             is_completed: 1,
             has_student_submission: true,
             submitted_date: new Date().toISOString(),
             reply_data: replyText.trim(),
-            reply_file: selectedFile?.name || null,
+            reply_file: response.hasFile
+              ? response.data?.file_name || 'uploaded_file'
+              : null,
           }));
-          Alert.alert('Success', 'Assignment submitted successfully!');
+
+          // Show appropriate success message
+          let alertMessage =
+            response.message ||
+            (isUpdate
+              ? 'Assignment updated successfully!'
+              : 'Assignment submitted successfully!');
+          if (response.fileUploadFailed && response.hasText) {
+            alertMessage +=
+              '\n\nNote: File upload failed, but your text response was submitted successfully.';
+          }
+
+          Alert.alert(t('success'), alertMessage);
           setReplyText('');
           setSelectedFile(null);
           setFileLink('');
           setShowUpdateForm(false);
         } else {
-          const errorResponse = await response.text();
-
-          try {
-            const errorData = JSON.parse(errorResponse);
-
-            // Handle specific error cases
-            if (errorData.error === 'Homework has already been submitted') {
-              Alert.alert(
-                'Already Submitted',
-                'This assignment has already been submitted. The backend will be updated soon to support assignment updates.',
-                [
-                  { text: 'OK', style: 'default' },
-                  {
-                    text: 'Contact Teacher',
-                    style: 'default',
-                    onPress: () => {
-                      Alert.alert(
-                        'Contact Teacher',
-                        'Please contact your teacher if you need to update your submission.'
-                      );
-                    },
-                  },
-                ]
-              );
-            } else {
-              Alert.alert(
-                'Submission Error',
-                errorData.error ||
-                  `Failed to submit assignment: ${response.status}`
-              );
-            }
-          } catch (parseError) {
-            // If response is not JSON, show generic error
-            Alert.alert(
-              'Error',
-              `Failed to submit assignment: ${response.status}`
-            );
-          }
+          Alert.alert(
+            t('error'),
+            response.message ||
+              (isUpdate
+                ? t('failedToUpdateAssignment')
+                : t('failedToSubmitAssignment'))
+          );
         }
       } catch (error) {
         console.error('Submission error:', error);
-        Alert.alert('Error', `Failed to connect to server: ${error.message}`);
+
+        // Handle specific error cases
+        if (error.message.includes('already been submitted')) {
+          Alert.alert(t('alreadySubmitted'), t('assignmentAlreadySubmitted'), [
+            { text: t('ok'), style: 'default' },
+            {
+              text: t('contactTeacher'),
+              style: 'default',
+              onPress: () => {
+                Alert.alert(t('contactTeacher'), t('contactTeacherMessage'));
+              },
+            },
+          ]);
+        } else {
+          Alert.alert(
+            t('error'),
+            t('failedToConnectServer').replace('{error}', error.message)
+          );
+        }
       } finally {
         setSubmitting(false);
       }
     };
 
+    // Determine if this is an update or new submission for the alert
+    const isUpdate =
+      assignmentData.is_completed && assignmentData.has_student_submission;
+
     Alert.alert(
-      'Submit Assignment',
-      'Are you sure you want to submit this assignment?',
+      isUpdate ? t('updateAssignment') : t('submitAssignment'),
+      isUpdate ? t('confirmUpdateAssignment') : t('confirmSubmitAssignment'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Submit',
+          text: isUpdate ? t('update') : t('submit'),
           style: 'default',
           onPress: () => {
             handleSubmit();
@@ -202,7 +257,7 @@ export default function AssignmentDetailScreen({ navigation, route }) {
 
   // Format date
   const formatDate = (dateString) => {
-    if (!dateString) return 'No date';
+    if (!dateString) return t('noDate');
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       weekday: 'long',
@@ -227,7 +282,7 @@ export default function AssignmentDetailScreen({ navigation, route }) {
     if (!url) return;
 
     Linking.openURL(url).catch(() => {
-      Alert.alert('Error', 'Unable to open file link');
+      Alert.alert(t('error'), t('unableToOpenFileLink'));
     });
   };
 
@@ -238,8 +293,31 @@ export default function AssignmentDetailScreen({ navigation, route }) {
     return extension || '';
   };
 
+  // Parse Google Drive files from JSON string
+  const parseGoogleDriveFiles = (googleDriveFilesString) => {
+    if (!googleDriveFilesString) return [];
+
+    try {
+      // Handle if it's already an array
+      if (Array.isArray(googleDriveFilesString)) {
+        return googleDriveFilesString;
+      }
+
+      // Parse JSON string
+      const files = JSON.parse(googleDriveFilesString);
+      return Array.isArray(files) ? files : [];
+    } catch (error) {
+      console.error('Error parsing google_drive_files:', error);
+      return [];
+    }
+  };
+
   // Get file name from URL with better extraction
-  const getFileName = (url) => {
+  const getFileName = (url, originalName = null) => {
+    // If we have the original name from the file object, use it
+    if (originalName) {
+      return decodeURIComponent(originalName);
+    }
     if (!url) return 'Reference File';
 
     try {
@@ -340,15 +418,76 @@ export default function AssignmentDetailScreen({ navigation, route }) {
     }
   };
 
-  // Get assignment status
+  // Check if file is an image
+  const isImageFile = (fileName) => {
+    if (!fileName) return false;
+    const extension = getFileExtension(fileName);
+    return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension);
+  };
+
+  // Generate Google Drive thumbnail URL
+  const getGoogleDriveThumbnailUrl = (webViewLink, fileId) => {
+    if (!webViewLink && !fileId) return null;
+
+    // Extract file ID from web_view_link if not provided directly
+    let driveFileId = fileId;
+    if (!driveFileId && webViewLink) {
+      const match = webViewLink.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+      if (match) {
+        driveFileId = match[1];
+      }
+    }
+
+    if (driveFileId) {
+      // Generate thumbnail URL for Google Drive files
+      return `https://drive.google.com/thumbnail?id=${driveFileId}&sz=w200-h200`;
+    }
+
+    return null;
+  };
+
+  // Get thumbnail URL for file
+  const getFileThumbnailUrl = (file) => {
+    // First check for explicit thumbnail data
+    if (file.thumbnail?.has_thumbnail && file.thumbnail?.thumbnail_url?.small) {
+      return file.thumbnail.thumbnail_url.small;
+    }
+
+    // For image files, try to generate Google Drive thumbnail
+    const fileName = file.original_name || file.file_name || file.name;
+    if (isImageFile(fileName)) {
+      return getGoogleDriveThumbnailUrl(file.web_view_link, file.file_id);
+    }
+
+    return null;
+  };
+
+  // Get assignment status with approval information
   const getAssignmentStatus = () => {
     if (assignmentData.is_completed) {
-      return {
-        status: 'completed',
-        color: '#34C759',
-        icon: faCheckCircle,
-        label: 'Completed',
-      };
+      // Check approval status first
+      if (assignmentData.approval_status === 'approved') {
+        return {
+          status: 'approved',
+          color: '#34C759',
+          icon: faCheckCircle,
+          label: 'Approved',
+        };
+      } else if (assignmentData.approval_status === 'rejected') {
+        return {
+          status: 'rejected',
+          color: '#FF3B30',
+          icon: faExclamationTriangle,
+          label: 'Needs Revision',
+        };
+      } else {
+        return {
+          status: 'completed',
+          color: '#007AFF',
+          icon: faCheckCircle,
+          label: 'Submitted',
+        };
+      }
     } else if (assignmentData.is_overdue) {
       return {
         status: 'overdue',
@@ -378,90 +517,117 @@ export default function AssignmentDetailScreen({ navigation, route }) {
     }
   };
 
+  // Check if assignment can be updated
+  const canUpdateAssignment = () => {
+    return (
+      assignmentData.is_completed &&
+      assignmentData.teacher_comment &&
+      assignmentData.approval_status !== 'approved' &&
+      (assignmentData.approval_status === 'rejected' ||
+        !assignmentData.approval_status)
+    );
+  };
+
   const status = getAssignmentStatus();
+
+  // File upload handlers
+  const handleFileSelected = (file) => {
+    setSelectedFile(file);
+  };
+
+  const handleFileUploaded = (result) => {
+    console.log('File uploaded successfully:', result);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Assignment Details</Text>
-        <View style={styles.headerRight} />
+      {/* Compact Header */}
+      <View style={styles.compactHeaderContainer}>
+        {/* Navigation Header */}
+        <View style={styles.navigationHeader}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Assignment Details</Text>
+          <View style={styles.headerRight} />
+        </View>
+
+        {/* Assignment Info Subheader */}
+        <View style={styles.subHeader}>
+          <View style={styles.assignmentHeaderCompact}>
+            <View style={styles.titleSectionCompact}>
+              <Text style={styles.assignmentTitleCompact}>
+                {assignmentData.title}
+              </Text>
+              <View style={styles.subjectInfoCompact}>
+                <Text style={styles.subjectNameCompact}>
+                  {assignmentData.subject_name}
+                </Text>
+                <Text style={styles.gradeNameCompact}>
+                  {assignmentData.grade_name}
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={[
+                styles.statusBadgeCompact,
+                { backgroundColor: status.color },
+              ]}
+            >
+              <FontAwesomeIcon icon={status.icon} size={16} color='#fff' />
+            </View>
+          </View>
+
+          {/* Assignment Info Rows */}
+          <View style={styles.infoRowsCompact}>
+            <View style={styles.infoRowCompact}>
+              <FontAwesomeIcon
+                icon={faUser}
+                size={14}
+                color={theme.colors.textSecondary}
+              />
+              <Text style={styles.infoTextCompact}>
+                {assignmentData.teacher_name}
+              </Text>
+            </View>
+
+            <View style={styles.infoRowCompact}>
+              <FontAwesomeIcon
+                icon={faCalendarAlt}
+                size={14}
+                color={theme.colors.textSecondary}
+              />
+              <Text style={styles.infoTextCompact}>
+                Due: {formatDate(assignmentData.deadline)}
+              </Text>
+            </View>
+
+            {assignmentData.viewed_at && (
+              <View style={styles.infoRowCompact}>
+                <FontAwesomeIcon
+                  icon={faEye}
+                  size={14}
+                  color={theme.colors.success}
+                />
+                <Text
+                  style={[
+                    styles.infoTextCompact,
+                    { color: theme.colors.success },
+                  ]}
+                >
+                  Viewed: {formatDate(assignmentData.viewed_at)}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Assignment Header */}
-        <View style={styles.assignmentHeader}>
-          <View style={styles.titleSection}>
-            <Text style={styles.assignmentTitle}>{assignmentData.title}</Text>
-            <View style={styles.subjectInfo}>
-              <Text style={styles.subjectName}>
-                {assignmentData.subject_name}
-              </Text>
-              <Text style={styles.gradeName}>{assignmentData.grade_name}</Text>
-            </View>
-          </View>
-
-          <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
-            <FontAwesomeIcon icon={status.icon} size={20} color='#fff' />
-          </View>
-        </View>
-
-        {/* Assignment Info */}
-        <View style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <FontAwesomeIcon
-              icon={faUser}
-              size={16}
-              color={theme.colors.textSecondary}
-            />
-            <Text style={styles.infoText}>
-              Teacher: {assignmentData.teacher_name}
-            </Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <FontAwesomeIcon
-              icon={faCalendarAlt}
-              size={16}
-              color={theme.colors.textSecondary}
-            />
-            <Text style={styles.infoText}>
-              Due: {formatDate(assignmentData.deadline)}
-            </Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <FontAwesomeIcon
-              icon={faClock}
-              size={16}
-              color={theme.colors.textSecondary}
-            />
-            <Text style={styles.infoText}>
-              Created: {formatDate(assignmentData.homework_created_at)}
-            </Text>
-          </View>
-
-          {assignmentData.viewed_at && (
-            <View style={styles.infoRow}>
-              <FontAwesomeIcon
-                icon={faEye}
-                size={16}
-                color={theme.colors.success}
-              />
-              <Text style={[styles.infoText, { color: theme.colors.success }]}>
-                Viewed: {formatDate(assignmentData.viewed_at)} at{' '}
-                {formatTime(assignmentData.viewed_at)}
-              </Text>
-            </View>
-          )}
-        </View>
-
         {/* Assignment Content */}
         <View style={styles.contentCard}>
           <Text style={styles.sectionTitle}>Assignment Description</Text>
@@ -471,9 +637,6 @@ export default function AssignmentDetailScreen({ navigation, route }) {
                 ? processHtmlContent(assignmentData.homework_data)
                 : 'No description provided'}
             </Text>
-            {/* {containsHtml(assignmentData.homework_data) && (
-              <Text style={styles.htmlIndicator}>📄 Formatted content</Text>
-            )} */}
           </View>
 
           {/* Teacher Files */}
@@ -490,29 +653,33 @@ export default function AssignmentDetailScreen({ navigation, route }) {
                 }
               >
                 <View style={styles.filePreviewHeader}>
-                  <View
-                    style={[
-                      styles.fileIconContainer,
-                      {
-                        backgroundColor:
-                          getFileTypeColor(
-                            assignmentData.homework_files ||
-                              assignmentData.homework_file
-                          ) + '20',
-                      },
-                    ]}
-                  >
-                    <FontAwesomeIcon
-                      icon={getFileTypeIcon(
-                        assignmentData.homework_files ||
-                          assignmentData.homework_file
-                      )}
-                      size={20}
-                      color={getFileTypeColor(
-                        assignmentData.homework_files ||
-                          assignmentData.homework_file
-                      )}
-                    />
+                  <View style={styles.fileThumbnailContainer}>
+                    {/* For homework_files/homework_file, we don't have file objects with thumbnail data,
+                        so we'll show icons for now. This could be enhanced if the API provides more file details */}
+                    <View
+                      style={[
+                        styles.fileIconContainer,
+                        {
+                          backgroundColor:
+                            getFileTypeColor(
+                              assignmentData.homework_files ||
+                                assignmentData.homework_file
+                            ) + '20',
+                        },
+                      ]}
+                    >
+                      <FontAwesomeIcon
+                        icon={getFileTypeIcon(
+                          assignmentData.homework_files ||
+                            assignmentData.homework_file
+                        )}
+                        size={20}
+                        color={getFileTypeColor(
+                          assignmentData.homework_files ||
+                            assignmentData.homework_file
+                        )}
+                      />
+                    </View>
                   </View>
                   <View style={styles.filePreviewInfo}>
                     <Text style={styles.filePreviewType}>
@@ -529,10 +696,88 @@ export default function AssignmentDetailScreen({ navigation, route }) {
             </View>
           )}
 
+          {/* Google Drive Files */}
+          {assignmentData.google_drive_files && (
+            <View style={styles.filesSection}>
+              <Text style={styles.sectionSubtitle}>Reference Materials</Text>
+              {parseGoogleDriveFiles(assignmentData.google_drive_files).map(
+                (file, index) => {
+                  const thumbnailUrl = getFileThumbnailUrl(file);
+                  const fileName = file.original_name || file.file_name;
+                  const fileKey = file.file_id || index;
+                  const hasThumbnailError = thumbnailErrors[fileKey];
+
+                  return (
+                    <TouchableOpacity
+                      key={fileKey}
+                      style={styles.filePreviewCard}
+                      onPress={() => openFileLink(file.web_view_link)}
+                    >
+                      <View style={styles.filePreviewHeader}>
+                        <View style={styles.fileThumbnailContainer}>
+                          {thumbnailUrl && !hasThumbnailError ? (
+                            <Image
+                              source={{ uri: thumbnailUrl }}
+                              style={styles.fileThumbnail}
+                              resizeMode='cover'
+                              onError={() => {
+                                console.log(
+                                  'Failed to load thumbnail for:',
+                                  getFileName(file.web_view_link, fileName)
+                                );
+                                setThumbnailErrors((prev) => ({
+                                  ...prev,
+                                  [fileKey]: true,
+                                }));
+                              }}
+                            />
+                          ) : (
+                            <View
+                              style={[
+                                styles.fileIconContainer,
+                                {
+                                  backgroundColor:
+                                    getFileTypeColor(fileName) + '20',
+                                },
+                              ]}
+                            >
+                              <FontAwesomeIcon
+                                icon={getFileTypeIcon(fileName)}
+                                size={20}
+                                color={getFileTypeColor(fileName)}
+                              />
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.filePreviewInfo}>
+                          <Text style={styles.filePreviewName}>
+                            {getFileName(file.web_view_link, fileName)}
+                          </Text>
+                          <Text style={styles.filePreviewType}>
+                            {file.file_size
+                              ? `${Math.round(file.file_size / 1024)} KB • `
+                              : ''}
+                            Tap to open
+                          </Text>
+                        </View>
+                        <FontAwesomeIcon
+                          icon={faExternalLinkAlt}
+                          size={16}
+                          color={theme.colors.textSecondary}
+                        />
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }
+              )}
+            </View>
+          )}
+
           {/* Legacy Teacher Files Support */}
           {assignmentData.has_teacher_files &&
             !assignmentData.homework_files &&
-            !assignmentData.homework_file && (
+            !assignmentData.homework_file &&
+            !assignmentData.google_drive_files && (
               <View style={styles.filesSection}>
                 <Text style={styles.sectionSubtitle}>Teacher Files</Text>
                 <TouchableOpacity style={styles.fileItem}>
@@ -612,6 +857,71 @@ export default function AssignmentDetailScreen({ navigation, route }) {
                   </View>
                 )}
 
+                {/* Approval Status Display */}
+                {assignmentData.approval_status && (
+                  <View style={styles.submissionSection}>
+                    <Text style={styles.submissionSectionTitle}>
+                      Review Status:
+                    </Text>
+                    <View
+                      style={[
+                        styles.approvalStatusContainer,
+                        {
+                          backgroundColor:
+                            assignmentData.approval_status === 'approved'
+                              ? '#34C759' + '20'
+                              : '#FF3B30' + '20',
+                          borderLeftColor:
+                            assignmentData.approval_status === 'approved'
+                              ? '#34C759'
+                              : '#FF3B30',
+                        },
+                      ]}
+                    >
+                      <FontAwesomeIcon
+                        icon={
+                          assignmentData.approval_status === 'approved'
+                            ? faCheckCircle
+                            : faExclamationTriangle
+                        }
+                        size={20}
+                        color={
+                          assignmentData.approval_status === 'approved'
+                            ? '#34C759'
+                            : '#FF3B30'
+                        }
+                      />
+                      <View style={styles.approvalStatusText}>
+                        <Text
+                          style={[
+                            styles.approvalStatusLabel,
+                            {
+                              color:
+                                assignmentData.approval_status === 'approved'
+                                  ? '#34C759'
+                                  : '#FF3B30',
+                            },
+                          ]}
+                        >
+                          {assignmentData.approval_status === 'approved'
+                            ? 'Approved'
+                            : 'Needs Revision'}
+                        </Text>
+                        <Text style={styles.approvalStatusDescription}>
+                          {assignmentData.approval_status === 'approved'
+                            ? 'Your homework has been approved by the teacher'
+                            : 'Your homework needs revision. Please check the feedback and resubmit.'}
+                        </Text>
+                        {assignmentData.reviewed_at && (
+                          <Text style={styles.reviewDate}>
+                            Reviewed on {formatDate(assignmentData.reviewed_at)}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                )}
+
                 {assignmentData.teacher_comment && (
                   <View style={styles.submissionSection}>
                     <Text style={styles.submissionSectionTitle}>
@@ -625,25 +935,32 @@ export default function AssignmentDetailScreen({ navigation, route }) {
               </View>
             )}
 
-            {/* Update Submission Button for completed assignments */}
-            <TouchableOpacity
-              style={[styles.actionButton, styles.updateButton]}
-              onPress={() => setShowUpdateForm(!showUpdateForm)}
-            >
-              <FontAwesomeIcon icon={faEdit} size={16} color='#fff' />
-              <Text style={styles.actionButtonText}>
-                {showUpdateForm ? 'Cancel Update' : 'Update Submission'}
-              </Text>
-            </TouchableOpacity>
+            {/* Update Submission Button - only show if assignment can be updated */}
+            {canUpdateAssignment() && (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.updateButton]}
+                onPress={() => setShowUpdateForm(!showUpdateForm)}
+              >
+                <FontAwesomeIcon icon={faEdit} size={16} color='#fff' />
+                <Text style={styles.actionButtonText}>
+                  {showUpdateForm ? 'Cancel Update' : 'Update Submission'}
+                </Text>
+              </TouchableOpacity>
+            )}
 
-            {/* Info message about updates */}
-            <View style={styles.updateInfoContainer}>
-              <Text style={styles.updateInfoText}>
-                💡 Note: Assignment updates are being implemented on the
-                backend. For now, contact your teacher if you need to modify
-                your submission.
-              </Text>
-            </View>
+            {/* Approved Assignment Notice */}
+            {assignmentData.approval_status === 'approved' && (
+              <View style={styles.approvedNotice}>
+                <FontAwesomeIcon
+                  icon={faCheckCircle}
+                  size={20}
+                  color='#34C759'
+                />
+                <Text style={styles.approvedNoticeText}>
+                  This assignment has been approved and cannot be modified.
+                </Text>
+              </View>
+            )}
 
             {/* Update Form */}
             {showUpdateForm && (
@@ -688,32 +1005,19 @@ export default function AssignmentDetailScreen({ navigation, route }) {
                   </Text>
                 </View>
 
-                {/* File Upload - Disabled with Coming Soon Badge */}
+                {/* File Upload */}
                 <View style={styles.inputSection}>
-                  <View style={styles.labelWithBadge}>
-                    <Text style={styles.inputLabel}>
-                      Attach File (Optional)
-                    </Text>
-                    <View style={styles.comingSoonBadge}>
-                      <Text style={styles.comingSoonText}>Coming Soon</Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.filePickerButton, styles.disabledButton]}
-                    disabled={true}
-                  >
-                    <FontAwesomeIcon
-                      icon={faUpload}
-                      size={16}
-                      color={theme.colors.textSecondary}
-                    />
-                    <Text style={[styles.filePickerText, styles.disabledText]}>
-                      File upload feature coming soon
-                    </Text>
-                  </TouchableOpacity>
+                  <Text style={styles.inputLabel}>Attach File (Optional)</Text>
+                  <HomeworkFileUpload
+                    onFileSelected={handleFileSelected}
+                    onFileUploaded={handleFileUploaded}
+                    maxFileSize={10 * 1024 * 1024} // 10MB for students
+                    userType='student'
+                    buttonText='Upload Assignment File'
+                    allowedTypes={['pdf', 'doc', 'docx', 'jpg', 'png', 'zip']}
+                  />
                   <Text style={styles.inputHint}>
-                    Direct file upload will be available in a future update. For
-                    now, please use file links above.
+                    Upload your completed assignment file
                   </Text>
                 </View>
 
@@ -747,7 +1051,12 @@ export default function AssignmentDetailScreen({ navigation, route }) {
         ) : (
           /* Submission Form */
           <View style={styles.submissionCard}>
-            <Text style={styles.sectionTitle}>Submit Assignment</Text>
+            <Text style={styles.sectionTitle}>
+              {assignmentData.is_completed &&
+              assignmentData.has_student_submission
+                ? 'Update Assignment'
+                : 'Submit Assignment'}
+            </Text>
 
             {/* Text Response */}
             <View style={styles.inputSection}>
@@ -783,30 +1092,19 @@ export default function AssignmentDetailScreen({ navigation, route }) {
               </Text>
             </View>
 
-            {/* File Upload - Disabled with Coming Soon Badge */}
+            {/* File Upload */}
             <View style={styles.inputSection}>
-              <View style={styles.labelWithBadge}>
-                <Text style={styles.inputLabel}>Attach File (Optional)</Text>
-                <View style={styles.comingSoonBadge}>
-                  <Text style={styles.comingSoonText}>Coming Soon</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={[styles.filePickerButton, styles.disabledButton]}
-                disabled={true}
-              >
-                <FontAwesomeIcon
-                  icon={faUpload}
-                  size={16}
-                  color={theme.colors.textSecondary}
-                />
-                <Text style={[styles.filePickerText, styles.disabledText]}>
-                  File upload feature coming soon
-                </Text>
-              </TouchableOpacity>
+              <Text style={styles.inputLabel}>Attach File (Optional)</Text>
+              <HomeworkFileUpload
+                onFileSelected={handleFileSelected}
+                onFileUploaded={handleFileUploaded}
+                maxFileSize={10 * 1024 * 1024} // 10MB for students
+                userType='student'
+                buttonText='Upload Assignment File'
+                allowedTypes={['pdf', 'doc', 'docx', 'jpg', 'png', 'zip']}
+              />
               <Text style={styles.inputHint}>
-                Direct file upload will be available in a future update. For
-                now, please use file links above.
+                Upload your completed assignment file
               </Text>
             </View>
 
@@ -830,7 +1128,10 @@ export default function AssignmentDetailScreen({ navigation, route }) {
                       color='#fff'
                     />
                     <Text style={styles.actionButtonText}>
-                      Submit Assignment
+                      {assignmentData.is_completed &&
+                      assignmentData.has_student_submission
+                        ? 'Update Assignment'
+                        : 'Submit Assignment'}
                     </Text>
                   </>
                 )}
@@ -849,6 +1150,34 @@ const createStyles = (theme) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
+    // Compact Header Styles
+    compactHeaderContainer: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      marginHorizontal: 16,
+      marginTop: 8,
+      marginBottom: 8,
+      elevation: 3,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+      overflow: 'hidden',
+      zIndex: 1,
+    },
+    navigationHeader: {
+      backgroundColor: theme.colors.headerBackground,
+      padding: 15,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    subHeader: {
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+    },
+    // Legacy header style (keeping for compatibility)
     header: {
       backgroundColor: theme.colors.headerBackground,
       padding: 15,
@@ -877,7 +1206,66 @@ const createStyles = (theme) =>
       padding: 20,
     },
 
-    // Assignment Header
+    // Compact Assignment Header Styles
+    assignmentHeaderCompact: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
+    titleSectionCompact: {
+      flex: 1,
+      marginRight: 12,
+    },
+    assignmentTitleCompact: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: theme.colors.text,
+      marginBottom: 4,
+    },
+    subjectInfoCompact: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+    },
+    subjectNameCompact: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.primary,
+      marginRight: 8,
+    },
+    gradeNameCompact: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+    },
+    statusBadgeCompact: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    infoRowsCompact: {
+      marginTop: 8,
+    },
+    infoRowCompact: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    infoTextCompact: {
+      fontSize: 13,
+      color: theme.colors.text,
+      marginLeft: 8,
+      flex: 1,
+    },
+
+    // Legacy Assignment Header (keeping for compatibility)
     assignmentHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -1021,6 +1409,16 @@ const createStyles = (theme) =>
       borderRadius: 8,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    fileThumbnailContainer: {
+      position: 'relative',
+      marginRight: 12,
+    },
+    fileThumbnail: {
+      width: 40,
+      height: 40,
+      borderRadius: 8,
+      backgroundColor: '#f8f9fa',
     },
     filePreviewInfo: {
       flex: 1,
@@ -1276,5 +1674,52 @@ const createStyles = (theme) =>
       fontWeight: 'bold',
       color: '#fff',
       marginLeft: 8,
+    },
+
+    // Approval System Styles
+    approvalStatusContainer: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      backgroundColor: theme.colors.background,
+      padding: 16,
+      borderRadius: 12,
+      borderLeftWidth: 4,
+      gap: 12,
+    },
+    approvalStatusText: {
+      flex: 1,
+    },
+    approvalStatusLabel: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      marginBottom: 4,
+    },
+    approvalStatusDescription: {
+      fontSize: 14,
+      color: theme.colors.text,
+      lineHeight: 20,
+      marginBottom: 4,
+    },
+    reviewDate: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      fontStyle: 'italic',
+    },
+    approvedNotice: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#34C759' + '20',
+      padding: 16,
+      borderRadius: 12,
+      borderLeftWidth: 4,
+      borderLeftColor: '#34C759',
+      gap: 12,
+      marginTop: 16,
+    },
+    approvedNoticeText: {
+      fontSize: 14,
+      color: '#34C759',
+      fontWeight: '600',
+      flex: 1,
     },
   });

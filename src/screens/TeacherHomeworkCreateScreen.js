@@ -18,12 +18,20 @@ import {
   faCalendarAlt,
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '../contexts/ThemeContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { buildApiUrl } from '../config/env';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { useFocusEffect } from '@react-navigation/native';
+import HomeworkFileUpload from '../components/homework/HomeworkFileUpload';
+import {
+  createHomeworkAssignment,
+  getOrCreateHomeworkFolder,
+  uploadHomeworkFile,
+} from '../services/homeworkService';
 
 export default function TeacherHomeworkCreateScreen({ navigation, route }) {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const {
     authCode,
     selectedBranchId: initialSelectedBranchId, // Get selected branch from params
@@ -44,6 +52,9 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
   const [selectedStudents, setSelectedStudents] = useState([]);
   const [deadline, setDeadline] = useState(new Date());
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+
+  // File upload state
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const styles = createStyles(theme);
 
@@ -137,14 +148,17 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
             });
           }
         } else {
-          Alert.alert('Error', 'Failed to fetch classes');
+          Alert.alert(t('error'), t('failedToFetchClasses'));
         }
       } else {
-        Alert.alert('Error', `Failed to fetch classes: ${response.status}`);
+        Alert.alert(
+          t('error'),
+          `${t('failedToFetchClasses')}: ${response.status}`
+        );
       }
     } catch (error) {
       console.error('Error fetching classes:', error);
-      Alert.alert('Error', 'Failed to connect to server');
+      Alert.alert(t('error'), t('failedToConnect'));
     } finally {
       setLoading(false);
     }
@@ -152,65 +166,134 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
 
   const createHomework = async () => {
     if (!title.trim()) {
-      Alert.alert('Error', 'Please enter homework title');
+      Alert.alert(t('error'), t('pleaseEnterHomeworkTitle'));
       return;
     }
 
     if (!description.trim()) {
-      Alert.alert('Error', 'Please enter homework description');
+      Alert.alert(t('error'), t('pleaseEnterHomeworkDescription'));
       return;
     }
 
     if (!selectedClass) {
-      Alert.alert('Error', 'Please select a class');
+      Alert.alert(t('error'), t('pleaseSelectClass'));
       return;
     }
 
     if (selectedStudents.length === 0) {
-      Alert.alert('Error', 'Please select at least one student');
+      Alert.alert(t('error'), t('pleaseSelectStudents'));
       return;
     }
 
     if (!deadline) {
-      Alert.alert('Error', 'Please select deadline');
+      Alert.alert(t('error'), t('pleaseSelectDeadline'));
       return;
     }
 
-    // Format deadline for API
-    const combinedDeadline = formatDateTime(deadline);
-
     setCreating(true);
     try {
-      const response = await fetch(buildApiUrl('/teacher/homework/create'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({
-          auth_code: authCode,
-          title: title.trim(),
-          grade_id: selectedClass.grade_id,
-          students: selectedStudents,
-          deadline: combinedDeadline,
-          homework_data: description.trim(),
-          homework_files: fileLink.trim() || null,
-        }),
+      console.log('📝 Creating homework assignment with data:', {
+        title: title.trim(),
+        description: description.trim(),
+        gradeId: selectedClass.grade_id,
+        studentIds: selectedStudents,
+        deadline: deadline.toISOString().split('T')[0],
       });
 
-      if (response.ok) {
-        Alert.alert('Success', 'Homework created successfully!', [
+      // Create homework assignment using assignment API
+      const assignmentResponse = await createHomeworkAssignment(
+        title.trim(),
+        description.trim(),
+        selectedClass.grade_id,
+        selectedStudents, // selectedStudents already contains student IDs
+        deadline.toISOString().split('T')[0], // Format date as YYYY-MM-DD
+        authCode
+      );
+
+      if (assignmentResponse.success) {
+        const homeworkId =
+          assignmentResponse.data.homework_id || assignmentResponse.data.id;
+
+        // Upload file if selected (first create folder, then upload file)
+        if (selectedFile) {
+          try {
+            const className =
+              selectedClass.grade_name || selectedClass.class_name;
+
+            console.log('📁 Getting or creating homework folder...');
+
+            // Step 1: Get existing folder or create new one
+            const folderResponse = await getOrCreateHomeworkFolder(
+              `${title.trim()} - ${className}`, // folder name
+              'class', // assignment type
+              description.trim(), // description
+              [selectedClass.grade_id], // assigned classes
+              [], // assigned students (empty for class assignment)
+              null, // homeworkParentFolderId (will be auto-detected)
+              authCode // authCode
+            );
+
+            if (folderResponse.success) {
+              // Extract folder ID from response - try different possible structures
+              const folderId =
+                folderResponse.data?.google_drive_folder_id ||
+                folderResponse.google_drive_folder_id ||
+                folderResponse.data?.folder_id ||
+                folderResponse.data?.homework_folder_id ||
+                folderResponse.folder_id ||
+                folderResponse.homework_folder_id;
+
+              console.log('📁 Folder response:', folderResponse);
+              console.log('📁 Extracted folder ID:', folderId);
+
+              if (folderResponse.data?.existing_folder) {
+                console.log('📁 Using existing folder');
+              } else {
+                console.log('📁 Created new folder');
+              }
+
+              if (folderId) {
+                // Step 2: Upload file to the created/found folder
+                await uploadHomeworkFile(
+                  folderId,
+                  selectedFile,
+                  `Assignment file for ${title.trim()}`, // file description
+                  homeworkId, // homework assignment ID for context
+                  authCode
+                );
+
+                console.log('📤 File uploaded successfully to folder');
+              } else {
+                console.error(
+                  '📁 No folder ID found in response:',
+                  folderResponse
+                );
+                throw new Error('No folder ID returned from folder operation');
+              }
+            } else {
+              throw new Error('Failed to create or access homework folder');
+            }
+          } catch (uploadError) {
+            console.error('File upload error:', uploadError);
+            Alert.alert(t('warning'), t('fileUploadWarning'));
+          }
+        }
+
+        Alert.alert(t('success'), t('homeworkCreatedSuccessfully'), [
           {
             text: 'OK',
             onPress: () => navigation.goBack(),
           },
         ]);
       } else {
-        Alert.alert('Error', 'Failed to create homework');
+        Alert.alert(
+          t('error'),
+          assignmentResponse.message || t('failedToCreateHomework')
+        );
       }
     } catch (error) {
       console.error('Error creating homework:', error);
-      Alert.alert('Error', 'Failed to connect to server');
+      Alert.alert(t('error'), t('failedToConnect'));
     } finally {
       setCreating(false);
     }
@@ -252,17 +335,6 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
     hideDatePicker();
   };
 
-  const formatDateTime = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-  };
-
   const formatDisplayDateTime = (date) => {
     return date.toLocaleString('en-US', {
       year: 'numeric',
@@ -298,6 +370,15 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
     return getCurrentClasses();
   }, [branchData, selectedBranchId]);
 
+  // File upload handlers
+  const handleFileSelected = (file) => {
+    setSelectedFile(file);
+  };
+
+  const handleFileUploaded = (result) => {
+    console.log('File uploaded successfully:', result);
+  };
+
   if (loading || !branchData) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -312,14 +393,14 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
               <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
             </TouchableOpacity>
 
-            <Text style={styles.headerTitle}>Create Homework</Text>
+            <Text style={styles.headerTitle}>{t('createHomework')}</Text>
 
             <View style={styles.headerRight} />
           </View>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size='large' color='#007AFF' />
-          <Text style={styles.loadingText}>Loading classes...</Text>
+          <Text style={styles.loadingText}>{t('loadingClasses')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -338,7 +419,7 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
             <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Create Homework</Text>
+          <Text style={styles.headerTitle}>{t('createHomework')}</Text>
 
           <TouchableOpacity
             style={styles.saveButton}
@@ -361,10 +442,10 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
       >
         {/* Title Input */}
         <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>Homework Title *</Text>
+          <Text style={styles.inputLabel}>{t('homeworkTitle')} *</Text>
           <TextInput
             style={styles.textInput}
-            placeholder='Enter homework title...'
+            placeholder={t('enterHomeworkTitle')}
             placeholderTextColor={theme.colors.textSecondary}
             value={title}
             onChangeText={setTitle}
@@ -378,7 +459,7 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
             style={[styles.textInput, styles.multilineInput]}
             multiline
             numberOfLines={6}
-            placeholder='Enter homework description and instructions...'
+            placeholder={t('enterHomeworkDescription')}
             placeholderTextColor={theme.colors.textSecondary}
             value={description}
             onChangeText={setDescription}
@@ -386,12 +467,40 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
           />
         </View>
 
-        {/* File Link Input */}
+        {/* File Upload Section */}
         <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>File Link (Optional)</Text>
+          <Text style={styles.inputLabel}>Assignment Files (Optional)</Text>
+          <HomeworkFileUpload
+            onFileSelected={handleFileSelected}
+            onFileUploaded={handleFileUploaded}
+            maxFileSize={50 * 1024 * 1024} // 50MB for teachers
+            userType='teacher'
+            buttonText={t('addAssignmentFile')}
+            allowedTypes={[
+              'pdf',
+              'doc',
+              'docx',
+              'ppt',
+              'pptx',
+              'xls',
+              'xlsx',
+              'jpg',
+              'png',
+              'zip',
+            ]}
+          />
+          <Text style={styles.inputHint}>
+            Upload reference materials, documents, or files for this homework
+            assignment
+          </Text>
+        </View>
+
+        {/* File Link Input (Alternative) */}
+        <View style={styles.inputSection}>
+          <Text style={styles.inputLabel}>Or Add File Link (Optional)</Text>
           <TextInput
             style={styles.textInput}
-            placeholder='Enter file URL (e.g., https://example.com/file.pdf)...'
+            placeholder={t('enterFileUrl')}
             placeholderTextColor={theme.colors.textSecondary}
             value={fileLink}
             onChangeText={setFileLink}
@@ -407,7 +516,7 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
 
         {/* Class Selection */}
         <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>Select Class *</Text>
+          <Text style={styles.inputLabel}>{t('selectClass')} *</Text>
           {currentClasses.map((classItem) => (
             <TouchableOpacity
               key={classItem.grade_id}
@@ -447,7 +556,7 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
         {selectedClass && (
           <View style={styles.inputSection}>
             <View style={styles.studentSelectionHeader}>
-              <Text style={styles.inputLabel}>Select Students *</Text>
+              <Text style={styles.inputLabel}>{t('selectStudents')} *</Text>
               {selectedClass.students && selectedClass.students.length > 0 && (
                 <View style={styles.selectionActions}>
                   <TouchableOpacity
@@ -565,7 +674,7 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
               paddingBottom: 20,
             }}
             // iOS Button Styling
-            confirmTextIOS='Set Deadline'
+            confirmTextIOS={t('setDeadline')}
             cancelTextIOS='Cancel'
             buttonTextColorIOS={theme.colors.primary}
             // Test IDs for automation
@@ -585,7 +694,7 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
           ) : (
             <>
               <FontAwesomeIcon icon={faPlus} size={16} color='#fff' />
-              <Text style={styles.createButtonText}>Create Homework</Text>
+              <Text style={styles.createButtonText}>{t('createHomework')}</Text>
             </>
           )}
         </TouchableOpacity>
