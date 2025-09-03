@@ -33,6 +33,7 @@ import {
   faHeartbeat,
   faDoorOpen,
   faClock,
+  faQrcode, // added for Pickup
 } from '@fortawesome/free-solid-svg-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
@@ -90,12 +91,28 @@ export default function TeacherScreen({ route, navigation }) {
         // Single unique role - just show the role name
         return uniqueRoles[0];
       } else {
-        // Multiple unique roles - show them separated by dashes
-        return uniqueRoles.join(' - ');
+        // Multiple unique roles - split across two lines for better readability
+        const mid = Math.ceil(uniqueRoles.length / 2);
+        const firstLine = uniqueRoles.slice(0, mid).join(' - ');
+        const secondLine = uniqueRoles.slice(mid).join(' - ');
+        return secondLine ? `${firstLine}\n${secondLine}` : firstLine;
       }
     }
 
-    // Fallback to position field
+    // Fallback to new API response fields
+    if (userData.profession_position) {
+      return userData.profession_position;
+    }
+
+    if (userData.role) {
+      return userData.role;
+    }
+
+    if (userData.staff_category_name) {
+      return userData.staff_category_name;
+    }
+
+    // Final fallback
     return userData.position || 'Teacher';
   };
 
@@ -429,8 +446,8 @@ export default function TeacherScreen({ route, navigation }) {
             if (parsedData.userType === 'teacher') {
               setUserData(parsedData);
             } else {
-              // If not a teacher account, redirect to home
-              navigation.replace('Home');
+              // If not a teacher account, redirect to login
+              navigation.replace('Login');
             }
           }
         } catch (error) {
@@ -579,25 +596,25 @@ export default function TeacherScreen({ route, navigation }) {
 
             if (result.success) {
               console.log('✅ TEACHER LOGOUT: Logout completed successfully');
-              // Navigate back to home screen
+              // Navigate back to login screen
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'Home' }],
+                routes: [{ name: 'Login' }],
               });
             } else {
               console.error('❌ TEACHER LOGOUT: Logout failed:', result.error);
               // Still navigate even if cleanup failed
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'Home' }],
+                routes: [{ name: 'Login' }],
               });
             }
           } catch (error) {
             console.error('❌ TEACHER LOGOUT: Error during logout:', error);
-            // Fallback: still navigate to home screen
+            // Fallback: still navigate to login screen
             navigation.reset({
               index: 0,
-              routes: [{ name: 'Home' }],
+              routes: [{ name: 'Login' }],
             });
           }
         },
@@ -770,6 +787,20 @@ export default function TeacherScreen({ route, navigation }) {
           }),
       });
     }
+    // Staff Pickup Management
+    actions.splice(4, 0, {
+      id: 'pickup',
+      title: t('pickupManagement') || 'Pickup',
+      subtitle: t('scanAndProcess') || 'Scan & process',
+      icon: faQrcode,
+      backgroundColor: '#f39c12',
+      iconColor: '#fff',
+      disabled: false,
+      onPress: () =>
+        navigation.navigate('TeacherPickupScreen', {
+          authCode: userData.authCode,
+        }),
+    });
 
     return actions;
   };
@@ -780,13 +811,6 @@ export default function TeacherScreen({ route, navigation }) {
       <View style={styles.compactHeaderContainer}>
         {/* Navigation Header */}
         <View style={styles.navigationHeader}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
-          </TouchableOpacity>
-
           <Text
             style={[
               styles.headerTitle,
@@ -878,6 +902,8 @@ export default function TeacherScreen({ route, navigation }) {
                   })()}
                 >
                   <Text
+                    numberOfLines={2}
+                    ellipsizeMode='tail'
                     style={[
                       styles.compactTeacherRole,
                       (() => {
@@ -1361,18 +1387,18 @@ const createStyles = (theme, fontSizes) =>
       marginBottom: 16,
     },
     teacherAvatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: 70,
+      height: 70,
+      borderRadius: 35,
       backgroundColor: theme.colors.primary + '15',
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 12,
     },
     avatarImage: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: 70,
+      height: 70,
+      borderRadius: 35,
     },
     teacherInfo: {
       flex: 1,
@@ -1387,9 +1413,11 @@ const createStyles = (theme, fontSizes) =>
       fontSize: 12,
       color: theme.colors.textSecondary,
       fontWeight: '500',
+      flexShrink: 1,
     },
     compactTeacherId: {
       marginTop: 2,
+      marginBottom: 20,
       fontSize: 12,
       color: theme.colors.textLight,
       fontWeight: '500',
@@ -1403,6 +1431,7 @@ const createStyles = (theme, fontSizes) =>
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
       paddingTop: 16,
+      marginTop: 10,
     },
     branchSummaryHeader: {
       flexDirection: 'row',

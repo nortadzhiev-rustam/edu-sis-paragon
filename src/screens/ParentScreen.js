@@ -21,9 +21,7 @@ import {
 } from '../utils/commonStyles';
 
 import {
-  faPlus,
   faChild,
-  faArrowLeft,
   faTrash,
   faBook,
   faCalendarAlt,
@@ -36,6 +34,10 @@ import {
   faFileAlt,
   faHeartbeat,
   faClock,
+  faSignOutAlt,
+  faGear,
+  faUserShield,
+  faCar,
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -43,10 +45,24 @@ import { useParentNotifications } from '../hooks/useParentNotifications';
 import ParentNotificationBadge from '../components/ParentNotificationBadge';
 import MessageBadge from '../components/MessageBadge';
 import { QuickActionTile, ComingSoonBadge } from '../components';
-import { cleanupStudentData } from '../services/logoutService';
+import { cleanupStudentData, performLogout } from '../services/logoutService';
 import { isIPad, isTablet } from '../utils/deviceDetection';
 import DemoModeIndicator from '../components/DemoModeIndicator';
 import { updateLastLogin } from '../services/deviceService';
+
+// Import Parent Proxy Access System
+import {
+  getParentChildren,
+  getChildTimetable,
+  getChildHomework,
+  getChildAttendance,
+  getChildGrades,
+  getChildAssessment,
+  getChildBpsProfile,
+  saveChildrenData,
+  getChildrenData,
+  formatChildForDisplay,
+} from '../services/parentService';
 
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -102,14 +118,14 @@ const getMenuItems = (t) => [
     iconColor: '#fff',
     action: 'discipline',
   },
-  {
-    id: 'library',
-    title: t('library'),
-    icon: faBookOpen,
-    backgroundColor: '#FF6B35',
-    iconColor: '#fff',
-    action: 'library',
-  },
+  // {
+  //   id: 'library',
+  //   title: t('library'),
+  //   icon: faBookOpen,
+  //   backgroundColor: '#FF6B35',
+  //   iconColor: '#fff',
+  //   action: 'library',
+  // },
   // Health
   {
     id: 'health',
@@ -132,13 +148,33 @@ const getMenuItems = (t) => [
     action: 'messages',
     comingSoon: false,
   },
+  // {
+  //   id: 'materials',
+  //   title: t('materials'),
+  //   icon: faFileAlt,
+  //   backgroundColor: '#4CAF50',
+  //   iconColor: '#fff',
+  //   action: 'materials',
+  //   disabled: false,
+  //   comingSoon: false,
+  // },
   {
-    id: 'materials',
-    title: t('materials'),
-    icon: faFileAlt,
-    backgroundColor: '#4CAF50',
+    id: 'guardians',
+    title: t('guardianManagement'),
+    icon: faUserShield,
+    backgroundColor: '#8B5CF6',
     iconColor: '#fff',
-    action: 'materials',
+    action: 'guardians',
+    disabled: false,
+    comingSoon: false,
+  },
+  {
+    id: 'pickup',
+    title: 'Pickup Request',
+    icon: faCar,
+    backgroundColor: '#FF6B35',
+    iconColor: '#fff',
+    action: 'pickup',
     disabled: false,
     comingSoon: false,
   },
@@ -152,7 +188,6 @@ const getMenuItems = (t) => [
   //   disabled: false,
   //   comingSoon: false,
   // },
-  
 ];
 
 export default function ParentScreen({ navigation }) {
@@ -239,12 +274,56 @@ export default function ParentScreen({ navigation }) {
     }
   }, [students, refreshAllStudents]);
 
-  const handleAddStudent = () => {
-    // Navigate to login screen with student type
-    navigation.navigate('Login', {
-      loginType: 'student',
-      isAddingStudent: true, // Flag to indicate we're adding a student account
-    });
+  const handleLogout = async () => {
+    Alert.alert(t('logout'), t('confirmLogout'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('logout'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            console.log('🚪 PARENT: Starting logout process...');
+
+            // Use the comprehensive logout service
+            const logoutResult = await performLogout({
+              clearDeviceToken: false, // Keep device token for future logins
+              clearAllData: false, // Keep student accounts for parent dashboard
+            });
+
+            if (logoutResult.success) {
+              console.log('✅ PARENT: Logout completed successfully');
+              navigation.replace('Login');
+            } else {
+              console.error('❌ PARENT: Logout failed:', logoutResult.error);
+              // Fallback to basic logout
+              await AsyncStorage.multiRemove([
+                'userData',
+                'selectedStudent',
+                'calendarUserData',
+              ]);
+              navigation.replace('Login');
+            }
+          } catch (error) {
+            console.error('❌ PARENT: Error during logout:', error);
+            // Fallback to basic logout
+            try {
+              await AsyncStorage.multiRemove([
+                'userData',
+                'selectedStudent',
+                'calendarUserData',
+              ]);
+              navigation.replace('Login');
+            } catch (fallbackError) {
+              console.error(
+                '❌ PARENT: Fallback logout also failed:',
+                fallbackError
+              );
+              Alert.alert(t('error'), t('logoutFailed'));
+            }
+          }
+        },
+      },
+    ]);
   };
 
   const handleStudentPress = async (student) => {
@@ -300,60 +379,96 @@ export default function ParentScreen({ navigation }) {
       return;
     }
 
-    // Check if student has an authCode
-    if (!selectedStudent.authCode) {
-      Alert.alert(t('authenticationError'), t('unableToAuthenticate'));
+    // Get parent's auth code for proxy access
+    const parentAuthCode =
+      currentUserData?.auth_code || currentUserData?.authCode;
+
+    if (!parentAuthCode) {
+      Alert.alert(t('authenticationError'), t('parentAuthenticationRequired'));
       return;
     }
 
-    // Handle different menu actions
+    // Handle different menu actions using Parent Proxy Access System
     switch (action) {
       case 'grades':
         navigation.navigate('GradesScreen', {
           studentName: selectedStudent.name,
-          authCode: selectedStudent.authCode,
+          authCode: parentAuthCode, // Use parent's auth code
+          studentId: selectedStudent.student_id, // Pass student ID for proxy access
+          useParentProxy: true, // Flag to indicate proxy access
+          parentData: currentUserData,
         });
         break;
       case 'attendance':
         navigation.navigate('AttendanceScreen', {
           studentName: selectedStudent.name,
-          authCode: selectedStudent.authCode,
+          authCode: parentAuthCode, // Use parent's auth code
+          studentId: selectedStudent.student_id, // Pass student ID for proxy access
+          useParentProxy: true, // Flag to indicate proxy access
+          parentData: currentUserData,
         });
         break;
       case 'assignments':
         navigation.navigate('AssignmentsScreen', {
           studentName: selectedStudent.name,
-          authCode: selectedStudent.authCode,
+          authCode: parentAuthCode, // Use parent's auth code
+          studentId: selectedStudent.student_id, // Pass student ID for proxy access
+          useParentProxy: true, // Flag to indicate proxy access
+          parentData: currentUserData,
         });
         break;
       case 'schedule':
         navigation.navigate('TimetableScreen', {
           studentName: selectedStudent.name,
-          authCode: selectedStudent.authCode,
+          authCode: parentAuthCode, // Use parent's auth code
+          studentId: selectedStudent.student_id, // Pass student ID for proxy access
+          useParentProxy: true, // Flag to indicate proxy access
+          parentData: currentUserData,
         });
         break;
       case 'discipline':
         navigation.navigate('BehaviorScreen', {
           studentName: selectedStudent.name,
-          authCode: selectedStudent.authCode,
+          authCode: parentAuthCode, // Use parent's auth code
+          studentId: selectedStudent.student_id, // Pass student ID for proxy access
+          useParentProxy: true, // Flag to indicate proxy access
+          parentData: currentUserData,
         });
         break;
       case 'messages':
-        navigation.navigate('StudentMessagingScreen', {
-          authCode: selectedStudent.authCode,
-          studentName: selectedStudent.name,
-        });
+        // Parent messaging already uses parent auth code
+
+        if (parentAuthCode) {
+          navigation.navigate('ParentMessagingScreen', {
+            authCode: parentAuthCode,
+            parentName:
+              currentUserData?.name || currentUserData?.user_name || 'Parent',
+            userType: 'parent',
+            children: students, // Pass children data for context
+          });
+        } else {
+          Alert.alert(
+            'Error',
+            'Unable to access messaging. Please try logging in again.'
+          );
+        }
         break;
       case 'library':
         navigation.navigate('LibraryScreen', {
           studentName: selectedStudent.name,
-          authCode: selectedStudent.authCode,
+          authCode: parentAuthCode, // Use parent's auth code
+          studentId: selectedStudent.student_id, // Pass student ID for proxy access
+          useParentProxy: true, // Flag to indicate proxy access
+          parentData: currentUserData,
         });
         break;
       case 'health':
         navigation.navigate('StudentHealthScreen', {
           studentName: selectedStudent.name,
-          authCode: selectedStudent.authCode,
+          authCode: parentAuthCode, // Use parent's auth code
+          studentId: selectedStudent.student_id, // Pass student ID for proxy access
+          useParentProxy: true, // Flag to indicate proxy access
+          parentData: currentUserData,
         });
         break;
       case 'calendar':
@@ -386,9 +501,45 @@ export default function ParentScreen({ navigation }) {
           userData: {
             ...selectedStudent,
             name: selectedStudent.name,
-            authCode: selectedStudent.authCode,
+            authCode: parentAuthCode, // Use parent's auth code
+            studentId: selectedStudent.student_id, // Pass student ID for proxy access
+            useParentProxy: true, // Flag to indicate proxy access
+            parentData: currentUserData,
           },
         });
+        break;
+      case 'guardians':
+        // Use parent's auth code for guardian management
+        const guardianAuthCode =
+          currentUserData?.auth_code || currentUserData?.authCode;
+
+        if (guardianAuthCode) {
+          navigation.navigate('GuardianManagement', {
+            authCode: guardianAuthCode,
+            children: students,
+            selectedChildId: selectedStudent?.id,
+          });
+        } else {
+          Alert.alert(t('error'), t('unableToAccessGuardianManagement'));
+        }
+        break;
+      case 'pickup':
+        // Navigate to parent pickup request screen
+        const pickupAuthCode =
+          currentUserData?.auth_code || currentUserData?.authCode;
+
+        if (pickupAuthCode) {
+          navigation.navigate('ParentPickupRequest', {
+            authCode: pickupAuthCode,
+            children: students,
+            selectedChild: selectedStudent,
+          });
+        } else {
+          Alert.alert(
+            t('error'),
+            'Unable to access pickup request. Please try logging in again.'
+          );
+        }
         break;
       default:
         break;
@@ -398,12 +549,144 @@ export default function ParentScreen({ navigation }) {
   // Extract loadStudents function to make it reusable
   const loadStudents = React.useCallback(async () => {
     try {
-      // Check if we're in demo mode
+      // Check if we have user data (could be parent login or demo mode)
       const userData = await AsyncStorage.getItem('userData');
       if (userData) {
         const parsedUserData = JSON.parse(userData);
         setCurrentUserData(parsedUserData); // Set current user data for demo mode indicator
 
+        // Handle parent login from unified login endpoint
+        if (parsedUserData.userType === 'parent') {
+          console.log(
+            '👨‍👩‍👧‍👦 PARENT: Loading children data using Parent Proxy Access System'
+          );
+
+          try {
+            // First try to use children from login response if available
+            if (parsedUserData.children && parsedUserData.children.length > 0) {
+              console.log('📦 PARENT: Using children from login response');
+
+              // Map backend response format to mobile app format
+              const mappedChildren = parsedUserData.children.map((child) => ({
+                id: child.student_id,
+                name: child.student_name,
+                student_id: child.student_id,
+                student_name: child.student_name, // Keep original API property
+                username:
+                  child.student_email?.split('@')[0] ||
+                  `student_${child.student_id}`,
+                authCode: parsedUserData.auth_code, // Use parent's auth code for proxy access
+                auth_code: parsedUserData.auth_code,
+                userType: 'student',
+                class_name: child.classroom_name || child.grade_name,
+                classroom_name: child.classroom_name, // Keep original API property
+                grade_level: child.grade_name,
+                academic_year: child.academic_year,
+                branch_name: child.branch_name,
+                branch_id: child.branch_id,
+                email: child.student_email,
+                student_email: child.student_email, // Keep original API property
+                phone: child.student_phone,
+                student_phone: child.student_phone, // Keep original API property
+                photo: child.student_photo,
+                student_photo: child.student_photo, // Keep original API property
+                birth_date: child.birth_date,
+                gender: child.gender,
+                nationality: child.nationality,
+                address: child.address,
+              }));
+
+              setStudents(mappedChildren);
+
+              // Save children data for offline access
+              await saveChildrenData(mappedChildren.map(formatChildForDisplay));
+
+              setLoading(false);
+              return;
+            } else {
+              // If no children in login response, fetch using Parent Proxy API
+              console.log(
+                '🔄 PARENT: Fetching children using Parent Proxy API'
+              );
+
+              const parentAuthCode =
+                parsedUserData.auth_code || parsedUserData.authCode;
+              if (parentAuthCode) {
+                const childrenResponse = await getParentChildren(
+                  parentAuthCode
+                );
+
+                if (childrenResponse.success && childrenResponse.children) {
+                  // Map API response to mobile app format
+                  const mappedChildren = childrenResponse.children.map(
+                    (child) => ({
+                      id: child.student_id,
+                      name: child.student_name,
+                      student_id: child.student_id,
+                      student_name: child.student_name, // Keep original API property
+                      username: `student_${child.student_id}`,
+                      authCode: parentAuthCode, // Use parent's auth code for proxy access
+                      auth_code: parentAuthCode,
+                      userType: 'student',
+                      class_name: child.classroom_name,
+                      classroom_name: child.classroom_name, // Keep original API property
+                      grade_level: child.grade_level,
+                      academic_year: child.academic_year,
+                      branch_name: child.branch_name, // Keep original API property
+                      student_photo: child.student_photo, // Keep original API property
+                      student_email: child.student_email, // Keep original API property
+                      birth_date: child.birth_date, // Keep original API property
+                      gender: child.gender, // Keep original API property
+                      nationality: child.nationality, // Keep original API property
+                      address: child.address, // Keep original API property
+                      branch_id: child.branch_id, // Keep original API property
+                    })
+                  );
+
+                  setStudents(mappedChildren);
+
+                  // Save children data for offline access
+                  await saveChildrenData(
+                    childrenResponse.children.map(formatChildForDisplay)
+                  );
+
+                  setLoading(false);
+                  return;
+                } else {
+                  console.warn('⚠️ PARENT: No children found in API response');
+                }
+              }
+            }
+          } catch (error) {
+            console.error('❌ PARENT: Error loading children data:', error);
+
+            // Try to load cached children data as fallback
+            const cachedChildren = await getChildrenData();
+            if (cachedChildren.length > 0) {
+              console.log('📦 PARENT: Using cached children data');
+
+              // Map cached data to mobile app format
+              const mappedChildren = cachedChildren.map((child) => ({
+                id: child.student_id,
+                name: child.displayName,
+                student_id: child.student_id,
+                username: `student_${child.student_id}`,
+                authCode: parsedUserData.auth_code, // Use parent's auth code for proxy access
+                auth_code: parsedUserData.auth_code,
+                userType: 'student',
+                class_name: child.displayClass,
+                grade_level: child.grade_level,
+                academic_year: child.displayYear,
+              }));
+
+              setStudents(mappedChildren);
+              setLoading(false);
+              return;
+            }
+          }
+        }
+
+        // Handle demo mode (existing logic)
         if (parsedUserData.demo_mode && parsedUserData.userType === 'student') {
           console.log('🎭 DEMO MODE: Loading demo parent children data');
 
@@ -436,7 +719,7 @@ export default function ParentScreen({ navigation }) {
         }
       }
 
-      // Normal mode: load from AsyncStorage
+      // Normal mode: load from AsyncStorage (manually added student accounts)
       const savedStudents = await AsyncStorage.getItem('studentAccounts');
       if (savedStudents) {
         setStudents(JSON.parse(savedStudents));
@@ -636,13 +919,6 @@ export default function ParentScreen({ navigation }) {
       <View style={styles.compactHeaderContainer}>
         {/* Navigation Header */}
         <View style={styles.navigationHeader}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
-          </TouchableOpacity>
-
           <Text
             style={[
               styles.headerTitle,
@@ -658,20 +934,35 @@ export default function ParentScreen({ navigation }) {
             <TouchableOpacity
               style={styles.headerActionButton}
               onPress={() => {
-                // Navigate to appropriate messaging screen based on user type
-                // For parents, we'll navigate to a general messaging screen or student messaging
-                if (selectedStudent) {
-                  navigation.navigate('StudentMessagingScreen', {
-                    authCode: selectedStudent.authCode,
-                    studentName: selectedStudent.name,
+                // Navigate to parent-specific messaging screen
+                // Use parent's auth code from unified login or current user data
+                const parentAuthCode =
+                  currentUserData?.auth_code || currentUserData?.authCode;
+
+                if (parentAuthCode) {
+                  navigation.navigate('ParentMessagingScreen', {
+                    authCode: parentAuthCode,
+                    parentName:
+                      currentUserData?.name ||
+                      currentUserData?.user_name ||
+                      'Parent',
+                    userType: 'parent',
+                    children: students, // Pass children data for context
                   });
                 } else {
-                  // If no student selected, show alert or navigate to first student
-                  if (students.length > 0) {
+                  // Fallback to student messaging if no parent auth code
+                  if (selectedStudent) {
+                    navigation.navigate('StudentMessagingScreen', {
+                      authCode: selectedStudent.authCode,
+                      studentName: selectedStudent.name,
+                    });
+                  } else if (students.length > 0) {
                     navigation.navigate('StudentMessagingScreen', {
                       authCode: students[0].authCode,
                       studentName: students[0].name,
                     });
+                  } else {
+                    Alert.alert(t('noStudents'), t('pleaseAddStudent'));
                   }
                 }
               }}
@@ -717,9 +1008,15 @@ export default function ParentScreen({ navigation }) {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerActionButton}
-              onPress={handleAddStudent}
+              onPress={() => navigation.navigate('Settings')}
             >
-              <FontAwesomeIcon icon={faPlus} size={18} color='#fff' />
+              <FontAwesomeIcon icon={faGear} size={18} color='#fff' />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerActionButton}
+              onPress={handleLogout}
+            >
+              <FontAwesomeIcon icon={faSignOutAlt} size={18} color='#fff' />
             </TouchableOpacity>
           </View>
         </View>

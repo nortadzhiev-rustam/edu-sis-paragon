@@ -156,13 +156,84 @@ export async function requestUserPermission() {
 
 export async function getFCMToken() {
   try {
-    const fcmToken = await AsyncStorage.getItem('fcmToken');
+    // Check both possible storage keys for backward compatibility
+    let fcmToken = await AsyncStorage.getItem('fcmToken');
+    if (!fcmToken) {
+      fcmToken = await AsyncStorage.getItem('deviceToken');
+    }
+
     if (!fcmToken) {
       const messaging = getMessaging();
       const newToken = await getFirebaseToken(messaging);
       if (newToken) {
+        // Store in both keys to ensure consistency
         await AsyncStorage.setItem('fcmToken', newToken);
+        await AsyncStorage.setItem('deviceToken', newToken);
+
+        // Register the token with the backend
+        try {
+          const authCode = await AsyncStorage.getItem('authCode');
+          if (authCode) {
+            console.log('🔄 FCM: Registering new token with backend...');
+            const registrationResult = await registerDeviceToken(
+              authCode,
+              newToken,
+              Platform.OS
+            );
+            if (registrationResult.success) {
+              console.log('✅ FCM: Token registered with backend successfully');
+            } else {
+              console.warn(
+                '⚠️ FCM: Failed to register token with backend:',
+                registrationResult.error
+              );
+            }
+          } else {
+            console.log(
+              'ℹ️ FCM: No auth code found, skipping backend registration'
+            );
+          }
+        } catch (registrationError) {
+          console.error(
+            '❌ FCM: Error registering token with backend:',
+            registrationError
+          );
+        }
+
         return newToken;
+      }
+    } else {
+      // Token exists, but let's check if it's registered with backend
+      try {
+        const authCode = await AsyncStorage.getItem('authCode');
+        const lastRegisteredToken = await AsyncStorage.getItem(
+          'lastRegisteredToken'
+        );
+
+        if (authCode && fcmToken !== lastRegisteredToken) {
+          console.log('🔄 FCM: Re-registering existing token with backend...');
+          const registrationResult = await registerDeviceToken(
+            authCode,
+            fcmToken,
+            Platform.OS
+          );
+          if (registrationResult.success) {
+            console.log(
+              '✅ FCM: Existing token registered with backend successfully'
+            );
+            await AsyncStorage.setItem('lastRegisteredToken', fcmToken);
+          } else {
+            console.warn(
+              '⚠️ FCM: Failed to register existing token with backend:',
+              registrationResult.error
+            );
+          }
+        }
+      } catch (registrationError) {
+        console.error(
+          '❌ FCM: Error registering existing token with backend:',
+          registrationError
+        );
       }
     }
     return fcmToken;
@@ -227,9 +298,43 @@ export async function getDeviceToken() {
       console.log('🏁 Token first 30 chars:', token.substring(0, 30) + '...');
       console.log('🔍 FULL TOKEN FOR DEBUG:', token); // Full token for debugging
 
-      // Store token in AsyncStorage for future use
+      // Store token in both keys to ensure consistency with getFCMToken()
       await AsyncStorage.setItem('deviceToken', token);
-      console.log('💾 DEVICE TOKEN: Stored in AsyncStorage');
+      await AsyncStorage.setItem('fcmToken', token);
+      console.log('💾 DEVICE TOKEN: Stored in AsyncStorage (both keys)');
+
+      // Register the token with the backend
+      try {
+        const authCode = await AsyncStorage.getItem('authCode');
+        if (authCode) {
+          console.log('🔄 DEVICE TOKEN: Registering with backend...');
+          const registrationResult = await registerDeviceToken(
+            authCode,
+            token,
+            Platform.OS
+          );
+          if (registrationResult.success) {
+            console.log(
+              '✅ DEVICE TOKEN: Registered with backend successfully'
+            );
+            await AsyncStorage.setItem('lastRegisteredToken', token);
+          } else {
+            console.warn(
+              '⚠️ DEVICE TOKEN: Failed to register with backend:',
+              registrationResult.error
+            );
+          }
+        } else {
+          console.log(
+            'ℹ️ DEVICE TOKEN: No auth code found, skipping backend registration'
+          );
+        }
+      } catch (registrationError) {
+        console.error(
+          '❌ DEVICE TOKEN: Error registering with backend:',
+          registrationError
+        );
+      }
 
       // Validate token format
       if (token.length < 50) {
@@ -256,9 +361,12 @@ export async function getDeviceToken() {
     console.error('📊 Error code:', error.code);
     console.error('🏷️ Error domain:', error.domain);
 
-    // Try to get cached token as fallback
+    // Try to get cached token as fallback (check both storage keys)
     try {
-      const cachedToken = await AsyncStorage.getItem('deviceToken');
+      let cachedToken = await AsyncStorage.getItem('deviceToken');
+      if (!cachedToken) {
+        cachedToken = await AsyncStorage.getItem('fcmToken');
+      }
       if (cachedToken) {
         console.log('📦 DEVICE TOKEN: Using cached token as fallback');
         return cachedToken;
@@ -644,6 +752,74 @@ export async function reregisterDeviceWithFCM() {
     }
   } catch (error) {
     console.error('❌ FCM: Error re-registering device:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Ensure device token is registered with backend after login
+ * This function should be called after successful login to make sure
+ * the device token is properly registered with the backend server
+ * @param {string} authCode - Optional authCode to use (if not provided, will read from AsyncStorage)
+ */
+export async function ensureDeviceTokenRegistration(authCode = null) {
+  try {
+    console.log('🔄 FCM: Ensuring device token is registered with backend...');
+
+    // Use provided authCode or read from AsyncStorage
+    const finalAuthCode = authCode || (await AsyncStorage.getItem('authCode'));
+    if (!finalAuthCode) {
+      console.warn('⚠️ FCM: No auth code found, cannot register device token');
+      return { success: false, error: 'No auth code found' };
+    }
+
+    // Try to get existing token first (check both storage keys)
+    let deviceToken = await AsyncStorage.getItem('deviceToken');
+    if (!deviceToken) {
+      deviceToken = await AsyncStorage.getItem('fcmToken');
+    }
+
+    // If no token exists, get a new one
+    if (!deviceToken) {
+      console.log('📱 FCM: No existing token found, getting new token...');
+      deviceToken = await getDeviceToken();
+    }
+
+    if (!deviceToken) {
+      console.warn('⚠️ FCM: Failed to get device token');
+      return { success: false, error: 'Failed to get device token' };
+    }
+
+    // Check if this token was already registered
+    const lastRegisteredToken = await AsyncStorage.getItem(
+      'lastRegisteredToken'
+    );
+    if (deviceToken === lastRegisteredToken) {
+      console.log('✅ FCM: Token already registered with backend');
+      return { success: true, message: 'Token already registered' };
+    }
+
+    // Register the token with backend
+    console.log('🔄 FCM: Registering token with backend...');
+    const registrationResult = await registerDeviceToken(
+      finalAuthCode,
+      deviceToken,
+      Platform.OS
+    );
+
+    if (registrationResult.success) {
+      console.log('✅ FCM: Token registered with backend successfully');
+      await AsyncStorage.setItem('lastRegisteredToken', deviceToken);
+      return { success: true, token: deviceToken };
+    } else {
+      console.warn(
+        '⚠️ FCM: Failed to register token with backend:',
+        registrationResult.error
+      );
+      return { success: false, error: registrationResult.error };
+    }
+  } catch (error) {
+    console.error('❌ FCM: Error ensuring device token registration:', error);
     return { success: false, error: error.message };
   }
 }

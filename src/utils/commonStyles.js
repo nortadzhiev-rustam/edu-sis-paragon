@@ -15,7 +15,8 @@ import { isIPad, isTablet } from './deviceDetection';
  * @returns {number} Responsive font size
  */
 export const getResponsiveHeaderFontSize = (buttonCount = 0, title = '') => {
-  const { width } = Dimensions.get('window');
+  const screenDimensions = Dimensions.get('window');
+  const width = screenDimensions?.width || 375; // Default fallback
 
   // Base font sizes for different device types
   let baseFontSize = 18; // Default phone size

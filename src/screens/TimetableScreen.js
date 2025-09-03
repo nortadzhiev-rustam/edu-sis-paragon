@@ -47,6 +47,13 @@ import NotificationBadge from '../components/NotificationBadge';
 import { useFocusEffect } from '@react-navigation/native';
 import { getDemoTimetableData } from '../services/demoModeService';
 
+// Import Parent Proxy Access System
+import { getChildTimetable } from '../services/parentService';
+import {
+  shouldUseParentProxy,
+  extractProxyOptions,
+} from '../services/parentProxyAdapter';
+
 export default function TimetableScreen({ navigation, route }) {
   const { theme } = useTheme();
   const { t, currentLanguage } = useLanguage();
@@ -100,6 +107,16 @@ export default function TimetableScreen({ navigation, route }) {
     'Friday',
     'Saturday',
   ];
+  // Normalize subject names like "3INT Mathematics" to "Mathematics"
+  const normalizeSubjectName = (name) => {
+    if (!name || typeof name !== 'string') return name;
+    const parts = name.trim().split(/\s+/);
+    // Remove leading tokens that contain any digit (e.g., 3INT, G10, Y5A)
+    while (parts.length > 1 && /\d/.test(parts[0])) {
+      parts.shift();
+    }
+    return parts.join(' ');
+  };
 
   // Helper function to convert object response to array format
   const convertObjectToArrayFormat = (data) => {
@@ -132,12 +149,15 @@ export default function TimetableScreen({ navigation, route }) {
         const dayName = dayMapping[key];
         if (dayName && Array.isArray(data[key])) {
           // Sort by week_time to ensure proper order, then by created_at to get latest first
-          const sortedEntries = data[key].sort((a, b) => {
-            if (a.week_time === b.week_time) {
-              // If same period, sort by created_at (latest first)
-              return new Date(b.created_at) - new Date(a.created_at);
+          const sortedEntries = data[key].slice().sort((a, b) => {
+            const aPeriod = a?.week_time ?? 0;
+            const bPeriod = b?.week_time ?? 0;
+            if (aPeriod !== bPeriod) {
+              return aPeriod - bPeriod;
             }
-            return a.week_time - b.week_time;
+            const aDate = a?.created_at ? new Date(a.created_at).getTime() : 0;
+            const bDate = b?.created_at ? new Date(b.created_at).getTime() : 0;
+            return bDate - aDate; // latest first if available
           });
 
           // Remove duplicates - keep only the latest entry for each week_time
@@ -153,14 +173,21 @@ export default function TimetableScreen({ navigation, route }) {
 
           // Transform the data to match your component's expected format
           convertedData[dayName] = uniqueEntries.map((item) => ({
-            subject:
-              item.subject?.name ||
-              item.subject?.subject_name ||
-              t('unknownSubject'),
+            subject: normalizeSubjectName(
+              item.subject_name ||
+                item.subject?.name ||
+                item.subject?.subject_name ||
+                item.subject ||
+                t('unknownSubject')
+            ),
             teacher:
-              item.user?.name || item.user?.full_name || t('unknownTeacher'),
-            period: item.week_time,
-            time: t('period') + ` ${item.week_time}`, // You can customize this format
+              item.teacher_name ||
+              item.teacher ||
+              item.user?.name ||
+              item.user?.full_name ||
+              t('unknownTeacher'),
+            period: item.week_time ?? item.period,
+            time: t('period') + ` ${item.week_time ?? item.period}`,
             // Keep original data for reference
             originalData: item,
           }));
@@ -208,28 +235,54 @@ export default function TimetableScreen({ navigation, route }) {
         }
       }
 
-      const url = buildApiUrl(Config.API_ENDPOINTS.GET_STUDENT_TIMETABLE, {
-        authCode,
-      });
+      // Check if this is parent proxy access
+      const proxyOptions = extractProxyOptions(route.params);
+      if (shouldUseParentProxy(route.params)) {
+        console.log('🔄 TIMETABLE: Using parent proxy access');
+        console.log('🔑 Parent Auth Code:', authCode);
+        console.log('👤 Student ID:', proxyOptions.studentId);
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
+        const response = await getChildTimetable(
+          authCode,
+          proxyOptions.studentId
+        );
 
-      if (response.ok) {
-        const data = await response.json();
-        // Convert object to array format if needed
-        const convertedData = convertObjectToArrayFormat(data);
-        return convertedData;
+        if (response.success && response.timetable) {
+          const convertedData = convertObjectToArrayFormat(response.timetable);
+          return convertedData;
+        } else {
+          console.warn(
+            '⚠️ TIMETABLE: No timetable data in parent proxy response'
+          );
+          return null;
+        }
       } else {
-        return null;
+        // Use direct student access (existing behavior)
+        console.log('📚 TIMETABLE: Using direct student access');
+
+        const url = buildApiUrl(Config.API_ENDPOINTS.GET_STUDENT_TIMETABLE, {
+          authCode,
+        });
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Convert object to array format if needed
+          const convertedData = convertObjectToArrayFormat(data);
+          return convertedData;
+        } else {
+          return null;
+        }
       }
     } catch (error) {
-      console.error('Failed to fetch timetable:', error);
+      console.error('❌ TIMETABLE: Failed to fetch timetable:', error);
       return null;
     }
   };

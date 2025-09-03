@@ -565,7 +565,7 @@ export default function TeacherAttendanceScreen({ route, navigation }) {
                 {student.student_photo ? (
                   <Image
                     source={{
-                      uri: `https://sis.bfi.edu.mm/${student.student_photo}`,
+                      uri: `https://sis.paragonisc.edu.kh${student.student_photo}`,
                     }}
                     style={styles.studentPhoto}
                   />

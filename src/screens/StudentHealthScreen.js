@@ -38,13 +38,25 @@ import {
 } from '../services/healthService';
 import { createCustomShadow } from '../utils/commonStyles';
 
+// Import Parent Proxy Access System
+import {
+  getChildHealthInfo,
+  getChildHealthRecords,
+} from '../services/parentService';
+import {
+  shouldUseParentProxy,
+  extractProxyOptions,
+} from '../services/parentProxyAdapter';
+
 export default function StudentHealthScreen({ route, navigation }) {
   const { theme } = useTheme();
   const { t, currentLanguage } = useLanguage();
   const fontSizes = getLanguageFontSizes(currentLanguage);
   const styles = createStyles(theme, fontSizes);
 
-  const { authCode } = route.params || {};
+  // Extract route parameters including parent proxy parameters
+  const { authCode, studentId, useParentProxy, parentData, studentName } =
+    route.params || {};
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -71,24 +83,76 @@ export default function StudentHealthScreen({ route, navigation }) {
 
   const loadHealthRecords = async () => {
     try {
-      const response = await getStudentHealthRecords(authCode);
-      if (response.success && response.data) {
-        setHealthRecords(response.data.records || []);
+      // Check if this is parent proxy access
+      const proxyOptions = extractProxyOptions(route.params);
+      if (shouldUseParentProxy(route.params)) {
+        console.log('🏥 HEALTH RECORDS: Using parent proxy access');
+        console.log('🔑 Parent Auth Code:', authCode);
+        console.log('👤 Student ID:', proxyOptions.studentId);
+
+        const response = await getChildHealthRecords(
+          authCode,
+          proxyOptions.studentId
+        );
+
+        if (response.success && response.health_records) {
+          setHealthRecords(response.health_records.medical_visits || []);
+        } else {
+          console.warn(
+            '⚠️ HEALTH RECORDS: No health records in parent proxy response'
+          );
+          setHealthRecords([]);
+        }
+      } else {
+        // Use direct student access (existing behavior)
+        console.log('🏥 HEALTH RECORDS: Using direct student access');
+
+        const response = await getStudentHealthRecords(authCode);
+        if (response.success && response.data) {
+          setHealthRecords(response.data.records || []);
+        }
       }
     } catch (error) {
-      console.error('Error loading health records:', error);
+      console.error('❌ HEALTH RECORDS: Error loading health records:', error);
     }
   };
 
   const loadHealthInfo = async () => {
     try {
-      const response = await getStudentHealthInfo(authCode);
-      if (response.success && response.data) {
-        setHealthInfo(response.data.health_info);
-        setMeasurements(response.data.measurements);
+      // Check if this is parent proxy access
+      const proxyOptions = extractProxyOptions(route.params);
+      if (shouldUseParentProxy(route.params)) {
+        console.log('🏥 HEALTH INFO: Using parent proxy access');
+        console.log('🔑 Parent Auth Code:', authCode);
+        console.log('👤 Student ID:', proxyOptions.studentId);
+
+        const response = await getChildHealthInfo(
+          authCode,
+          proxyOptions.studentId
+        );
+
+        if (response.success && response.health_info) {
+          setHealthInfo(response.health_info);
+          setMeasurements(response.health_info.basic_info || null);
+        } else {
+          console.warn(
+            '⚠️ HEALTH INFO: No health info in parent proxy response'
+          );
+          setHealthInfo(null);
+          setMeasurements(null);
+        }
+      } else {
+        // Use direct student access (existing behavior)
+        console.log('🏥 HEALTH INFO: Using direct student access');
+
+        const response = await getStudentHealthInfo(authCode);
+        if (response.success && response.data) {
+          setHealthInfo(response.data.health_info);
+          setMeasurements(response.data.measurements);
+        }
       }
     } catch (error) {
-      console.error('Error loading health info:', error);
+      console.error('❌ HEALTH INFO: Error loading health info:', error);
     }
   };
 
@@ -378,9 +442,7 @@ export default function StudentHealthScreen({ route, navigation }) {
         </View>
       </View>
       <Text style={styles.sectionTitle}>
-        {activeTab === 'records'
-          ? t('visitRecords')
-          : t('healthInfo')}
+        {activeTab === 'records' ? t('visitRecords') : t('healthInfo')}
       </Text>
       <ScrollView
         style={styles.content}
@@ -469,8 +531,7 @@ export default function StudentHealthScreen({ route, navigation }) {
                 {healthInfo.vision_check_date &&
                   renderInfoRow(
                     t('lastVisionCheck'),
-                    formatDate(healthInfo.vision_check_date),
-                    
+                    formatDate(healthInfo.vision_check_date)
                   )}
                 {renderInfoRowWithDefault(
                   t('hearingIssues'),
@@ -803,7 +864,7 @@ const createStyles = (theme, fontSizes) =>
       marginLeft: 12,
       flexDirection: 'row',
       alignItems: 'center',
-      flexWrap: 'wrap'
+      flexWrap: 'wrap',
     },
     infoLabel: {
       fontSize: fontSizes.bodySmall,

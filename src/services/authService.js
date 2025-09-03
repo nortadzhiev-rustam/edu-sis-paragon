@@ -197,11 +197,12 @@ const encodeToBase64 = (str) => {
 };
 
 /**
- * Teacher login API call
+ * Teacher login API call (Legacy endpoint)
  * @param {string} username - Teacher's username
  * @param {string} password - Teacher's password
  * @param {string} deviceToken - Firebase device token
  * @returns {Promise<Object>} - User data or null if login fails
+ * @note New staff login endpoint is available in staffService.js - staffLogin()
  */
 export const teacherLogin = async (username, password, deviceToken) => {
   // Simulate network delay
@@ -299,31 +300,28 @@ export const teacherLogin = async (username, password, deviceToken) => {
         console.log('🔄 AUTH: Forced conversion to string:', deviceToken);
       }
 
-      const encodedToken = deviceToken ? encodeToBase64(deviceToken) : '';
-      console.log('🔍 AUTH DEBUG: Encoded token:', encodedToken);
-      console.log('🔍 AUTH DEBUG: Encoded token length:', encodedToken.length);
+      // Use raw FCM token directly (no Base64 encoding needed)
+      console.log('🔍 AUTH DEBUG: Using raw FCM token for API call');
+      console.log('🔍 AUTH DEBUG: Raw token length:', deviceToken.length);
 
-      // Validate encoded token doesn't contain "Future" or "Instance"
-      let finalEncodedToken = encodedToken;
-      if (
-        encodedToken.includes('Future') ||
-        encodedToken.includes('Instance')
-      ) {
+      // Validate token doesn't contain "Future" or "Instance" (indicates Promise issues)
+      let finalToken = deviceToken;
+      if (deviceToken.includes('Future') || deviceToken.includes('Instance')) {
         console.error(
-          '❌ AUTH ERROR: Encoded token contains Future/Instance - this indicates the original token was not a string!'
+          '❌ AUTH ERROR: Token contains Future/Instance - this indicates the original token was not a string!'
         );
-        console.error('🔍 Problematic encoded token:', encodedToken);
+        console.error('🔍 Problematic token:', deviceToken);
         // Use empty token as fallback and continue with login
         console.log('🔄 AUTH: Using empty token as fallback and continuing...');
-        finalEncodedToken = '';
-        console.log('🔄 AUTH: Proceeding with empty encoded token');
+        finalToken = '';
+        console.log('🔄 AUTH: Proceeding with empty token');
       }
 
       const apiUrl = buildApiUrl(Config.API_ENDPOINTS.CHECK_STAFF_CREDENTIALS, {
         username,
         password,
         deviceType: deviceInfo.deviceType,
-        deviceToken: finalEncodedToken,
+        deviceToken: finalToken,
         deviceName: deviceInfo.deviceName,
         deviceModel: deviceInfo.deviceModel,
         deviceBrand: deviceInfo.deviceBrand,
@@ -337,10 +335,13 @@ export const teacherLogin = async (username, password, deviceToken) => {
 
       // Add timeout and better error handling
       const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        Config.NETWORK.TIMEOUT
-      );
+      const authTimeout = Config.NETWORK.AUTH_TIMEOUT || Config.NETWORK.TIMEOUT;
+      const timeoutId = setTimeout(() => {
+        console.log(
+          `⏰ TEACHER LOGIN: Request timed out after ${authTimeout}ms`
+        );
+        controller.abort();
+      }, authTimeout);
 
       const response = await fetch(apiUrl, {
         method: 'GET',
@@ -377,43 +378,144 @@ export const teacherLogin = async (username, password, deviceToken) => {
           return null;
         }
 
-        // Check if the response indicates invalid credentials
+        // Check if the response indicates invalid credentials or failure
         if (
           data &&
-          (data.message === 'Invalid credentials' || data.status === 'error')
+          (data.message === 'Invalid credentials' ||
+            data.status === 'error' ||
+            data.success === false ||
+            !data.success)
         ) {
           console.log(
-            '❌ TEACHER LOGIN: API returned invalid credentials message'
+            '❌ TEACHER LOGIN: API returned invalid credentials or failed authentication'
           );
+          return null;
+        }
+
+        // Validate that we have the expected response structure
+        console.log('🔍 TEACHER LOGIN: Checking required fields...');
+        console.log(
+          '🔍 auth_code present:',
+          !!data.auth_code,
+          'value:',
+          data.auth_code
+        );
+        console.log(
+          '🔍 user_id present:',
+          !!data.user_id,
+          'value:',
+          data.user_id
+        );
+        console.log(
+          '🔍 user_name present:',
+          !!data.user_name,
+          'value:',
+          data.user_name
+        );
+        console.log('🔍 success field:', data.success);
+        console.log('🔍 message field:', data.message);
+
+        if (!data.auth_code || !data.user_id || !data.user_name) {
+          console.log(
+            '❌ TEACHER LOGIN: API response missing required fields (auth_code, user_id, user_name)'
+          );
+          console.log('🔍 Available fields:', Object.keys(data));
           return null;
         }
 
         console.log('✅ TEACHER LOGIN: Valid credentials, detecting school...');
 
-        // Detect and save school configuration
+        // Skip school detection for now to prevent login hanging
+        console.log(
+          '⏭️ TEACHER LOGIN: Skipping school detection to prevent hanging'
+        );
+
+        // Use default school configuration
         try {
-          const schoolConfig = await SchoolConfigService.detectSchoolFromLogin(
-            username,
-            'teacher',
-            data // Pass the authentication response data
+          const defaultSchoolConfig = {
+            schoolId: 'default',
+            name: 'Default School',
+            domain: 'default.edu',
+            hasGoogleWorkspace: false,
+          };
+          await SchoolConfigService.saveCurrentSchoolConfig(
+            defaultSchoolConfig
           );
-          await SchoolConfigService.saveCurrentSchoolConfig(schoolConfig);
-          console.log(
-            '🏫 TEACHER LOGIN: School configuration saved:',
-            schoolConfig.name
-          );
+          console.log('🏫 TEACHER LOGIN: Default school configuration saved');
         } catch (schoolError) {
           console.error(
-            '❌ TEACHER LOGIN: School detection error:',
+            '❌ TEACHER LOGIN: Failed to save default school config:',
             schoolError
           );
-          // Continue with login even if school detection fails
+          // Continue with login even if school config fails
         }
 
-        return {
-          ...data,
-          userType: 'teacher',
+        // Transform API response to match expected user data format
+        // Determine homeroom status from API data
+        const rolesArray = Array.isArray(data.roles) ? data.roles : [];
+        const hasHomeroomRole = rolesArray.some((role) => {
+          const name = (role.role_name || role.name || '').toLowerCase();
+          return (
+            name.includes('homeroom') ||
+            name.includes('home room') ||
+            name.includes('class teacher') ||
+            name.includes('class in-charge') ||
+            name.includes('class incharge')
+          );
+        });
+        const inferredIsHomeroom =
+          Boolean(data.is_homeroom) ||
+          Boolean(data.homeroom_class) ||
+          hasHomeroomRole;
+
+        const transformedUserData = {
+          // Core user information
+          id: data.user_id,
+          username: data.username || username,
+          name: data.user_name,
+          email: data.email,
+          authCode: data.auth_code,
+          userType: 'teacher', // Force to 'teacher' for teacher login (LoginScreen expects this)
+          mobile_phone: data.mobile_phone,
+          photo: data.photo,
+
+          // Staff-specific information
+          is_teacher: true,
+          is_staff: true,
+          role: data.staff_details?.profession_position || 'Staff Member',
+          staff_category_id: data.staff_details?.staff_category_id,
+          staff_category_name: data.staff_details?.staff_category_name,
+          profession_position: data.staff_details?.profession_position,
+
+          // Branch information
+          branch: data.branch,
+          branches: data.accessible_branches || [data.branch],
+          accessible_branches: data.accessible_branches,
+
+          // Roles and permissions
+          roles: data.roles || [],
+
+          // Homeroom flag inferred from roles/fields
+          is_homeroom: inferredIsHomeroom,
+          homeroom_class: data.homeroom_class,
+
+          // Original API response for reference
+          originalResponse: data,
+
+          // API user type for reference
+          apiUserType: data.user_type,
         };
+
+        console.log('🔍 TEACHER LOGIN: Transformed user data:', {
+          id: transformedUserData.id,
+          name: transformedUserData.name,
+          userType: transformedUserData.userType,
+          authCode: transformedUserData.authCode ? '[PRESENT]' : '[MISSING]',
+          hasRoles: transformedUserData.roles?.length > 0,
+          hasBranch: !!transformedUserData.branch,
+        });
+
+        return transformedUserData;
       } else {
         console.log(
           '❌ TEACHER LOGIN: API returned non-200 status:',
@@ -429,6 +531,21 @@ export const teacherLogin = async (username, password, deviceToken) => {
       console.error('📱 Device info available:', !!deviceInfo);
       console.error('🔑 Device token available:', !!deviceToken);
       console.error('🔗 API URL:', apiUrl);
+
+      // Check if this is a timeout error
+      if (error.name === 'AbortError') {
+        console.error('⏰ TEACHER LOGIN: Request was aborted (likely timeout)');
+        console.error(`⏰ Timeout was set to: ${authTimeout}ms`);
+        return {
+          error: true,
+          errorType: 'TimeoutError',
+          errorMessage: `Authentication request timed out after ${
+            authTimeout / 1000
+          } seconds. Please check your internet connection and try again.`,
+          errorCode: 'TIMEOUT',
+          timestamp: new Date().toISOString(),
+        };
+      }
 
       // Return error details for debugging
       return {
@@ -556,28 +673,25 @@ export const studentLogin = async (username, password, deviceToken) => {
         );
       }
 
-      const encodedToken = deviceToken ? encodeToBase64(deviceToken) : '';
-      console.log('🔍 STUDENT AUTH DEBUG: Encoded token:', encodedToken);
+      // Use raw FCM token directly (no Base64 encoding needed)
+      console.log('🔍 STUDENT AUTH DEBUG: Using raw FCM token for API call');
       console.log(
-        '🔍 STUDENT AUTH DEBUG: Encoded token length:',
-        encodedToken.length
+        '🔍 STUDENT AUTH DEBUG: Raw token length:',
+        deviceToken.length
       );
 
-      // Validate encoded token doesn't contain "Future" or "Instance"
-      let finalEncodedToken = encodedToken;
-      if (
-        encodedToken.includes('Future') ||
-        encodedToken.includes('Instance')
-      ) {
+      // Validate token doesn't contain "Future" or "Instance" (indicates Promise issues)
+      let finalToken = deviceToken;
+      if (deviceToken.includes('Future') || deviceToken.includes('Instance')) {
         console.error(
-          '❌ STUDENT AUTH ERROR: Encoded token contains Future/Instance - this indicates the original token was not a string!'
+          '❌ STUDENT AUTH ERROR: Token contains Future/Instance - this indicates the original token was not a string!'
         );
-        console.error('🔍 Problematic encoded token:', encodedToken);
+        console.error('🔍 Problematic token:', deviceToken);
         console.log(
           '🔄 STUDENT AUTH: Using empty token as fallback and continuing...'
         );
-        finalEncodedToken = '';
-        console.log('🔄 STUDENT AUTH: Proceeding with empty encoded token');
+        finalToken = '';
+        console.log('🔄 STUDENT AUTH: Proceeding with empty token');
       }
 
       const apiUrl = buildApiUrl(
@@ -586,7 +700,7 @@ export const studentLogin = async (username, password, deviceToken) => {
           username,
           password,
           deviceType: deviceInfo.deviceType,
-          deviceToken: finalEncodedToken,
+          deviceToken: finalToken,
           deviceName: deviceInfo.deviceName,
           deviceModel: deviceInfo.deviceModel,
           deviceBrand: deviceInfo.deviceBrand,
@@ -601,10 +715,13 @@ export const studentLogin = async (username, password, deviceToken) => {
 
       // Add timeout and better error handling
       const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        Config.NETWORK.TIMEOUT
-      );
+      const authTimeout = Config.NETWORK.AUTH_TIMEOUT || Config.NETWORK.TIMEOUT;
+      const timeoutId = setTimeout(() => {
+        console.log(
+          `⏰ STUDENT LOGIN: Request timed out after ${authTimeout}ms`
+        );
+        controller.abort();
+      }, authTimeout);
 
       const response = await fetch(apiUrl, {
         method: 'GET',
@@ -640,43 +757,87 @@ export const studentLogin = async (username, password, deviceToken) => {
           return null;
         }
 
-        // Check if the response indicates invalid credentials
+        // Check if the response indicates invalid credentials or failure
         if (
           data &&
-          (data.message === 'Invalid credentials' || data.status === 'error')
+          (data.message === 'Invalid credentials' ||
+            data.status === 'error' ||
+            data.success === false ||
+            !data.success)
         ) {
           console.log(
-            '❌ STUDENT LOGIN: API returned invalid credentials message'
+            '❌ STUDENT LOGIN: API returned invalid credentials or failed authentication'
+          );
+          return null;
+        }
+
+        // Validate that we have the expected response structure
+        if (!data.auth_code || !data.user_id || !data.user_name) {
+          console.log(
+            '❌ STUDENT LOGIN: API response missing required fields (auth_code, user_id, user_name)'
           );
           return null;
         }
 
         console.log('✅ STUDENT LOGIN: Valid credentials, detecting school...');
 
-        // Detect and save school configuration
+        // Skip school detection for now to prevent login hanging
+        console.log(
+          '⏭️ STUDENT LOGIN: Skipping school detection to prevent hanging'
+        );
+
+        // Use default school configuration
         try {
-          const schoolConfig = await SchoolConfigService.detectSchoolFromLogin(
-            username,
-            'student',
-            data // Pass the authentication response data
+          const defaultSchoolConfig = {
+            schoolId: 'default',
+            name: 'Default School',
+            domain: 'default.edu',
+            hasGoogleWorkspace: false,
+          };
+          await SchoolConfigService.saveCurrentSchoolConfig(
+            defaultSchoolConfig
           );
-          await SchoolConfigService.saveCurrentSchoolConfig(schoolConfig);
-          console.log(
-            '🏫 STUDENT LOGIN: School configuration saved:',
-            schoolConfig.name
-          );
+          console.log('🏫 STUDENT LOGIN: Default school configuration saved');
         } catch (schoolError) {
           console.error(
-            '❌ STUDENT LOGIN: School detection error:',
+            '❌ STUDENT LOGIN: Failed to save default school config:',
             schoolError
           );
-          // Continue with login even if school detection fails
+          // Continue with login even if school config fails
         }
 
-        return {
-          ...data,
-          userType: 'student',
+        // Transform API response to match expected user data format
+        const transformedUserData = {
+          // Core user information
+          id: data.user_id,
+          username: data.username || username,
+          name: data.user_name,
+          email: data.email,
+          authCode: data.auth_code,
+          userType: 'student', // For backward compatibility with existing code
+          mobile_phone: data.mobile_phone,
+          photo: data.photo,
+
+          // Student-specific information
+          is_student: true,
+          student_id: data.student_details?.student_id,
+          grade: data.student_details?.grade,
+          class: data.student_details?.class,
+          section: data.student_details?.section,
+
+          // Branch information
+          branch: data.branch,
+          branches: data.accessible_branches || [data.branch],
+          accessible_branches: data.accessible_branches,
+
+          // Roles and permissions (if any for students)
+          roles: data.roles || [],
+
+          // Original API response for reference
+          originalResponse: data,
         };
+
+        return transformedUserData;
       } else {
         console.log(
           '❌ STUDENT LOGIN: API returned non-200 status:',
@@ -692,6 +853,21 @@ export const studentLogin = async (username, password, deviceToken) => {
       console.error('📱 Device info available:', !!deviceInfo);
       console.error('🔑 Device token available:', !!deviceToken);
       console.error('🔗 API URL:', apiUrl);
+
+      // Check if this is a timeout error
+      if (error.name === 'AbortError') {
+        console.error('⏰ STUDENT LOGIN: Request was aborted (likely timeout)');
+        console.error(`⏰ Timeout was set to: ${authTimeout}ms`);
+        return {
+          error: true,
+          errorType: 'TimeoutError',
+          errorMessage: `Authentication request timed out after ${
+            authTimeout / 1000
+          } seconds. Please check your internet connection and try again.`,
+          errorCode: 'TIMEOUT',
+          timestamp: new Date().toISOString(),
+        };
+      }
 
       // Return error details for debugging
       return {
@@ -758,4 +934,123 @@ export const getDemoCredentials = () => {
  */
 export const isDemoMode = (userData) => {
   return userData && userData.demo_mode === true;
+};
+
+/**
+ * Validate authentication response structure
+ * @param {Object} data - API response data
+ * @returns {boolean} True if response has valid structure
+ */
+export const validateAuthResponse = (data) => {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
+
+  // Check for error conditions
+  if (data === 0 || data === '0' || data === null || data === false) {
+    return false;
+  }
+
+  if (data.error || data.success === false || !data.success) {
+    return false;
+  }
+
+  if (data.message === 'Invalid credentials' || data.status === 'error') {
+    return false;
+  }
+
+  // Check for required fields
+  if (!data.auth_code || !data.user_id || !data.user_name) {
+    return false;
+  }
+
+  return true;
+};
+
+/**
+ * Transform API authentication response to standardized user data format
+ * @param {Object} apiResponse - Raw API response
+ * @param {string} username - Username used for login
+ * @param {string} userType - Type of user ('teacher', 'student', 'staff')
+ * @returns {Object} Transformed user data
+ */
+export const transformAuthResponse = (
+  apiResponse,
+  username,
+  userType = 'staff'
+) => {
+  const data = apiResponse;
+
+  const baseUserData = {
+    // Core user information
+    id: data.user_id,
+    username: data.username || username,
+    name: data.user_name,
+    email: data.email,
+    authCode: data.auth_code,
+    userType: userType,
+    mobile_phone: data.mobile_phone,
+    photo: data.photo,
+
+    // Branch information
+    branch: data.branch,
+    branches: data.accessible_branches || [data.branch],
+    accessible_branches: data.accessible_branches,
+
+    // Roles and permissions
+    roles: data.roles || [],
+
+    // Original API response for reference
+    originalResponse: data,
+  };
+
+  // Add user-type specific information
+  if (userType === 'teacher' || userType === 'staff') {
+    return {
+      ...baseUserData,
+      // Staff/Teacher-specific information
+      is_teacher: true,
+      is_staff: true,
+      role: data.staff_details?.profession_position || 'Staff Member',
+      staff_category_id: data.staff_details?.staff_category_id,
+      staff_category_name: data.staff_details?.staff_category_name,
+      profession_position: data.staff_details?.profession_position,
+    };
+  } else if (userType === 'student') {
+    return {
+      ...baseUserData,
+      // Student-specific information
+      is_student: true,
+      student_id: data.student_details?.student_id,
+      grade: data.student_details?.grade,
+      class: data.student_details?.class,
+      section: data.student_details?.section,
+    };
+  }
+
+  return baseUserData;
+};
+
+/**
+ * Log authentication response for debugging
+ * @param {Object} response - API response
+ * @param {string} userType - Type of user attempting login
+ * @param {string} username - Username used for login
+ */
+export const logAuthResponse = (response, userType, username) => {
+  console.log(`🔍 ${userType.toUpperCase()} LOGIN API RESPONSE:`, {
+    success: response?.success,
+    message: response?.message,
+    user_id: response?.user_id,
+    user_name: response?.user_name,
+    user_type: response?.user_type,
+    auth_code: response?.auth_code ? '[PRESENT]' : '[MISSING]',
+    branch: response?.branch?.branch_name,
+    roles_count: response?.roles?.length || 0,
+    accessible_branches_count: response?.accessible_branches?.length || 0,
+    staff_details: response?.staff_details ? '[PRESENT]' : '[MISSING]',
+    student_details: response?.student_details ? '[PRESENT]' : '[MISSING]',
+    username: username,
+    timestamp: new Date().toISOString(),
+  });
 };

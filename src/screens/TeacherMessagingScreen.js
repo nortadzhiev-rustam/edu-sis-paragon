@@ -367,7 +367,7 @@ const TeacherMessagingScreen = ({ navigation, route }) => {
             <TouchableOpacity
               style={styles.addButton}
               onPress={() =>
-                navigation.navigate('CreateConversationScreen', {
+                navigation.navigate('CreateConversation', {
                   authCode,
                   teacherName,
                 })

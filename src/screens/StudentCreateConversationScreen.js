@@ -24,12 +24,25 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import {
   getAvailableUsersForStudent,
+  getAvailableUsersForParent,
   createConversation,
 } from '../services/messagingService';
 
 const StudentCreateConversationScreen = ({ navigation, route }) => {
+  console.log(
+    '🎓 STUDENT-SPECIFIC CreateConversationScreen loaded - this should only be for students'
+  );
+
   const { theme, fontSizes } = useTheme();
-  const { authCode, studentName } = route.params;
+  const { authCode, studentName, parentName, userType } = route.params;
+
+  console.log('🔍 STUDENT SCREEN - Extracted params:', {
+    authCode,
+    studentName,
+    parentName,
+    userType,
+  });
+  console.log('🔍 STUDENT SCREEN - Full route.params:', route.params);
 
   const [topic, setTopic] = useState('');
   const [groupedUsers, setGroupedUsers] = useState([]);
@@ -98,11 +111,40 @@ const StudentCreateConversationScreen = ({ navigation, route }) => {
     }
   }, []);
 
-  // Fetch available users (restricted for students)
+  // Fetch available users (restricted for students, or parent-appropriate users for parents)
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getAvailableUsersForStudent(null, authCode); // Get restricted users for students
+
+      console.log(
+        '🔍 STUDENT SCREEN - fetchUsers called with userType:',
+        userType
+      );
+
+      // Use the appropriate service based on user type
+      // Check multiple indicators to determine if this is a parent user
+      const isParentUser =
+        userType === 'parent' ||
+        parentName ||
+        route.params?.parentName ||
+        route.params?.userType === 'parent';
+
+      console.log('🔍 STUDENT SCREEN - Parent indicators:', {
+        userType,
+        parentName,
+        routeParentName: route.params?.parentName,
+        routeUserType: route.params?.userType,
+        isParentUser,
+      });
+
+      let response;
+      if (isParentUser) {
+        console.log('📞 STUDENT SCREEN - Calling getAvailableUsersForParent');
+        response = await getAvailableUsersForParent(null, authCode);
+      } else {
+        console.log('📞 STUDENT SCREEN - Calling getAvailableUsersForStudent');
+        response = await getAvailableUsersForStudent(null, authCode);
+      }
       if (response.success && response.data) {
         // Handle new grouped users structure
         const fetchedGroupedUsers = response.data.grouped_users || [];
@@ -192,7 +234,7 @@ const StudentCreateConversationScreen = ({ navigation, route }) => {
     } finally {
       setLoading(false);
     }
-  }, [authCode, getCurrentStudentBranch]);
+  }, [authCode, userType, parentName, getCurrentStudentBranch]);
 
   // Filter users based on search query
   const filteredGroupedUsers = groupedUsers.map((group) => ({

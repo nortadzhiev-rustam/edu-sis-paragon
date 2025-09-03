@@ -1988,7 +1988,7 @@ const getStyles = (theme) =>
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.15,
       shadowRadius: 4,
-      overflow: 'hidden',
+      
       zIndex: 1,
     },
     navigationHeader: {
@@ -1997,11 +1997,15 @@ const getStyles = (theme) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
     },
     subHeader: {
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 16,
       paddingVertical: 16,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
     },
     loadingSubheader: {
       flexDirection: 'row',

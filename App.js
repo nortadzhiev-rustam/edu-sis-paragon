@@ -10,6 +10,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import SplashScreen from './src/screens/SplashScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import LoginScreen from './src/screens/LoginScreen';
+
+// Teacher Screens
 import TeacherScreen from './src/screens/TeacherScreen';
 import TeacherProfile from './src/screens/TeacherProfile';
 import TeacherTimetable from './src/screens/TeacherTimetable';
@@ -18,33 +20,58 @@ import TeacherBPS from './src/screens/TeacherBPS';
 import TeacherHomeworkScreen from './src/screens/TeacherHomeworkScreen';
 import TeacherHomeworkDetailScreen from './src/screens/TeacherHomeworkDetailScreen';
 import TeacherHomeworkCreateScreen from './src/screens/TeacherHomeworkCreateScreen';
-import StudentHomeworkDetailScreen from './src/screens/StudentHomeworkDetailScreen';
+import TeacherMessagingScreen from './src/screens/TeacherMessagingScreen';
+import TeacherHealthScreen from './src/screens/TeacherHealthScreen';
+import TeacherPickupScreen from './src/screens/TeacherPickupScreen';
+import TeacherQRScannerScreen from './src/screens/TeacherQRScannerScreen';
+
+// Homeroom Screens
 import HomeroomScreen from './src/screens/HomeroomScreen';
 import HomeroomStudentsScreen from './src/screens/HomeroomStudentsScreen';
 import HomeroomStudentProfile from './src/screens/HomeroomStudentProfile';
 import HomeroomDisciplineScreen from './src/screens/HomeroomDisciplineScreen';
 import HomeroomAttendanceDetailsScreen from './src/screens/HomeroomAttendanceDetailsScreen';
+
+// Parent/Student Screens
 import ParentScreen from './src/screens/ParentScreen';
+import StudentScreen from './src/screens/StudentScreen';
+import StudentProfileScreen from './src/screens/StudentProfileScreen';
 import TimetableScreen from './src/screens/TimetableScreen';
 import GradesScreen from './src/screens/GradesScreen';
 import AttendanceScreen from './src/screens/AttendanceScreen';
 import AssignmentsScreen from './src/screens/AssignmentsScreen';
 import AssignmentDetailScreen from './src/screens/AssignmentDetailScreen';
+import StudentHomeworkDetailScreen from './src/screens/StudentHomeworkDetailScreen';
 import BehaviorScreen from './src/screens/BehaviorScreen';
-import SettingsScreen from './src/screens/SettingsScreen';
-import NotificationScreen from './src/screens/NotificationScreen';
-import LibraryScreen from './src/screens/LibraryScreen';
-import TeacherMessagingScreen from './src/screens/TeacherMessagingScreen';
 import StudentMessagingScreen from './src/screens/StudentMessagingScreen';
-import ConversationScreen from './src/screens/ConversationScreen';
-import CreateConversationScreen from './src/screens/CreateConversationScreen';
+import ParentMessagingScreen from './src/screens/ParentMessagingScreen';
 import StudentCreateConversationScreen from './src/screens/StudentCreateConversationScreen';
 import StudentHealthScreen from './src/screens/StudentHealthScreen';
-import TeacherHealthScreen from './src/screens/TeacherHealthScreen';
+import ParentPickupRequestScreen from './src/screens/ParentPickupRequestScreen';
+
+// Guardian Screens
+import AddGuardianScreen from './src/screens/AddGuardianScreen';
+import GuardianAutoLoginScreen from './src/screens/GuardianAutoLoginScreen';
+import GuardianDashboardScreen from './src/screens/GuardianDashboardScreen';
+import GuardianDetailScreen from './src/screens/GuardianDetailScreen';
+import GuardianLoginScreen from './src/screens/GuardianLoginScreen';
+import GuardianManagementScreen from './src/screens/GuardianManagementScreen';
+import GuardianPickupRequestScreen from './src/screens/GuardianPickupRequestScreen';
+import GuardianProfileCompletionScreen from './src/screens/GuardianProfileCompletionScreen';
+import GuardianProfileEditScreen from './src/screens/GuardianProfileEditScreen';
+import GuardianQRScannerFallbackScreen from './src/screens/GuardianQRScannerFallbackScreen';
+import GuardianQRScannerScreen from './src/screens/GuardianQRScannerScreen';
+
+// Shared Screens
+import ConversationScreen from './src/screens/ConversationScreen';
+import CreateConversationScreen from './src/screens/CreateConversationScreen';
 import EditHealthInfoScreen from './src/screens/EditHealthInfoScreen';
 import CreateHealthRecordScreen from './src/screens/CreateHealthRecordScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import UserCalendarScreen from './src/screens/UserCalendarScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import NotificationScreen from './src/screens/NotificationScreen';
+import LibraryScreen from './src/screens/LibraryScreen';
 import AboutUsScreen from './src/screens/AboutUsScreen';
 import ContactsScreen from './src/screens/ContactsScreen';
 import FAQScreen from './src/screens/FAQScreen';
@@ -294,8 +321,11 @@ export default function App() {
                     initialRouteName='Home'
                     screenOptions={{ headerShown: false }}
                   >
+                    {/* Core Screens */}
                     <Stack.Screen name='Home' component={HomeScreen} />
                     <Stack.Screen name='Login' component={LoginScreen} />
+
+                    {/* Teacher Screens */}
                     <Stack.Screen
                       name='TeacherScreen'
                       component={TeacherScreen}
@@ -326,9 +356,23 @@ export default function App() {
                       component={TeacherHomeworkCreateScreen}
                     />
                     <Stack.Screen
-                      name='StudentHomeworkDetail'
-                      component={StudentHomeworkDetailScreen}
+                      name='TeacherMessagingScreen'
+                      component={TeacherMessagingScreen}
                     />
+                    <Stack.Screen
+                      name='TeacherHealthScreen'
+                      component={TeacherHealthScreen}
+                    />
+                    <Stack.Screen
+                      name='TeacherPickupScreen'
+                      component={TeacherPickupScreen}
+                    />
+                    <Stack.Screen
+                      name='TeacherQRScannerScreen'
+                      component={TeacherQRScannerScreen}
+                    />
+
+                    {/* Homeroom Screens */}
                     <Stack.Screen
                       name='HomeroomScreen'
                       component={HomeroomScreen}
@@ -349,9 +393,19 @@ export default function App() {
                       name='HomeroomAttendanceDetails'
                       component={HomeroomAttendanceDetailsScreen}
                     />
+
+                    {/* Parent/Student Screens */}
                     <Stack.Screen
                       name='ParentScreen'
                       component={ParentScreen}
+                    />
+                    <Stack.Screen
+                      name='StudentScreen'
+                      component={StudentScreen}
+                    />
+                    <Stack.Screen
+                      name='StudentProfileScreen'
+                      component={StudentProfileScreen}
                     />
                     <Stack.Screen
                       name='TimetableScreen'
@@ -374,37 +428,20 @@ export default function App() {
                       component={AssignmentDetailScreen}
                     />
                     <Stack.Screen
+                      name='StudentHomeworkDetail'
+                      component={StudentHomeworkDetailScreen}
+                    />
+                    <Stack.Screen
                       name='BehaviorScreen'
                       component={BehaviorScreen}
-                    />
-                    <Stack.Screen
-                      name='SettingsScreen'
-                      component={SettingsScreen}
-                    />
-
-                    <Stack.Screen
-                      name='NotificationScreen'
-                      component={NotificationScreen}
-                    />
-                    <Stack.Screen
-                      name='LibraryScreen'
-                      component={LibraryScreen}
-                    />
-                    <Stack.Screen
-                      name='TeacherMessagingScreen'
-                      component={TeacherMessagingScreen}
                     />
                     <Stack.Screen
                       name='StudentMessagingScreen'
                       component={StudentMessagingScreen}
                     />
                     <Stack.Screen
-                      name='ConversationScreen'
-                      component={ConversationScreen}
-                    />
-                    <Stack.Screen
-                      name='CreateConversationScreen'
-                      component={CreateConversationScreen}
+                      name='ParentMessagingScreen'
+                      component={ParentMessagingScreen}
                     />
                     <Stack.Screen
                       name='StudentCreateConversationScreen'
@@ -415,8 +452,64 @@ export default function App() {
                       component={StudentHealthScreen}
                     />
                     <Stack.Screen
-                      name='TeacherHealthScreen'
-                      component={TeacherHealthScreen}
+                      name='ParentPickupRequestScreen'
+                      component={ParentPickupRequestScreen}
+                    />
+
+                    {/* Guardian Screens */}
+                    <Stack.Screen
+                      name='AddGuardianScreen'
+                      component={AddGuardianScreen}
+                    />
+                    <Stack.Screen
+                      name='GuardianAutoLoginScreen'
+                      component={GuardianAutoLoginScreen}
+                    />
+                    <Stack.Screen
+                      name='GuardianDashboardScreen'
+                      component={GuardianDashboardScreen}
+                    />
+                    <Stack.Screen
+                      name='GuardianDetailScreen'
+                      component={GuardianDetailScreen}
+                    />
+                    <Stack.Screen
+                      name='GuardianLoginScreen'
+                      component={GuardianLoginScreen}
+                    />
+                    <Stack.Screen
+                      name='GuardianManagementScreen'
+                      component={GuardianManagementScreen}
+                    />
+                    <Stack.Screen
+                      name='GuardianPickupRequestScreen'
+                      component={GuardianPickupRequestScreen}
+                    />
+                    <Stack.Screen
+                      name='GuardianProfileCompletionScreen'
+                      component={GuardianProfileCompletionScreen}
+                    />
+                    <Stack.Screen
+                      name='GuardianProfileEditScreen'
+                      component={GuardianProfileEditScreen}
+                    />
+                    <Stack.Screen
+                      name='GuardianQRScannerFallbackScreen'
+                      component={GuardianQRScannerFallbackScreen}
+                    />
+                    <Stack.Screen
+                      name='GuardianQRScannerScreen'
+                      component={GuardianQRScannerScreen}
+                    />
+
+                    {/* Shared Screens */}
+                    <Stack.Screen
+                      name='ConversationScreen'
+                      component={ConversationScreen}
+                    />
+                    <Stack.Screen
+                      name='CreateConversationScreen'
+                      component={CreateConversationScreen}
                     />
                     <Stack.Screen
                       name='EditHealthInfoScreen'
@@ -430,6 +523,18 @@ export default function App() {
                     <Stack.Screen
                       name='UserCalendar'
                       component={UserCalendarScreen}
+                    />
+                    <Stack.Screen
+                      name='SettingsScreen'
+                      component={SettingsScreen}
+                    />
+                    <Stack.Screen
+                      name='NotificationScreen'
+                      component={NotificationScreen}
+                    />
+                    <Stack.Screen
+                      name='LibraryScreen'
+                      component={LibraryScreen}
                     />
                     <Stack.Screen name='AboutUs' component={AboutUsScreen} />
                     <Stack.Screen name='Contacts' component={ContactsScreen} />

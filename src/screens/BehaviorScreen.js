@@ -29,11 +29,20 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { createMediumShadow } from '../utils/commonStyles';
 import { getDemoStudentBPSData } from '../services/demoModeService';
 
+// Import Parent Proxy Access System
+import { getChildBpsProfile } from '../services/parentService';
+import {
+  shouldUseParentProxy,
+  extractProxyOptions,
+} from '../services/parentProxyAdapter';
+
 export default function BehaviorScreen({ navigation, route }) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
-  const { authCode } = route.params || {};
+  // Extract route parameters including parent proxy parameters
+  const { authCode, studentId, useParentProxy, parentData, studentName } =
+    route.params || {};
   const [behaviorData, setBehaviorData] = useState([]);
   const [detentionData, setDetentionData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +76,7 @@ export default function BehaviorScreen({ navigation, route }) {
     setLoading(true);
     try {
       // Check if this is demo mode
-      if (authCode && authCode.startsWith('DEMO_AUTH_')) {
+      if (authCode?.startsWith('DEMO_AUTH_')) {
         console.log('🎭 DEMO MODE: Using demo student BPS data');
         const demoData = getDemoStudentBPSData();
         setBehaviorData(demoData.behavior_records || []);
@@ -75,6 +84,36 @@ export default function BehaviorScreen({ navigation, route }) {
         setLoading(false);
         return;
       }
+
+      // Check if this is parent proxy access
+      const proxyOptions = extractProxyOptions(route.params);
+      if (shouldUseParentProxy(route.params)) {
+        console.log('🔄 BPS: Using parent proxy access');
+        console.log('🔑 Parent Auth Code:', authCode);
+        console.log('👤 Student ID:', proxyOptions.studentId);
+
+        const response = await getChildBpsProfile(
+          authCode,
+          proxyOptions.studentId
+        );
+
+        if (response.success && response) {
+          const bpsProfile = response;
+          setBehaviorData(
+            bpsProfile.recent_entries || bpsProfile.bps_records || []
+          );
+          setDetentionData(bpsProfile.detention_records || []);
+        } else {
+          console.warn('⚠️ BPS: No BPS data in parent proxy response');
+          setBehaviorData([]);
+          setDetentionData([]);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Use direct student access (existing behavior)
+      console.log('📚 BPS: Using direct student access');
 
       const url = buildApiUrl(Config.API_ENDPOINTS.GET_STUDENT_BPS, {
         authCode,

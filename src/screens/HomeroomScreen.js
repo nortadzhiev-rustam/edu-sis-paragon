@@ -439,7 +439,7 @@ export default function HomeroomScreen({ route, navigation }) {
             faUsers,
             '#007AFF',
             () =>
-              navigation.navigate('HomeroomStudentsScreen', {
+              navigation.navigate('HomeroomStudents', {
                 authCode,
                 classroomData,
               }),
@@ -470,7 +470,7 @@ export default function HomeroomScreen({ route, navigation }) {
             faClipboardList,
             '#FF9500',
             () =>
-              navigation.navigate('HomeroomDisciplineScreen', {
+              navigation.navigate('HomeroomDiscipline', {
                 authCode,
                 classroomData,
               }),

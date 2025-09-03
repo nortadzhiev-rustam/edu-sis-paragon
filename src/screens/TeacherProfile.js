@@ -85,10 +85,10 @@ export default function TeacherProfile({ route, navigation }) {
               console.log(
                 '✅ TEACHER PROFILE LOGOUT: Logout completed successfully'
               );
-              // Navigate back to home screen
+              // Navigate back to login screen
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'Home' }],
+                routes: [{ name: 'Login' }],
               });
             } else {
               console.error(
@@ -98,7 +98,7 @@ export default function TeacherProfile({ route, navigation }) {
               // Still navigate even if cleanup failed
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'Home' }],
+                routes: [{ name: 'Login' }],
               });
             }
           } catch (error) {
@@ -106,10 +106,10 @@ export default function TeacherProfile({ route, navigation }) {
               '❌ TEACHER PROFILE LOGOUT: Error during logout:',
               error
             );
-            // Fallback: still navigate to home screen
+            // Fallback: still navigate to login screen
             navigation.reset({
               index: 0,
-              routes: [{ name: 'Home' }],
+              routes: [{ name: 'Login' }],
             });
           }
         },
@@ -137,6 +137,20 @@ export default function TeacherProfile({ route, navigation }) {
         return uniqueRoles.join(' - ');
       }
     }
+
+    // Fallback to new API response fields
+    if (userData.profession_position) {
+      return userData.profession_position;
+    }
+
+    if (userData.role) {
+      return userData.role;
+    }
+
+    if (userData.staff_category_name) {
+      return userData.staff_category_name;
+    }
+
     return userData.position || 'Teacher';
   };
 
@@ -272,7 +286,7 @@ export default function TeacherProfile({ route, navigation }) {
           <ProfileItem
             icon={faPhone}
             label={t('phone')}
-            value={userData.phone}
+            value={userData.mobile_phone || userData.phone}
           />
         </View>
 
@@ -283,27 +297,100 @@ export default function TeacherProfile({ route, navigation }) {
           <ProfileItem
             icon={faUserTie}
             label={t('position')}
-            value={userData.roles[0].role_name}
+            value={
+              userData.profession_position ||
+              userData.role ||
+              (userData.roles && userData.roles.length > 0
+                ? userData.roles[0].role_name
+                : userData.staff_category_name || 'Staff Member')
+            }
           />
 
           <ProfileItem
             icon={faBuilding}
             label={t('department')}
-            value={userData.department}
+            value={
+              userData.staff_category_name ||
+              userData.department ||
+              'Not specified'
+            }
           />
 
           <ProfileItem
             icon={faMapMarkerAlt}
             label={t('branch')}
-            value={userData.roles[0].branch_name}
+            value={
+              userData.branch?.branch_name ||
+              (userData.roles && userData.roles.length > 0
+                ? userData.roles[0].branch_name
+                : 'Not specified')
+            }
           />
 
           <ProfileItem
             icon={faCalendarAlt}
             label={t('joinDate')}
-            value={userData.join_date}
+            value={userData.join_date || 'Not available'}
           />
         </View>
+
+        {/* Staff Category Information */}
+        {(userData.staff_category_name || userData.profession_position) && (
+          <View style={styles.profileSection}>
+            <Text style={styles.sectionTitle}>{t('staffInformation')}</Text>
+
+            {userData.staff_category_name && (
+              <ProfileItem
+                icon={faUserTie}
+                label={t('staffCategory')}
+                value={userData.staff_category_name}
+              />
+            )}
+
+            {userData.profession_position && (
+              <ProfileItem
+                icon={faUserTie}
+                label={t('professionPosition')}
+                value={userData.profession_position}
+              />
+            )}
+
+            {userData.staff_category_id && (
+              <ProfileItem
+                icon={faIdCard}
+                label={t('categoryId')}
+                value={userData.staff_category_id.toString()}
+              />
+            )}
+          </View>
+        )}
+
+        {/* Accessible Branches */}
+        {userData.accessible_branches &&
+          userData.accessible_branches.length > 0 && (
+            <View style={styles.profileSection}>
+              <Text style={styles.sectionTitle}>{t('accessibleBranches')}</Text>
+              {userData.accessible_branches.map((branch, index) => (
+                <View key={index} style={styles.roleItem}>
+                  <View style={styles.roleIcon}>
+                    <FontAwesomeIcon
+                      icon={faMapMarkerAlt}
+                      size={16}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                  <View style={styles.roleContent}>
+                    <Text style={styles.roleName}>{branch.branch_name}</Text>
+                    {branch.branch_description && (
+                      <Text style={styles.roleBranch}>
+                        {branch.branch_description}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
 
         {/* Roles Section */}
         {userData.roles && userData.roles.length > 0 && (
@@ -324,6 +411,9 @@ export default function TeacherProfile({ route, navigation }) {
                   <Text style={styles.roleName}>{role.role_name}</Text>
                   {role.branch_name && (
                     <Text style={styles.roleBranch}>{role.branch_name}</Text>
+                  )}
+                  {role.role_id && (
+                    <Text style={styles.roleBranch}>ID: {role.role_id}</Text>
                   )}
                 </View>
               </View>

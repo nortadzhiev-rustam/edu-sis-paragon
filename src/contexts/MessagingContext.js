@@ -31,14 +31,26 @@ export const MessagingProvider = ({ children }) => {
   const [isPolling, setIsPolling] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
 
-  // Get auth code from storage
+  // Get auth code from storage (supports both regular users and guardians)
   const getAuthCode = useCallback(async () => {
     try {
+      // First try to get from regular user data
       const userData = await AsyncStorage.getItem('userData');
       if (userData) {
         const user = JSON.parse(userData);
-        return user.authCode || user.auth_code;
+        const authCode = user.authCode || user.auth_code;
+        if (authCode) {
+          return authCode;
+        }
       }
+
+      // If no regular auth code found, try guardian auth code
+      const guardianAuthCode = await AsyncStorage.getItem('guardianAuthCode');
+      if (guardianAuthCode) {
+        console.log('📱 MESSAGING: Using guardian auth code for messaging');
+        return guardianAuthCode;
+      }
+
       return null;
     } catch (error) {
       console.error('Error getting auth code:', error);

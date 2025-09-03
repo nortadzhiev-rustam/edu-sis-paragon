@@ -3,19 +3,19 @@ import { View, Text, StyleSheet } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faInbox } from '@fortawesome/free-solid-svg-icons';
 import CommonButton from './CommonButton';
+import { useTheme } from '../contexts/ThemeContext';
 
 /**
  * EmptyState Component
- * 
+ *
  * A reusable component for displaying empty states with icon, message, and optional action.
- * 
+ *
  * @param {Object} props
  * @param {Object} props.icon - FontAwesome icon object
  * @param {string} props.title - Main title text
  * @param {string} props.message - Descriptive message text
  * @param {string} props.actionText - Text for action button
  * @param {Function} props.onActionPress - Callback when action button is pressed
- * @param {Object} props.theme - Theme object containing colors and styles
  * @param {Object} props.style - Additional styles for container
  * @param {string} props.size - Component size: 'small', 'medium', 'large'
  * @param {string} props.variant - Visual variant: 'default', 'minimal', 'illustration'
@@ -28,13 +28,13 @@ const EmptyState = ({
   message,
   actionText,
   onActionPress,
-  theme,
   style = {},
   size = 'medium',
   variant = 'default',
   illustration,
   children,
 }) => {
+  const { theme } = useTheme();
   const styles = createStyles(theme);
 
   const renderIcon = () => {
@@ -65,22 +65,20 @@ const EmptyState = ({
     return (
       <>
         {title && (
-          <Text style={[styles.title, styles[`${size}Title`]]}>
-            {title}
-          </Text>
+          <Text style={[styles.title, styles[`${size}Title`]]}>{title}</Text>
         )}
-        
+
         {message && (
           <Text style={[styles.message, styles[`${size}Message`]]}>
             {message}
           </Text>
         )}
-        
+
         {actionText && onActionPress && (
           <CommonButton
             title={actionText}
             onPress={onActionPress}
-            variant="outline"
+            variant='outline'
             size={size === 'small' ? 'small' : 'medium'}
             theme={theme}
             style={styles.actionButton}
@@ -93,16 +91,14 @@ const EmptyState = ({
   return (
     <View style={[styles.container, styles[`${size}Container`], style]}>
       {renderIcon()}
-      <View style={styles.content}>
-        {renderContent()}
-      </View>
+      <View style={styles.content}>{renderContent()}</View>
     </View>
   );
 };
 
 /**
  * LoadingState Component
- * 
+ *
  * A reusable component for displaying loading states.
  */
 const LoadingState = ({
@@ -122,16 +118,14 @@ const LoadingState = ({
           <View style={styles.spinner} />
         </View>
       )}
-      <Text style={[styles.message, styles[`${size}Message`]]}>
-        {message}
-      </Text>
+      <Text style={[styles.message, styles[`${size}Message`]]}>{message}</Text>
     </View>
   );
 };
 
 /**
  * ErrorState Component
- * 
+ *
  * A reusable component for displaying error states.
  */
 const ErrorState = ({

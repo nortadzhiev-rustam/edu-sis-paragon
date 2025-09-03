@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity, View, Text } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { isIPad, isTablet } from '../utils/deviceDetection';
 
@@ -49,48 +49,48 @@ const QuickActionTile = ({
 
   // Get tile container styles - use existing responsive styles from parent component
   const getTileStyles = () => [
-    styles.actionTile || styles.menuItem, // Use actionTile for TeacherScreen, menuItem for ParentScreen
+    styles?.actionTile || styles?.menuItem, // Use actionTile for TeacherScreen, menuItem for ParentScreen
     // Only apply backgroundColor if using actionTile style (TeacherScreen)
-    styles.actionTile && {
+    styles?.actionTile && {
       backgroundColor: disabled ? '#B0B0B0' : backgroundColor,
     },
-    disabled && (styles.disabledTile || styles.disabledMenuItem),
-    isIPadDevice && (styles.iPadActionTile || styles.iPadMenuItem),
+    disabled && (styles?.disabledTile || styles?.disabledMenuItem),
+    isIPadDevice && (styles?.iPadActionTile || styles?.iPadMenuItem),
     isIPadDevice &&
       isLandscape &&
-      (styles.iPadLandscapeActionTile || styles.iPadLandscapeMenuItem),
-    isTabletDevice && (styles.tabletActionTile || styles.tabletMenuItem),
+      (styles?.iPadLandscapeActionTile || styles?.iPadLandscapeMenuItem),
+    isTabletDevice && (styles?.tabletActionTile || styles?.tabletMenuItem),
     isTabletDevice &&
       isLandscape &&
-      (styles.tabletLandscapeActionTile || styles.tabletLandscapeMenuItem),
+      (styles?.tabletLandscapeActionTile || styles?.tabletLandscapeMenuItem),
     additionalStyle,
   ];
 
   // Get icon container styles - use existing responsive styles from TeacherScreen
   const getIconContainerStyles = () => [
-    styles.tileIconContainer,
-    isIPadDevice && styles.iPadTileIconContainer,
-    isIPadDevice && isLandscape && styles.iPadLandscapeTileIconContainer,
-    isTabletDevice && styles.tabletTileIconContainer,
-    isTabletDevice && isLandscape && styles.tabletLandscapeTileIconContainer,
+    styles?.tileIconContainer,
+    isIPadDevice && styles?.iPadTileIconContainer,
+    isIPadDevice && isLandscape && styles?.iPadLandscapeTileIconContainer,
+    isTabletDevice && styles?.tabletTileIconContainer,
+    isTabletDevice && isLandscape && styles?.tabletLandscapeTileIconContainer,
   ];
 
   // Get title styles - use existing responsive styles from TeacherScreen
   const getTitleStyles = () => [
-    styles.tileTitle,
-    isIPadDevice && styles.iPadTileTitle,
-    isIPadDevice && isLandscape && styles.iPadLandscapeTileTitle,
-    isTabletDevice && styles.tabletTileTitle,
-    isTabletDevice && isLandscape && styles.tabletLandscapeTileTitle,
+    styles?.tileTitle,
+    isIPadDevice && styles?.iPadTileTitle,
+    isIPadDevice && isLandscape && styles?.iPadLandscapeTileTitle,
+    isTabletDevice && styles?.tabletTileTitle,
+    isTabletDevice && isLandscape && styles?.tabletLandscapeTileTitle,
   ];
 
   // Get subtitle styles - use existing responsive styles from TeacherScreen
   const getSubtitleStyles = () => [
-    styles.tileSubtitle,
-    isIPadDevice && styles.iPadTileSubtitle,
-    isIPadDevice && isLandscape && styles.iPadLandscapeTileSubtitle,
-    isTabletDevice && styles.tabletTileSubtitle,
-    isTabletDevice && isLandscape && styles.tabletLandscapeTileSubtitle,
+    styles?.tileSubtitle,
+    isIPadDevice && styles?.iPadTileSubtitle,
+    isIPadDevice && isLandscape && styles?.iPadLandscapeTileSubtitle,
+    isTabletDevice && styles?.tabletTileSubtitle,
+    isTabletDevice && isLandscape && styles?.tabletLandscapeTileSubtitle,
   ];
 
   return (

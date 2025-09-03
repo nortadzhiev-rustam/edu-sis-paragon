@@ -7,12 +7,13 @@ import {
   View,
 } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { useTheme } from '../contexts/ThemeContext';
 
 /**
  * CommonButton Component
- * 
+ *
  * A reusable button component with different variants and states.
- * 
+ *
  * @param {Object} props
  * @param {string} props.title - Button text
  * @param {Function} props.onPress - Callback function when button is pressed
@@ -22,7 +23,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
  * @param {boolean} props.loading - Whether button is in loading state
  * @param {Object} props.icon - FontAwesome icon object
  * @param {string} props.iconPosition - Icon position: 'left', 'right'
- * @param {Object} props.theme - Theme object containing colors and styles
  * @param {Object} props.style - Additional styles for button container
  * @param {Object} props.textStyle - Additional styles for button text
  * @param {boolean} props.fullWidth - Whether button should take full width
@@ -36,34 +36,42 @@ const CommonButton = ({
   loading = false,
   icon,
   iconPosition = 'left',
-  theme,
   style = {},
   textStyle = {},
   fullWidth = false,
 }) => {
+  const { theme } = useTheme();
   const styles = createStyles(theme);
 
   const getButtonStyle = () => {
-    const baseStyle = [styles.button, styles[`${variant}Button`], styles[`${size}Button`]];
-    
+    const baseStyle = [
+      styles.button,
+      styles[`${variant}Button`],
+      styles[`${size}Button`],
+    ];
+
     if (fullWidth) {
       baseStyle.push(styles.fullWidthButton);
     }
-    
+
     if (disabled) {
       baseStyle.push(styles.disabledButton);
     }
-    
+
     return [...baseStyle, style];
   };
 
   const getTextStyle = () => {
-    const baseStyle = [styles.buttonText, styles[`${variant}Text`], styles[`${size}Text`]];
-    
+    const baseStyle = [
+      styles.buttonText,
+      styles[`${variant}Text`],
+      styles[`${size}Text`],
+    ];
+
     if (disabled) {
       baseStyle.push(styles.disabledText);
     }
-    
+
     return [...baseStyle, textStyle];
   };
 
@@ -105,7 +113,7 @@ const CommonButton = ({
     if (loading) {
       return (
         <ActivityIndicator
-          size={size === 'small' ? 'small' : 'small'}
+          size={size === 'small' ? 'small' : 'large'}
           color={getIconColor()}
         />
       );

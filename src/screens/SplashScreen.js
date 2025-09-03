@@ -27,7 +27,7 @@ export default function SplashScreen({ onAnimationComplete }) {
   const animation = useSharedValue(0);
 
   // Extract completion handler to reduce nesting
-  const handleAnimationComplete = () => {
+  const handleAnimationComplete = async () => {
     if (!onAnimationComplete) return;
 
     // Start the final animation
@@ -37,15 +37,17 @@ export default function SplashScreen({ onAnimationComplete }) {
     });
 
     // Call the completion callback after animation duration
-    setTimeout(() => {
-      onAnimationComplete();
+    setTimeout(async () => {
+      await onAnimationComplete();
     }, 600); // 500ms animation + 100ms buffer
   };
 
   // Extract typing completion handler
-  const handleTypingComplete = () => {
+  const handleTypingComplete = async () => {
     // Add a small delay to ensure the text is fully visible
-    setTimeout(handleAnimationComplete, 400);
+    setTimeout(async () => {
+      await handleAnimationComplete();
+    }, 400);
   };
 
   // Create styles based on current theme
@@ -100,8 +102,7 @@ export default function SplashScreen({ onAnimationComplete }) {
   useEffect(() => {
     if (!startTyping) return;
 
-    const FULL_TEXT =
-      t('inspiringBrilliance') + '\n' + t('buildingBrighterFutures');
+    const FULL_TEXT = 'Learn Today\nFor Better Tomorrow';
     let currentIndex = 0;
     const typewriterInterval = setInterval(() => {
       if (currentIndex <= FULL_TEXT.length) {
@@ -110,7 +111,7 @@ export default function SplashScreen({ onAnimationComplete }) {
       } else {
         clearInterval(typewriterInterval);
         // Animation is complete, call the extracted handler
-        handleTypingComplete();
+        handleTypingComplete().catch(console.error);
       }
     }, TYPING_SPEED);
 
@@ -161,7 +162,7 @@ const createStyles = (theme) => {
       marginTop: isIPadDevice ? 30 : 20,
       fontSize: isIPadDevice ? 28 : 22,
       fontWeight: '600',
-      color: theme.colors.primary,
+      color: theme.mode === 'dark' ? theme.colors.text : theme.colors.primary,
       textAlign: 'center',
       paddingHorizontal: isIPadDevice ? 40 : 20,
       fontFamily: Platform.OS === 'ios' ? 'Helvetica Neue' : 'sans-serif',

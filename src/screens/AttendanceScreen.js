@@ -46,13 +46,22 @@ import { lockOrientationForDevice } from '../utils/orientationLock';
 import { createCustomShadow } from '../utils/commonStyles';
 import { getDemoStudentAttendanceData } from '../services/demoModeService';
 
+// Import Parent Proxy Access System
+import { getChildAttendance } from '../services/parentService';
+import {
+  shouldUseParentProxy,
+  extractProxyOptions,
+} from '../services/parentProxyAdapter';
+
 export default function AttendanceScreen({ navigation, route }) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const { refreshNotifications } = useNotifications();
 
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
-  const { studentName, authCode } = route.params || {};
+  // Extract route parameters including parent proxy parameters
+  const { studentName, authCode, studentId, useParentProxy, parentData } =
+    route.params || {};
   const [attendanceData, setAttendanceData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedView, setSelectedView] = useState('summary'); // 'summary', 'daily', 'absent', 'late'
@@ -146,27 +155,53 @@ export default function AttendanceScreen({ navigation, route }) {
         return;
       }
 
-      const url = buildApiUrl(Config.API_ENDPOINTS.GET_STUDENT_ATTENDANCE, {
-        authCode,
-      });
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
+      // Check if this is parent proxy access
+      const proxyOptions = extractProxyOptions(route.params);
+      if (shouldUseParentProxy(route.params)) {
+        console.log('🔄 ATTENDANCE: Using parent proxy access');
+        console.log('🔑 Parent Auth Code:', authCode);
+        console.log('👤 Student ID:', proxyOptions.studentId);
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setAttendanceData(data);
+        const response = await getChildAttendance(
+          authCode,
+          proxyOptions.studentId
+        );
+
+        if (response.success && response.attendance) {
+          setAttendanceData(response.attendance);
+        } else {
+          console.warn(
+            '⚠️ ATTENDANCE: No attendance data in parent proxy response'
+          );
+          setAttendanceData(null);
         }
       } else {
-        // Handle error silently
+        // Use direct student access (existing behavior)
+        console.log('📚 ATTENDANCE: Using direct student access');
+
+        const url = buildApiUrl(Config.API_ENDPOINTS.GET_STUDENT_ATTENDANCE, {
+          authCode,
+        });
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setAttendanceData(data);
+          }
+        } else {
+          // Handle error silently
+        }
       }
     } catch (error) {
       // Handle error silently
+      console.error('❌ ATTENDANCE: Failed to fetch attendance:', error);
     } finally {
       setLoading(false);
     }

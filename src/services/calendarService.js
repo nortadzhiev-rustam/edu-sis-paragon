@@ -32,6 +32,23 @@ class CalendarService {
   }
 
   /**
+   * Check if Google Calendar is available for the current school config
+   * Safe-guards against missing features field
+   * @returns {boolean}
+   */
+  isGoogleCalendarAvailable() {
+    try {
+      const features = (this.schoolConfig && this.schoolConfig.features) || {};
+      // Available if Google Workspace is enabled or explicit googleCalendar flag is true
+      return Boolean(
+        this.schoolConfig?.hasGoogleWorkspace || features.googleCalendar
+      );
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
    * Initialize calendar service for a user
    * @param {Object} userData - User data from login
    * @param {Object} options - Service options (mode: 'branch-only' or 'combined')
@@ -51,11 +68,12 @@ class CalendarService {
       console.log(
         '🔍 CALENDAR SERVICE: Checking Google Calendar configuration...'
       );
-      console.log('   hasGoogleWorkspace:', schoolConfig.hasGoogleWorkspace);
-      console.log('   googleCalendar:', schoolConfig.features.googleCalendar);
+      const features = schoolConfig.features || {};
+      console.log('   hasGoogleWorkspace:', !!schoolConfig.hasGoogleWorkspace);
+      console.log('   googleCalendar:', !!features.googleCalendar);
       console.log(
         '   googleCalendarReadOnly:',
-        schoolConfig.features.googleCalendarReadOnly
+        features.googleCalendarReadOnly !== false
       );
 
       console.log(

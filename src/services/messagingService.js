@@ -325,14 +325,26 @@ const mockMessages = {
   ],
 };
 
-// Helper function to get auth code from storage
+// Helper function to get auth code from storage (supports both regular users and guardians)
 const getAuthCode = async () => {
   try {
+    // First try to get from regular user data
     const userData = await AsyncStorage.getItem('userData');
     if (userData) {
       const user = JSON.parse(userData);
-      return user.authCode || user.auth_code;
+      const authCode = user.authCode || user.auth_code;
+      if (authCode) {
+        return authCode;
+      }
     }
+
+    // If no regular auth code found, try guardian auth code
+    const guardianAuthCode = await AsyncStorage.getItem('guardianAuthCode');
+    if (guardianAuthCode) {
+      console.log('📱 MESSAGING SERVICE: Using guardian auth code');
+      return guardianAuthCode;
+    }
+
     return null;
   } catch (error) {
     console.error('Error getting auth code:', error);
@@ -621,7 +633,7 @@ export const sendMessage = async (
       body: JSON.stringify({
         authCode,
         conversation_uuid: conversationUuid,
-        message_content: messageContent,
+        message: messageContent,
         message_type: messageType,
         attachment_url: attachmentUrl,
       }),
@@ -855,6 +867,11 @@ export const getAvailableUsersForStudent = async (
   userType = null,
   studentAuthCode = null
 ) => {
+  console.log(
+    '🎓 getAvailableUsersForStudent FUNCTION CALLED - This should be for STUDENTS only!'
+  );
+  console.log('🎓 Parameters:', { userType, studentAuthCode });
+
   try {
     const authCode = studentAuthCode || (await getAuthCode());
     if (!authCode) {
@@ -1021,6 +1038,188 @@ export const getAvailableUsersForStudent = async (
     return await makeApiRequest(url);
   } catch (error) {
     console.error('Error fetching available users for student:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get available users for parents (child-based access)
+ * Parents can message staff members who have relationships with their children:
+ * - Head of School, Vice Principals (school-wide access)
+ * - Head of Sections (based on children's grades)
+ * - Homeroom Teachers (children's classroom teachers)
+ * - Subject Teachers (teachers who teach subjects to their children)
+ * @param {string} userType - Optional filter by user type
+ * @param {string} parentAuthCode - Optional parent authCode to use instead of getting from storage
+ * @returns {Promise<Object>} - Available users data for parents with role-based grouping
+ */
+export const getAvailableUsersForParent = async (
+  userType = null,
+  parentAuthCode = null
+) => {
+  console.log(
+    '🔥 getAvailableUsersForParent FUNCTION CALLED - This should be for PARENTS only!'
+  );
+  console.log('🔥 Parameters:', { userType, parentAuthCode });
+
+  try {
+    const authCode = parentAuthCode || (await getAuthCode());
+    if (!authCode) {
+      throw new Error('No authentication code found');
+    }
+
+    if (USE_MOCK_DATA) {
+      // Return mock data for testing with parent-specific grouped structure
+      await new Promise((resolve) => setTimeout(resolve, 300)); // Simulate network delay
+
+      // Mock parent data with children and staff relationships
+      const mockParentData = {
+        grouped_users: [
+          {
+            role: 'head_of_school',
+            role_label: 'Head of School',
+            users: [
+              {
+                id: 1,
+                name: 'Dr. John Smith',
+                user_type: 'staff',
+                role: 'head_of_school',
+                email: 'principal@school.edu',
+                photo:
+                  'https://sis.paragonisc.edu.kh/uploads/photos/principal.jpg',
+                branch_id: 1,
+                additional_info: {
+                  role_title: 'Head of School',
+                },
+              },
+            ],
+            count: 1,
+          },
+          {
+            role: 'homeroom_teacher',
+            role_label: 'Homeroom Teacher',
+            users: [
+              {
+                id: 15,
+                name: 'Ms. Sarah Johnson',
+                user_type: 'staff',
+                role: 'homeroom_teacher',
+                email: 'sarah.johnson@school.edu',
+                photo:
+                  'https://sis.paragonisc.edu.kh/uploads/photos/teacher15.jpg',
+                branch_id: 1,
+                additional_info: {
+                  classroom: 'Grade 5A',
+                },
+              },
+            ],
+            count: 1,
+          },
+          {
+            role: 'subject_teacher',
+            role_label: 'Subject Teachers',
+            users: [
+              {
+                id: 23,
+                name: 'Mr. David Wilson',
+                user_type: 'staff',
+                role: 'subject_teacher',
+                email: 'david.wilson@school.edu',
+                photo:
+                  'https://sis.paragonisc.edu.kh/uploads/photos/teacher23.jpg',
+                branch_id: 1,
+                additional_info: {
+                  subject: 'Mathematics',
+                },
+              },
+              {
+                id: 28,
+                name: 'Mrs. Emily Brown',
+                user_type: 'staff',
+                role: 'subject_teacher',
+                email: 'emily.brown@school.edu',
+                photo:
+                  'https://sis.paragonisc.edu.kh/uploads/photos/teacher28.jpg',
+                branch_id: 1,
+                additional_info: {
+                  subject: 'English',
+                },
+              },
+            ],
+            count: 2,
+          },
+        ],
+        total_count: 4,
+        filtered_count: 4,
+        user_type: 'parent',
+        access_level: 'child_based',
+        children_count: 1,
+        children: [
+          {
+            student_id: 150,
+            student_name: 'Alice Johnson',
+            branch_id: 1,
+            branch_name: 'Main Campus',
+            student_number: '2024-150',
+          },
+        ],
+        applied_filter: userType,
+        users: [], // Will be populated below
+      };
+
+      // Flatten users for backward compatibility
+      const allUsers = [];
+      mockParentData.grouped_users.forEach((group) => {
+        allUsers.push(...group.users);
+      });
+      mockParentData.users = allUsers;
+
+      // Apply user type filter if specified
+      if (userType) {
+        mockParentData.grouped_users = mockParentData.grouped_users
+          .map((group) => ({
+            ...group,
+            users: group.users.filter((user) => user.user_type === userType),
+            count: group.users.filter((user) => user.user_type === userType)
+              .length,
+          }))
+          .filter((group) => group.count > 0);
+
+        mockParentData.users = allUsers.filter(
+          (user) => user.user_type === userType
+        );
+        mockParentData.filtered_count = mockParentData.users.length;
+      }
+
+      return {
+        success: true,
+        data: mockParentData,
+      };
+    }
+
+    const params = {
+      authCode,
+      user_type: 'parent', // Requesting user type
+    };
+    if (userType) {
+      params.filter_user_type = userType; // Optional filter for returned users
+    }
+
+    console.log(
+      '🔍 getAvailableUsersForParent - endpoint:',
+      Config.API_ENDPOINTS.GET_AVAILABLE_USERS_PARENT
+    );
+    console.log('🔍 getAvailableUsersForParent - params:', params);
+
+    const url = buildApiUrl(
+      Config.API_ENDPOINTS.GET_AVAILABLE_USERS_PARENT,
+      params
+    );
+
+    console.log('🔍 getAvailableUsersForParent - final URL:', url);
+    return await makeApiRequest(url);
+  } catch (error) {
+    console.error('Error fetching available users for parent:', error);
     throw error;
   }
 };

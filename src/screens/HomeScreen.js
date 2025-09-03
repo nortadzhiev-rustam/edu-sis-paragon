@@ -352,9 +352,9 @@ export default function HomeScreen({ navigation }) {
         return;
       }
 
-      // If not logged in or not a teacher, go to login screen with teacher type
+      // If not logged in or not a teacher, go to login screen
       console.log('🔄 HOME: No valid teacher data found, redirecting to login');
-      navigation.navigate('Login', { loginType: 'teacher' });
+      navigation.navigate('Login');
     } catch (error) {
       console.error('❌ HOME: Unexpected error in handleTeacherPress:', error);
       Alert.alert(t('navigationError'), t('unableToAccessTeacherScreen'), [
@@ -362,7 +362,7 @@ export default function HomeScreen({ navigation }) {
         { text: t('runDiagnostics'), onPress: () => runDiagnostics() },
         {
           text: t('goToLogin'),
-          onPress: () => navigation.navigate('Login', { loginType: 'teacher' }),
+          onPress: () => navigation.navigate('Login'),
         },
       ]);
     }
@@ -432,54 +432,21 @@ export default function HomeScreen({ navigation }) {
   // Generic handler for school resources (About Us, Contacts, FAQ)
   const handleSchoolResourcePress = async (screenName) => {
     try {
-      const allUsers = await getAllUserData();
+      console.log(`🏠 HOME: Accessing ${screenName} (public access)`);
 
-      if (allUsers.length === 0) {
-        // No user data found - show options
-        Alert.alert(
-          t('accessScreen').replace('{screenName}', screenName),
-          t('schoolInfoAccessMessage'),
-          [
-            { text: t('cancel'), style: 'cancel' },
-            {
-              text: t('addStudent'),
-              onPress: () => navigation.navigate('ParentScreen'),
-            },
-            {
-              text: t('loginAsTeacher'),
-              onPress: () =>
-                navigation.navigate('Login', { loginType: 'teacher' }),
-            },
-            {
-              text: t('loginAsStudent'),
-              onPress: () =>
-                navigation.navigate('Login', { loginType: 'student' }),
-            },
-          ]
-        );
-        return;
-      }
-
-      const uniqueBranches = getUniqueBranches(allUsers);
-
-      console.log(
-        `🏠 HOME: ${screenName} access - found ${uniqueBranches.length} unique branches:`,
-        uniqueBranches.map((b) => `${b.branchName} (${b.userType})`)
-      );
-
-      // Navigate to the screen - the screen will handle showing data for all unique branches
-      navigation.navigate(screenName);
+      // School resources are publicly accessible - no login required
+      // Navigate directly to the screen with public access mode
+      navigation.navigate(screenName, { publicAccess: true });
     } catch (error) {
       console.error(`❌ HOME: Error accessing ${screenName}:`, error);
       Alert.alert(
         'Navigation Error',
-        `Unable to access ${screenName}. This might be due to data issues.`,
+        `Unable to access ${screenName}. Please try again.`,
         [
           {
             text: 'Try Again',
             onPress: () => handleSchoolResourcePress(screenName),
           },
-          { text: 'Run Diagnostics', onPress: () => runDiagnostics() },
           { text: 'Cancel', style: 'cancel' },
         ]
       );
@@ -603,14 +570,8 @@ export default function HomeScreen({ navigation }) {
             onPress: () => navigation.navigate('ParentScreen'),
           },
           {
-            text: 'Login as Teacher',
-            onPress: () =>
-              navigation.navigate('Login', { loginType: 'teacher' }),
-          },
-          {
-            text: 'Login as Student',
-            onPress: () =>
-              navigation.navigate('Login', { loginType: 'student' }),
+            text: t('login'),
+            onPress: () => navigation.navigate('Login'),
           },
         ]
       );
@@ -624,14 +585,8 @@ export default function HomeScreen({ navigation }) {
           { text: 'Cancel', style: 'cancel' },
           { text: 'Run Diagnostics', onPress: () => runDiagnostics() },
           {
-            text: 'Login as Teacher',
-            onPress: () =>
-              navigation.navigate('Login', { loginType: 'teacher' }),
-          },
-          {
-            text: 'Login as Student',
-            onPress: () =>
-              navigation.navigate('Login', { loginType: 'student' }),
+            text: t('login'),
+            onPress: () => navigation.navigate('Login'),
           },
         ]
       );
@@ -759,7 +714,7 @@ export default function HomeScreen({ navigation }) {
 
             <TouchableOpacity
               style={styles.resourceButton}
-              onPress={() => handleSchoolResourcePress('AboutUs')}
+              onPress={() => handleSchoolResourcePress('AboutUsScreen')}
             >
               <View
                 style={[
@@ -784,7 +739,7 @@ export default function HomeScreen({ navigation }) {
 
             <TouchableOpacity
               style={styles.resourceButton}
-              onPress={() => handleSchoolResourcePress('Contacts')}
+              onPress={() => handleSchoolResourcePress('ContactsScreen')}
             >
               <View
                 style={[
@@ -805,7 +760,7 @@ export default function HomeScreen({ navigation }) {
 
             <TouchableOpacity
               style={styles.resourceButton}
-              onPress={() => handleSchoolResourcePress('FAQ')}
+              onPress={() => handleSchoolResourcePress('FAQScreen')}
             >
               <View
                 style={[

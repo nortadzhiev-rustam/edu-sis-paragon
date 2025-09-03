@@ -169,6 +169,8 @@ export default function LibraryScreen({ navigation, route }) {
     switch (status?.toLowerCase()) {
       case 'current':
         return '#007AFF';
+      case 'overdue':
+        return '#FF3B30';
       case 'returned_late':
         return '#FF3B30';
       case 'returned_on_time':
@@ -235,6 +237,68 @@ export default function LibraryScreen({ navigation, route }) {
     }
   };
 
+  // Make absolute URL from relative path
+  const makeAbsoluteUrl = (urlOrPath) => {
+    if (!urlOrPath) return null;
+    if (/^https?:\/\//i.test(urlOrPath)) return urlOrPath;
+    const base = Config.API_DOMAIN.endsWith('/')
+      ? Config.API_DOMAIN.slice(0, -1)
+      : Config.API_DOMAIN;
+    return urlOrPath.startsWith('/')
+      ? `${base}${urlOrPath}`
+      : `${base}/${urlOrPath}`;
+  };
+
+  // Compute borrow status when API doesn't provide it explicitly
+  const computeBorrowStatus = (book) => {
+    if (book?.status) return book.status;
+    if (book?.is_returned === false) {
+      const overdueDays = getDaysOverdue(
+        book?.should_return_date || book?.due_date
+      );
+      return overdueDays > 0 ? 'overdue' : 'current';
+    }
+    if (book?.is_returned === true) {
+      if (typeof book?.days_difference === 'number') {
+        return book.days_difference > 0 ? 'returned_late' : 'returned_on_time';
+      }
+      return 'returned_on_time';
+    }
+    return 'current';
+  };
+
+  // Availability badge props for available books
+  const getAvailabilityProps = (status) => {
+    const s = (status || 'available').toLowerCase();
+    switch (s) {
+      case 'available':
+        return {
+          text: 'Available',
+          color: '#34C759',
+          bg: 'rgba(52, 199, 89, 0.1)',
+        };
+      case 'checked_out':
+      case 'unavailable':
+        return {
+          text: 'Checked Out',
+          color: '#FF3B30',
+          bg: 'rgba(255, 59, 48, 0.1)',
+        };
+      case 'reserved':
+        return {
+          text: 'Reserved',
+          color: '#FF9500',
+          bg: 'rgba(255, 149, 0, 0.1)',
+        };
+      default:
+        return {
+          text: status || 'Unknown',
+          color: '#8E8E93',
+          bg: 'rgba(142, 142, 147, 0.1)',
+        };
+    }
+  };
+
   // Render tab buttons
   const renderTabButton = (tabKey, label, icon) => {
     const isActive = selectedTab === tabKey;
@@ -275,7 +339,7 @@ export default function LibraryScreen({ navigation, route }) {
             {libraryData.student_info?.student_photo ? (
               <Image
                 source={{
-                  uri: `https://${Config.API_DOMAIN}/${libraryData.student_info.student_photo}`,
+                  uri: `https://sis.paragonisc.edu.kh${libraryData.student_info.student_photo}`,
                 }}
                 style={styles.studentPhoto}
               />
@@ -383,6 +447,7 @@ export default function LibraryScreen({ navigation, route }) {
     const borrowedBooks = [
       ...(libraryData?.currently_borrowed || []),
       ...(libraryData?.overdue_books || []),
+      ...(libraryData?.borrowed_books || []), // demo mode support
     ];
 
     if (borrowedBooks.length === 0) {
@@ -415,7 +480,12 @@ export default function LibraryScreen({ navigation, route }) {
               <Text style={styles.bookAuthor}>
                 Category: {book.category_name || 'Unknown Category'}
               </Text>
-              <Text style={styles.bookISBN}>ISBN: {book.isbn || 'N/A'}</Text>
+              {!!book.barcode && (
+                <Text style={styles.bookISBN}>Barcode: {book.barcode}</Text>
+              )}
+              {book.isbn && (
+                <Text style={styles.bookISBN}>ISBN: {book.isbn}</Text>
+              )}
 
               <View style={styles.bookDates}>
                 <View style={styles.dateItem}>
@@ -425,13 +495,14 @@ export default function LibraryScreen({ navigation, route }) {
                     color='#8E8E93'
                   />
                   <Text style={styles.dateText}>
-                    Borrowed: {formatDate(book.issue_date)}
+                    Borrowed:{' '}
+                    {formatDate(book.issue_date || book.borrowed_date)}
                   </Text>
                 </View>
                 <View style={styles.dateItem}>
                   <FontAwesomeIcon icon={faClock} size={12} color='#8E8E93' />
                   <Text style={styles.dateText}>
-                    Due: {formatDate(book.should_return_date)}
+                    Due: {formatDate(book.should_return_date || book.due_date)}
                   </Text>
                 </View>
               </View>
@@ -441,22 +512,25 @@ export default function LibraryScreen({ navigation, route }) {
               <View
                 style={[
                   styles.statusBadge,
-                  { backgroundColor: getStatusColor(book.status) },
+                  {
+                    backgroundColor: getStatusColor(computeBorrowStatus(book)),
+                  },
                 ]}
               >
                 <FontAwesomeIcon
-                  icon={getStatusIcon(book.status)}
+                  icon={getStatusIcon(computeBorrowStatus(book))}
                   size={12}
                   color='#fff'
                 />
                 <Text style={styles.statusText}>
-                  {book.status || 'Borrowed'}
+                  {getStatusLabel(computeBorrowStatus(book))}
                 </Text>
               </View>
 
-              {book.status === 'overdue' && (
+              {computeBorrowStatus(book) === 'overdue' && (
                 <Text style={styles.overdueText}>
-                  {getDaysOverdue(book.due_date)} days overdue
+                  {getDaysOverdue(book.should_return_date || book.due_date)}{' '}
+                  days overdue
                 </Text>
               )}
             </View>
@@ -557,6 +631,12 @@ export default function LibraryScreen({ navigation, route }) {
         {availableBooks.map((book, index) => (
           <View key={index} style={styles.availableBookCard}>
             <View style={styles.availableBookInfo}>
+              {book.cover_photo && (
+                <Image
+                  source={{ uri: makeAbsoluteUrl(book.cover_photo) }}
+                  style={styles.availableBookCover}
+                />
+              )}
               <Text style={styles.availableBookTitle}>
                 {book.title || 'Unknown Title'}
               </Text>
@@ -581,18 +661,51 @@ export default function LibraryScreen({ navigation, route }) {
             </View>
 
             <View style={styles.availableBookActions}>
-              <View style={styles.availabilityBadge}>
-                <FontAwesomeIcon
-                  icon={faCheckCircle}
-                  size={12}
-                  color='#34C759'
-                />
-                <Text style={styles.availabilityText}>Available</Text>
-              </View>
+              {(() => {
+                const props = getAvailabilityProps(book.availability_status);
+                return (
+                  <View
+                    style={[
+                      styles.availabilityBadge,
+                      { backgroundColor: props.bg },
+                    ]}
+                  >
+                    <FontAwesomeIcon
+                      icon={faCheckCircle}
+                      size={12}
+                      color={props.color}
+                    />
+                    <Text
+                      style={[styles.availabilityText, { color: props.color }]}
+                    >
+                      {props.text}
+                    </Text>
+                  </View>
+                );
+              })()}
 
-              <TouchableOpacity style={styles.borrowButton}>
-                <Text style={styles.borrowButtonText}>Request</Text>
-              </TouchableOpacity>
+              {(() => {
+                const isAvailable =
+                  (book.availability_status || 'available').toLowerCase() ===
+                  'available';
+                const canBorrow =
+                  libraryData?.library_statistics?.can_borrow_more !== false;
+                const requestDisabled =
+                  !isAvailable ||
+                  !canBorrow ||
+                  book.is_allowed_outside_library === false;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.borrowButton,
+                      requestDisabled && { backgroundColor: '#C7C7CC' },
+                    ]}
+                    disabled={requestDisabled}
+                  >
+                    <Text style={styles.borrowButtonText}>Request</Text>
+                  </TouchableOpacity>
+                );
+              })()}
             </View>
           </View>
         ))}
@@ -738,6 +851,12 @@ const createStyles = (theme) =>
       justifyContent: 'center',
       alignItems: 'center',
       position: 'relative',
+    },
+    subHeader: {
+      backgroundColor: theme.colors.surface,
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: theme.colors.border,
     },
     loadingContainer: {
       flex: 1,
@@ -1040,6 +1159,13 @@ const createStyles = (theme) =>
       color: '#fff',
       fontWeight: '600',
       marginLeft: 4,
+    },
+    availableBookCover: {
+      width: '100%',
+      height: 160,
+      borderRadius: 8,
+      marginBottom: 8,
+      backgroundColor: theme.colors.background,
     },
     overdueText: {
       fontSize: 10,

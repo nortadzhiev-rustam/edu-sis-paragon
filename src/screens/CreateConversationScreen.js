@@ -8,26 +8,31 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import {
   faArrowLeft,
+  faCheck,
+  faUser,
   faSearch,
-  faUsers,
+  faChalkboardTeacher,
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '../contexts/ThemeContext';
-import { useLanguage } from '../contexts/LanguageContext';
 import {
-  getAvailableUsersForStaff,
+  getAvailableUsersForStudent,
+  getAvailableUsersForParent,
   createConversation,
 } from '../services/messagingService';
-import { UserSelector } from '../components/messaging';
 
 const CreateConversationScreen = ({ navigation, route }) => {
+  console.log(
+    '🚀 GENERIC CreateConversationScreen loaded - this should handle both parent and student'
+  );
+
   const { theme, fontSizes } = useTheme();
-  const { t } = useLanguage();
-  const { authCode, teacherName } = route.params;
+  const { authCode, studentName, parentName, userType } = route.params;
 
   const [topic, setTopic] = useState('');
   const [groupedUsers, setGroupedUsers] = useState([]);
@@ -45,149 +50,89 @@ const CreateConversationScreen = ({ navigation, route }) => {
 
   const styles = createStyles(theme, safeFontSizes);
 
-  // Fetch available users for staff
-  const fetchUsers = useCallback(async () => {
+  // Load available users
+  const loadAvailableUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getAvailableUsersForStaff();
-      if (response.success && response.data) {
-        // Use the grouped users structure
-        const fetchedGroupedUsers = response.data.grouped_users || [];
-        console.log('Fetched grouped users for staff:', fetchedGroupedUsers);
-        setGroupedUsers(fetchedGroupedUsers);
+
+      console.log('🔍 CreateConversationScreen - userType:', userType);
+      console.log('🔍 CreateConversationScreen - parentName:', parentName);
+      console.log('🔍 CreateConversationScreen - studentName:', studentName);
+
+      // Use the appropriate service based on user type
+      let response;
+      if (userType === 'parent' || parentName) {
+        console.log(
+          '📞 Calling getAvailableUsersForParent with userType:',
+          userType,
+          'parentName:',
+          parentName
+        );
+        console.log('📞 Function reference:', getAvailableUsersForParent.name);
+        response = await getAvailableUsersForParent(null, authCode);
+      } else {
+        console.log(
+          '📞 Calling getAvailableUsersForStudent with userType:',
+          userType,
+          'studentName:',
+          studentName
+        );
+        console.log('📞 Function reference:', getAvailableUsersForStudent.name);
+        response = await getAvailableUsersForStudent(null, authCode);
+      }
+
+      console.log('🔍 CREATE CONVERSATION - Full response:', response);
+      console.log(
+        '🔍 CREATE CONVERSATION - response.success:',
+        response.success
+      );
+      console.log('🔍 CREATE CONVERSATION - response.data:', response.data);
+
+      // Check if response has the data directly or in a data property
+      const responseData = response.data || response;
+
+      if (
+        (response.success && response.data) ||
+        (responseData && responseData.grouped_users)
+      ) {
+        console.log(
+          '🔍 CREATE CONVERSATION - Using response data:',
+          responseData
+        );
+        console.log(
+          '🔍 CREATE CONVERSATION - grouped_users:',
+          responseData.grouped_users
+        );
+        console.log(
+          '🔍 CREATE CONVERSATION - grouped_users length:',
+          responseData.grouped_users?.length
+        );
+
+        const groupedUsers = responseData.grouped_users || [];
+        console.log(
+          '🔍 CREATE CONVERSATION - Setting groupedUsers:',
+          groupedUsers
+        );
+        setGroupedUsers(groupedUsers);
+      } else {
+        console.log(
+          '🔍 CREATE CONVERSATION - Response failed or no data:',
+          response
+        );
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
-      Alert.alert(t('error'), t('failedToLoadUsers'));
+      console.error('Error loading available users:', error);
+      Alert.alert('Error', 'Failed to load available users');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authCode, userType, parentName, studentName]);
 
-  // Process grouped users - check if head_of_school already exists in response
-  const processGroupedUsers = (groups) => {
-    // Check if head_of_school group already exists in the response
-    const existingHeadOfSchoolGroup = groups.find(
-      (group) => group.type === 'head_of_school'
-    );
+  useEffect(() => {
+    loadAvailableUsers();
+  }, [loadAvailableUsers]);
 
-    if (existingHeadOfSchoolGroup) {
-      // If head_of_school group already exists, check if we need to add more users from head_of_section
-      const processedGroups = [];
-      let headOfSchoolUsers = [...existingHeadOfSchoolGroup.users]; // Start with existing users
-
-      groups.forEach((group) => {
-        if (group.type === 'head_of_section') {
-          // Extract additional Head of School users from head_of_section (principal/director)
-          const additionalHeadOfSchool = group.users.filter(
-            (user) =>
-              user.email?.toLowerCase().includes('principal') ||
-              user.email?.toLowerCase().includes('director')
-          );
-
-          // Add to head of school users if not already present
-          additionalHeadOfSchool.forEach((user) => {
-            if (
-              !headOfSchoolUsers.some((existing) => existing.id === user.id)
-            ) {
-              headOfSchoolUsers.push(user);
-            }
-          });
-
-          // Remaining Head of Section users (excluding those moved to head of school)
-          const remainingHeadOfSection = group.users.filter(
-            (user) =>
-              !user.email?.toLowerCase().includes('principal') &&
-              !user.email?.toLowerCase().includes('director')
-          );
-
-          // Add remaining Head of Section users if any
-          if (remainingHeadOfSection.length > 0) {
-            processedGroups.push({
-              ...group,
-              users: remainingHeadOfSection,
-            });
-          }
-        } else if (group.type === 'head_of_school') {
-          // Skip the original head_of_school group - we'll add the updated one later
-          return;
-        } else {
-          // Keep other groups as is
-          processedGroups.push(group);
-        }
-      });
-
-      // Add the updated Head of School group at the beginning
-      processedGroups.unshift({
-        ...existingHeadOfSchoolGroup,
-        users: headOfSchoolUsers,
-        count: headOfSchoolUsers.length,
-      });
-
-      return processedGroups;
-    }
-
-    // Legacy processing for cases where API doesn't separate head_of_school
-    const processedGroups = [];
-    let headOfSchoolUsers = [];
-
-    groups.forEach((group) => {
-      if (group.type === 'head_of_section') {
-        // Extract Head of School users (principal/director)
-        const headOfSchool = group.users.filter(
-          (user) =>
-            user.email?.toLowerCase().includes('principal') ||
-            user.email?.toLowerCase().includes('director')
-        );
-
-        // Remaining Head of Section users
-        const remainingHeadOfSection = group.users.filter(
-          (user) =>
-            !user.email?.toLowerCase().includes('principal') &&
-            !user.email?.toLowerCase().includes('director')
-        );
-
-        // Add Head of School users to separate array
-        headOfSchoolUsers = headOfSchool;
-
-        // Add remaining Head of Section users if any
-        if (remainingHeadOfSection.length > 0) {
-          processedGroups.push({
-            ...group,
-            users: remainingHeadOfSection,
-          });
-        }
-      } else {
-        // Keep other groups as is
-        processedGroups.push(group);
-      }
-    });
-
-    // Add Head of School group at the beginning if there are any users
-    if (headOfSchoolUsers.length > 0) {
-      processedGroups.unshift({
-        type: 'head_of_school',
-        type_label: 'Head of School',
-        users: headOfSchoolUsers,
-      });
-    }
-
-    return processedGroups;
-  };
-
-  // Filter users based on search query
-  const filteredGroupedUsers = processGroupedUsers(groupedUsers).map(
-    (group) => ({
-      ...group,
-      users: group.users.filter(
-        (user) =>
-          user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          user.email?.toLowerCase().includes(searchQuery.toLowerCase())
-      ),
-    })
-  );
-
-  // Toggle user selection
+  // Handle user selection toggle
   const toggleUserSelection = (user) => {
     setSelectedUsers((prev) => {
       const isSelected = prev.some((u) => u.id === user.id);
@@ -199,15 +144,15 @@ const CreateConversationScreen = ({ navigation, route }) => {
     });
   };
 
-  // Create conversation
+  // Handle conversation creation
   const handleCreateConversation = useCallback(async () => {
     if (!topic.trim()) {
-      Alert.alert(t('error'), t('pleaseEnterConversationTopic'));
+      Alert.alert('Error', 'Please enter a topic for the conversation');
       return;
     }
 
     if (selectedUsers.length === 0) {
-      Alert.alert(t('error'), t('pleaseSelectAtLeastOneUser'));
+      Alert.alert('Error', 'Please select at least one person to message');
       return;
     }
 
@@ -217,49 +162,69 @@ const CreateConversationScreen = ({ navigation, route }) => {
       const response = await createConversation(
         topic.trim(),
         memberIds,
-        'staff'
+        userType || 'student',
+        authCode
       );
 
       if (response.success && response.data) {
-        Alert.alert(t('success'), t('conversationCreatedSuccessfully'), [
+        Alert.alert('Success', 'Conversation created successfully', [
           {
-            text: t('ok'),
+            text: 'OK',
             onPress: () => {
               navigation.navigate('ConversationScreen', {
                 conversationUuid: response.data.conversation_uuid,
                 conversationTopic: topic.trim(),
                 authCode,
-                teacherName,
+                studentName,
+                parentName,
+                userType: userType || 'student',
               });
             },
           },
         ]);
       } else {
-        Alert.alert(t('error'), t('failedToCreateConversation'));
+        Alert.alert('Error', 'Failed to create conversation');
       }
     } catch (error) {
       console.error('Error creating conversation:', error);
-      Alert.alert(t('error'), t('failedToCreateConversation'));
+      Alert.alert('Error', 'Failed to create conversation');
     } finally {
       setCreating(false);
     }
-  }, [topic, selectedUsers, authCode, teacherName, navigation]);
+  }, [
+    topic,
+    selectedUsers,
+    authCode,
+    studentName,
+    parentName,
+    userType,
+    navigation,
+  ]);
 
-  // Render user item
-  const renderUserItem = ({ item }) => {
-    const isSelected = selectedUsers.some((u) => u.id === item.id);
+  // Filter users based on search query
+  const filteredGroupedUsers = groupedUsers
+    .map((group) => ({
+      ...group,
+      users: group.users.filter((user) =>
+        user.name.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    }))
+    .filter((group) => group.users.length > 0);
 
-    return (
-      <UserSelector
-        user={item}
-        isSelected={isSelected}
-        onPress={toggleUserSelection}
-        showUserType={true}
-        showEmail={true}
-        disabled={false}
-      />
-    );
-  };
+  // Create sections for SectionList
+  const sections = filteredGroupedUsers.map((group) => ({
+    title: group.role_label,
+    data: group.users,
+    _sectionKey: group.role,
+  }));
+
+  console.log('🔍 CREATE CONVERSATION - groupedUsers state:', groupedUsers);
+  console.log(
+    '🔍 CREATE CONVERSATION - filteredGroupedUsers:',
+    filteredGroupedUsers
+  );
+  console.log('🔍 CREATE CONVERSATION - sections for SectionList:', sections);
+  console.log('🔍 CREATE CONVERSATION - searchQuery:', searchQuery);
 
   // Render selected users summary
   const renderSelectedSummary = () => {
@@ -267,21 +232,68 @@ const CreateConversationScreen = ({ navigation, route }) => {
 
     return (
       <View style={styles.selectedSummary}>
-        <FontAwesomeIcon
-          icon={faUsers}
-          size={16}
-          color={theme.colors.primary}
-        />
-        <Text style={styles.selectedText}>
-          {t('usersSelected').replace('{count}', selectedUsers.length)}
+        <Text style={styles.selectedSummaryText}>
+          Selected: {selectedUsers.map((u) => u.name).join(', ')}
         </Text>
       </View>
     );
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+  // Render user item
+  const renderUserItem = ({ item }) => {
+    const isSelected = selectedUsers.some((u) => u.id === item.id);
+
+    return (
+      <TouchableOpacity
+        style={[styles.userItem, isSelected && styles.selectedUserItem]}
+        onPress={() => toggleUserSelection(item)}
+      >
+        <View style={styles.userAvatar}>
+          {item.photo ? (
+            <Image
+              source={{ uri: item.photo }}
+              style={styles.avatarImage}
+              resizeMode='cover'
+            />
+          ) : (
+            <FontAwesomeIcon
+              icon={item.user_type === 'staff' ? faChalkboardTeacher : faUser}
+              size={20}
+              color={theme.colors.primary}
+            />
+          )}
+        </View>
+
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>{item.name}</Text>
+          {item.additional_info && (
+            <Text style={styles.userType}>
+              {item.additional_info.classroom ||
+                item.additional_info.subject ||
+                item.additional_info.role_title}
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.checkIcon}>
+          {isSelected && (
+            <FontAwesomeIcon
+              icon={faCheck}
+              size={16}
+              color={theme.colors.primary}
+            />
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // Render section header
+  const renderSectionHeader = ({ section: { title } }) => (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionHeaderText}>{title}</Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -319,10 +331,10 @@ const CreateConversationScreen = ({ navigation, route }) => {
 
       {/* Topic Input */}
       <View style={styles.topicContainer}>
-        <Text style={styles.topicLabel}>Conversation Topic</Text>
+        <Text style={styles.topicLabel}>What would you like to discuss?</Text>
         <TextInput
           style={styles.topicInput}
-          placeholder={t('enterConversationTopic')}
+          placeholder='e.g., Question about homework, Request for help...'
           placeholderTextColor={theme.colors.textSecondary}
           value={topic}
           onChangeText={setTopic}
@@ -340,7 +352,7 @@ const CreateConversationScreen = ({ navigation, route }) => {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder={t('searchUsers')}
+            placeholder='Search users...'
             placeholderTextColor={theme.colors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -353,33 +365,22 @@ const CreateConversationScreen = ({ navigation, route }) => {
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size='large' color={theme.colors.primary} />
-          <Text style={styles.loadingText}>{t('loadingUsers')}</Text>
+          <Text style={styles.loadingText}>Loading users...</Text>
         </View>
       ) : (
         <SectionList
-          sections={filteredGroupedUsers
-            .filter((group) => group.users.length > 0) // Only show groups with users
-            .map((group) => ({
-              title: group.type_label || group.type,
-              data: group.users.map((user, index) => ({
-                ...user,
-                _sectionKey: `${group.type}-${user.id}-${index}`,
-              })),
-              key: group.type,
-            }))}
+          sections={sections}
           renderItem={renderUserItem}
-          renderSectionHeader={({ section: { title } }) => (
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionHeaderText}>{title}</Text>
-            </View>
-          )}
-          keyExtractor={(item) => item._sectionKey}
+          renderSectionHeader={renderSectionHeader}
+          keyExtractor={(item) =>
+            item.id?.toString() || `user-${Math.random()}`
+          }
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={() => (
             <View style={styles.emptyState}>
               <FontAwesomeIcon
-                icon={faUsers}
+                icon={faChalkboardTeacher}
                 size={48}
                 color={theme.colors.textSecondary}
               />
@@ -406,7 +407,6 @@ const createStyles = (theme, fontSizes) => {
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
-      paddingHorizontal: 16,
     },
     header: {
       flexDirection: 'row',
@@ -415,87 +415,87 @@ const createStyles = (theme, fontSizes) => {
       paddingHorizontal: 16,
       paddingVertical: 12,
       backgroundColor: theme.colors.headerBackground,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
     },
     backButton: {
       padding: 8,
     },
     headerTitle: {
-      fontSize: safeFontSizes.large,
+      fontSize: 18,
       fontWeight: 'bold',
       color: theme.colors.headerText,
+      flex: 1,
+      textAlign: 'center',
+      marginHorizontal: 16,
     },
     createButton: {
       paddingHorizontal: 16,
       paddingVertical: 8,
       borderRadius: 20,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      backgroundColor: theme.colors.primary,
     },
     createButtonDisabled: {
       opacity: 0.5,
     },
     createButtonText: {
-      fontSize: safeFontSizes.medium,
-      fontWeight: '600',
       color: theme.colors.headerText,
+      fontWeight: '600',
+      fontSize: 14,
     },
     topicContainer: {
-      paddingHorizontal: 16,
-      paddingVertical: 16,
+      padding: 16,
       backgroundColor: theme.colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
     },
     topicLabel: {
-      fontSize: safeFontSizes.medium,
+      fontSize: 16,
       fontWeight: '600',
       color: theme.colors.text,
       marginBottom: 8,
     },
     topicInput: {
-      fontSize: safeFontSizes.medium,
-      color: theme.colors.text,
       backgroundColor: theme.colors.background,
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
       borderWidth: 1,
       borderColor: theme.colors.border,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 16,
+      color: theme.colors.text,
+      minHeight: 60,
+      textAlignVertical: 'top',
     },
     searchContainer: {
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      padding: 16,
       backgroundColor: theme.colors.surface,
-      borderBottomLeftRadius: 16,
-      borderBottomRightRadius: 16,
-      marginBottom: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
     },
     searchBar: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: theme.colors.background,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
       borderRadius: 8,
       paddingHorizontal: 12,
       paddingVertical: 8,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
     },
     searchInput: {
       flex: 1,
       marginLeft: 8,
-      fontSize: safeFontSizes.medium,
+      fontSize: 16,
       color: theme.colors.text,
     },
     selectedSummary: {
-      flexDirection: 'row',
-      alignItems: 'center',
       marginTop: 8,
-      paddingHorizontal: 4,
+      padding: 8,
+      backgroundColor: theme.colors.primaryLight,
+      borderRadius: 8,
     },
-    selectedText: {
-      marginLeft: 6,
-      fontSize: safeFontSizes.small,
+    selectedSummaryText: {
+      fontSize: 14,
       color: theme.colors.primary,
       fontWeight: '500',
     },
@@ -503,39 +503,54 @@ const createStyles = (theme, fontSizes) => {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
+      padding: 32,
     },
     loadingText: {
-      marginTop: 12,
-      fontSize: safeFontSizes.medium,
+      marginTop: 16,
+      fontSize: 16,
       color: theme.colors.textSecondary,
     },
     listContainer: {
       paddingBottom: 16,
-      borderRadius: 16,
-      overflow: 'hidden',
+    },
+    sectionHeader: {
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    sectionHeaderText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      textTransform: 'uppercase',
     },
     userItem: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
       paddingVertical: 12,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.background,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
-      borderRadius: 12,
-      overflow: 'hidden',
     },
     selectedUserItem: {
-      backgroundColor: theme.colors.primary + '10',
+      backgroundColor: theme.colors.primaryLight,
     },
     userAvatar: {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.surface,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 12,
+    },
+    avatarImage: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
     },
     userInfo: {
       flex: 1,
@@ -557,18 +572,6 @@ const createStyles = (theme, fontSizes) => {
       backgroundColor: theme.colors.primary + '20',
       justifyContent: 'center',
       alignItems: 'center',
-    },
-    sectionHeader: {
-      backgroundColor: theme.colors.surface,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-    },
-    sectionHeaderText: {
-      fontSize: safeFontSizes.medium,
-      fontWeight: '600',
-      color: theme.colors.text,
     },
     emptyState: {
       flex: 1,

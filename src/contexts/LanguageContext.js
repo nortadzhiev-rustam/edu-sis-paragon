@@ -55,6 +55,10 @@ const translations = {
     cancel: 'Cancel',
     ok: 'OK',
     save: 'Save',
+    saveChanges: 'Save Changes',
+    noChangesToSave: 'No Changes to Save',
+    camera: 'Camera',
+    gallery: 'Gallery',
     delete: 'Delete',
     edit: 'Edit',
     back: 'Back',
@@ -69,10 +73,12 @@ const translations = {
     dashboard: 'Dashboard',
     settings: 'Settings',
     profile: 'Profile',
+    editProfile: 'Edit Profile',
     logout: 'Logout',
 
     // Authentication
     login: 'Login',
+    guardianLogin: 'Guardian Login',
     username: 'Username',
     password: 'Password',
     forgotPassword: 'Forgot Password?',
@@ -109,6 +115,7 @@ const translations = {
     // Specific UI Elements
     parentDashboard: 'Parent Dashboard',
     teacherDashboard: 'Teacher Dashboard',
+    studentDashboard: 'Student Dashboard',
     yourChildren: 'Your Children',
     yourChild: 'Your Child',
     menu: 'Menu',
@@ -152,6 +159,8 @@ const translations = {
     loginSuccessful: 'Login Successful',
     welcomeMessage:
       'Welcome {name}! You can now access the calendar and other school resources.',
+    welcomeParentMessage:
+      "Welcome {name}! You can now access your children's information, grades, attendance, and communicate with teachers.",
     loginFailed: 'Login Failed',
     networkConnectionError:
       'Network connection error. Please check your internet connection.',
@@ -322,7 +331,9 @@ const translations = {
 
     // New Features
     myProfile: 'My Profile',
+    studentProfile: 'Student Profile',
     personalInformation: 'Personal Information',
+    academicInformation: 'Academic Information',
     workInformation: 'Work Information',
     rolesResponsibilities: 'Roles & Responsibilities',
     fullName: 'Full Name',
@@ -338,6 +349,29 @@ const translations = {
     viewEditProfile: 'View and edit profile information',
     areYouSureLogout: 'Are you sure you want to logout?',
 
+    // Student Profile specific
+    username: 'Username',
+    gender: 'Gender',
+    nationality: 'Nationality',
+    address: 'Address',
+    academicYear: 'Academic Year',
+    branch: 'Branch',
+    class: 'Class',
+    homeroomTeacher: 'Homeroom Teacher',
+    status: 'Status',
+    active: 'Active',
+    inactive: 'Inactive',
+    system: 'System',
+    lastLogin: 'Last Login',
+    profileCompletion: 'Profile Completion',
+    quickActions: 'Quick Actions',
+
+    // Time formatting
+    justNow: 'Just now',
+    minutesAgo: 'minutes ago',
+    hoursAgo: 'hours ago',
+    daysAgo: 'days ago',
+
     // Coming Soon
     comingSoon: 'Coming Soon',
     reports: 'Reports',
@@ -346,6 +380,206 @@ const translations = {
     library: 'Library',
     analyticsStats: 'Analytics & Stats',
     resourcesFiles: 'Resources & Files',
+
+    // Guardian Management
+    guardianManagement: 'Guardian Management',
+    guardians: 'Guardians',
+    addGuardian: 'Add Guardian',
+    guardianDetails: 'Guardian Details',
+    guardianName: 'Guardian Name',
+    relationToStudent: 'Relation to Student',
+    relationToChild: 'Relation to Child',
+    phoneNumber: 'Phone Number',
+    optional: 'Optional',
+    selectChild: 'Select Child',
+    selectChildPlaceholder: 'Choose a child...',
+    selectRelation: 'Select relation...',
+    enterRelation: 'Enter relation (e.g., driver, aunt, uncle)',
+    enterGuardianName: 'Enter guardian name',
+    enterPhoneNumber: 'Enter phone number',
+    createGuardian: 'Create Guardian',
+    creating: 'Creating...',
+    guardianCreatedSuccessfully: 'Guardian created successfully!',
+    failedToCreateGuardian: 'Failed to create guardian',
+    validationError: 'Validation Error',
+    pleaseFixErrors: 'Please fix the errors and try again',
+    addGuardianInstructions: 'Add Guardian Instructions',
+    addGuardianInstructionsText:
+      'Create a guardian who can pick up your child from school. They will receive a QR code for authentication.',
+    importantNotes: 'Important Notes',
+    guardianLimitNote: 'Maximum 5 guardians allowed per child',
+    qrCodeSecurityNote:
+      'Keep QR codes secure and share only with trusted individuals',
+    guardianVerificationNote:
+      'School staff will verify guardian identity during pickup',
+    noGuardians: 'No Guardians',
+    noGuardiansMessage:
+      "You haven't added any guardians yet. Add your first guardian to enable pickup services.",
+    addFirstGuardian: 'Add First Guardian',
+    loadingGuardians: 'Loading guardians...',
+    failedToLoadGuardians: 'Failed to load guardians',
+    viewingGuardiansFor: 'Viewing guardians for',
+    allChildren: 'All Children',
+    selectChildToViewGuardians: "Select which child's guardians to view",
+    activeGuardians: 'Active',
+    totalGuardians: 'Total',
+    remainingSlots: 'Remaining',
+    guardianInformation: 'Guardian Information',
+    guardianRelation: 'Relation',
+    guardianPhone: 'Phone',
+    guardianStatus: 'Status',
+    guardianActive: 'Active',
+    guardianInactive: 'Inactive',
+    guardianCreated: 'Created',
+    lastUpdated: 'Last Updated',
+    pickupQrCode: 'Pickup QR Code',
+    qrToken: 'QR Token',
+    copyToken: 'Copy Token',
+    shareQr: 'Share QR',
+    rotateToken: 'Rotate Token',
+    rotating: 'Rotating...',
+    shareGuardianInfo: 'Share Guardian Info',
+    securityNotice: 'Security Notice',
+    keepQrCodeSecure:
+      "Keep QR codes secure and don't share with unauthorized persons",
+    rotateTokenRegularly: 'Rotate QR tokens regularly for enhanced security',
+    verifyGuardianIdentity:
+      'Always verify guardian identity before releasing students',
+    reportSuspiciousActivity:
+      'Report any suspicious activity to school administration',
+    rotateQrToken: 'Rotate QR Token',
+    rotateQrTokenConfirmation:
+      'This will generate a new QR code and invalidate the current one. Continue?',
+    rotate: 'Rotate',
+    qrTokenRotated: 'QR token has been rotated successfully',
+    failedToRotateToken: 'Failed to rotate QR token',
+    qrTokenCopied: 'QR token copied to clipboard',
+    qrUrlCopied: 'QR URL copied to clipboard',
+    failedToCopyToken: 'Failed to copy QR token',
+    failedToCopyUrl: 'Failed to copy QR URL',
+    failedToShareQr: 'Failed to share QR code',
+    failedToShareGuardian: 'Failed to share guardian information',
+    noQrTokenAvailable: 'No QR token available',
+    howToUse: 'How to Use',
+    shareQrWithGuardian: 'Share this QR code with the guardian',
+    guardianScansAtSchool: 'Guardian scans QR code at school pickup',
+    staffVerifiesIdentity: 'School staff verifies guardian identity',
+    studentIsReleased: 'Student is released to guardian',
+    viewQr: 'View QR',
+    rotateQr: 'Rotate QR',
+    unableToAccessGuardianManagement:
+      'Unable to access guardian management. Please try logging in again.',
+
+    // Guardian Profile Completion
+    completeYourProfile: 'Complete Your Profile',
+    profileCompletionRequired:
+      'Please complete your profile to access all features',
+    additionalInformation: 'Additional Information',
+    emailAddress: 'Email Address',
+    enterEmailAddress: 'Enter your email address',
+    emailRequired: 'Email address is required',
+    invalidEmailFormat: 'Please enter a valid email address',
+    nationalIdPassport: 'National ID / Passport',
+    nationalId: 'National ID',
+    enterNationalId: 'Enter your national ID or passport number',
+    nationalIdRequired: 'National ID or passport is required',
+    emergencyContact: 'Emergency Contact',
+    enterEmergencyContact: 'Enter emergency contact phone number',
+    emergencyContactRequired: 'Emergency contact is required',
+    fullAddress: 'Full Address',
+    enterFullAddress: 'Enter your complete address',
+    addressRequired: 'Address is required',
+    addressTooShort: 'Address must be at least 10 characters',
+    guardianPhoto: 'Guardian Photo',
+    tapToAddPhoto: 'Tap to add photo',
+    photoRequired: 'Photo is required',
+    selectPhoto: 'Select Photo',
+    choosePhotoSource: 'Choose photo source',
+    camera: 'Camera',
+    gallery: 'Gallery',
+    cameraPermissionRequired: 'Camera permission is required to take photos',
+    galleryPermissionRequired:
+      'Gallery permission is required to select photos',
+    failedToOpenCamera: 'Failed to open camera',
+    failedToOpenGallery: 'Failed to open gallery',
+    profilePhoto: 'Profile Photo',
+    addPhoto: 'Add Photo',
+    changePhoto: 'Change Photo',
+    failedToTakePhoto: 'Failed to take photo',
+    failedToSelectPhoto: 'Failed to select photo',
+    photoUploadedSuccessfully: 'Photo uploaded successfully',
+    failedToUploadPhoto: 'Failed to upload photo',
+    profileAndPhotoUpdatedSuccessfully:
+      'Profile and photo updated successfully',
+    completeProfile: 'Complete Profile',
+    completing: 'Completing...',
+    profileCompletedSuccessfully:
+      'Profile completed successfully! You can now access all features.',
+    failedToCompleteProfile: 'Failed to complete profile. Please try again.',
+    childName: 'Child Name',
+    continue: 'Continue',
+
+    // Guardian Dashboard
+    guardianDashboard: 'Guardian Dashboard',
+    guardian: 'Guardian',
+    authorizedFor: 'Authorized For',
+    studentId: 'Student ID',
+    contactInformation: 'Contact Information',
+    showMyQrCode: 'Show My QR Code',
+    myPickupQrCode: 'My Pickup QR Code',
+    qrCodeNotAvailable: 'QR code is not available for this guardian',
+    pickupHistory: 'Pickup History',
+    qrCodeFeatureComingSoon: 'QR code feature coming soon',
+    pickupHistoryComingSoon: 'Pickup history feature coming soon',
+    guardianWelcomeMessage:
+      'Welcome to the Guardian Pickup System. You are authorized to pick up your assigned child from school.',
+
+    // Guardian QR Scanner
+    scanQrCode: 'Scan QR Code',
+    scanQrCodeInstructions: 'Point your camera at the QR code to login',
+    requestingCameraPermission: 'Requesting camera permission...',
+    cameraPermissionMessage:
+      'Camera access is required to scan QR codes for guardian login',
+    grantPermission: 'Grant Permission',
+    enterManually: 'Enter Manually',
+    loginFailed: 'Login Failed',
+    invalidQrCode: 'Invalid QR code. Please try again.',
+    tryAgain: 'Try Again',
+    enterQrToken: 'Enter QR Token',
+    enterQrTokenManually: 'Enter the QR token manually:',
+    authenticating: 'Authenticating...',
+    flash: 'Flash',
+    manual: 'Manual',
+    qrScannerInstructions:
+      'Position the QR code within the frame. The code will be scanned automatically.',
+
+    // Guardian Login Entry
+    guardianPickupSystem: 'Guardian Pickup System',
+    welcomeGuardian: 'Welcome, Guardian!',
+    guardianLoginWelcomeMessage:
+      'Authorized guardians can securely access the student pickup system using QR codes provided by parents.',
+    scanQrToLogin: 'Scan QR code to login securely',
+    authorizedPickupAccess: 'Access authorized student pickup',
+    secureAuthentication: 'Secure guardian authentication',
+    howToGetStarted: 'How to Get Started',
+    receiveQrFromParent: "Receive QR code from the student's parent",
+    tapScanQrButton: 'Tap "Scan QR Code" button below',
+    pointCameraAtQr: 'Point your camera at the QR code',
+    completeProfileIfNeeded: "Complete your profile if it's your first time",
+    needHelp: 'Need Help',
+    guardianHelpMessage:
+      "Contact the student's parent or school administration if you need assistance with the QR code or login process.",
+
+    // QR Token Manual Entry
+    pleaseEnterQrToken: 'Please enter the QR token',
+    invalidQrToken: 'Invalid QR token. Please check and try again.',
+    qrTokenPlaceholder: 'Paste your QR token here...',
+    instructions: 'Instructions',
+    copyQrTokenFromParent: 'Copy the QR token from the parent',
+    pasteTokenInFieldAbove: 'Paste the token in the field above',
+    tapLoginToAuthenticate: 'Tap Login to authenticate',
+    qrTokenHelpMessage:
+      'The QR token is a long string of characters provided by the parent. If you cannot scan the QR code, ask the parent to copy and send you the token text.',
 
     // Reports
     myReports: 'My Reports',
@@ -593,7 +827,7 @@ const translations = {
     failedToConnect: 'Failed to connect to server',
     connectionError: 'Connection Error',
     serverError: 'Server Error',
-    incorrectCredentials: 'Incorrect {loginType} ID or password!',
+    incorrectCredentials: 'Incorrect username or password!',
 
     // Home Screen Navigation & Diagnostics
 
@@ -610,7 +844,6 @@ const translations = {
     accessScreen: 'Access {screenName}',
     schoolInfoAccessMessage:
       'To view school information, you can either login directly or add a student account.',
-    loginAsStudent: 'Login as Student',
 
     // Social Media
     connectWithUsSocial: 'Connect with us on social media!',
@@ -621,6 +854,7 @@ const translations = {
 
     // Teacher Screen
     confirmLogout: 'Are you sure you want to logout?',
+    logoutFailed: 'Logout failed. Please try again.',
     scheduleAttendance: 'Schedule & Attendance',
     assignmentsReview: 'Assignments & Review',
     chatCommunication: 'Chat & Communication',
@@ -836,6 +1070,8 @@ const translations = {
     cancel: 'ပယ်ဖျက်',
     ok: 'ကောင်းပြီ',
     save: 'သိမ်းဆည်း',
+    saveChanges: 'ပြောင်းလဲမှုများသိမ်းဆည်းရန်',
+    noChangesToSave: 'သိမ်းဆည်းရန်ပြောင်းလဲမှုမရှိပါ',
     delete: 'ဖျက်',
     edit: 'ပြင်ဆင်',
     back: 'နောက်သို့',
@@ -850,6 +1086,7 @@ const translations = {
     dashboard: 'ထိန်းချုပ်မှုစာမျက်နှာ',
     settings: 'ဆက်တင်များ',
     profile: 'ကိုယ်ရေးအချက်အလက်',
+    editProfile: 'ကိုယ်ရေးအချက်အလက်ပြင်ဆင်ရန်',
     logout: 'ထွက်',
 
     // Authentication
@@ -890,6 +1127,7 @@ const translations = {
     // Specific UI Elements
     parentDashboard: 'မိဘထိန်းချုပ်မှုစာမျက်နှာ',
     teacherDashboard: 'ဆရာ/ဆရာမထိန်းချုပ်မှုစာမျက်နှာ',
+    studentDashboard: 'ကျောင်းသားထိန်းချုပ်မှုစာမျက်နှာ',
     yourChildren: 'သင့်ကလေးများ',
     yourChild: 'သင့်ကလေး',
     menu: 'မီနူး',
@@ -933,6 +1171,8 @@ const translations = {
     loginSuccessful: 'အကောင့်ဝင်ရောက်မှု အောင်မြင်ပါပြီ',
     welcomeMessage:
       'ကြိုဆိုပါတယ် {name}! ယခုအခါ ပြက္ခဒိန်နှင့် အခြားကျောင်းအရင်းအမြစ်များကို အသုံးပြုနိုင်ပါပြီ။',
+    welcomeParentMessage:
+      'ကြိုဆိုပါတယ် {name}! ယခုအခါ သင့်ကလေးများ၏ အချက်အလက်များ၊ အမှတ်များ၊ တက်ရောက်မှုနှင့် ဆရာများနှင့် ဆက်သွယ်နိုင်ပါပြီ။',
     loginFailed: 'အကောင့်ဝင်ရောက်မှု မအောင်မြင်ပါ',
     networkConnectionError:
       'ကွန်ယက်ချိတ်ဆက်မှုအမှား။ သင့်အင်တာနက်ချိတ်ဆက်မှုကို စစ်ဆေးပါ။',
@@ -1101,7 +1341,15 @@ const translations = {
 
     // New Features
     myProfile: 'ကျွန်ုပ်၏ကိုယ်ရေးအချက်အလက်',
+    studentProfile: 'ကျောင်းသားကိုယ်ရေးအချက်အလက်',
     personalInformation: 'ကိုယ်ရေးကိုယ်တာအချက်အလက်များ',
+    academicInformation: 'ပညာရေးအချက်အလက်များ',
+
+    // Time formatting
+    justNow: 'ယခုပင်',
+    minutesAgo: 'မိနစ်အကြာက',
+    hoursAgo: 'နာရီအကြာက',
+    daysAgo: 'ရက်အကြာက',
     workInformation: 'အလုပ်အချက်အလက်များ',
     rolesResponsibilities: 'တာဝန်များနှင့် တာဝန်ဝတ်တရားများ',
     fullName: 'အမည်အပြည့်အစုံ',
@@ -1323,7 +1571,7 @@ const translations = {
     failedToConnect: 'ဆာဗာသို့ ချိတ်ဆက်မှု မအောင်မြင်ပါ',
     connectionError: 'ချိတ်ဆက်မှုအမှား',
     serverError: 'ဆာဗာအမှား',
-    incorrectCredentials: 'မှားယွင်းသော {loginType} ID သို့မဟုတ် စကားဝှက်!',
+    incorrectCredentials: 'မှားယွင်းသော အသုံးပြုသူအမည် သို့မဟုတ် စကားဝှက်!',
 
     // Home Screen Navigation & Diagnostics
     dataClearedMessage:
@@ -1340,8 +1588,6 @@ const translations = {
     accessScreen: '{screenName} သို့ဝင်ရောက်ရန်',
     schoolInfoAccessMessage:
       'ကျောင်းအချက်အလက်များကြည့်ရှုရန်အတွက် တိုက်ရိုက်လော့ဂ်အင်ဝင်ခြင်း သို့မဟုတ် ကျောင်းသားအကောင့်ထည့်ခြင်းပြုလုပ်နိုင်ပါသည်။',
-    loginAsTeacher: 'ဆရာအဖြစ်လော့ဂ်အင်ဝင်ရန်',
-    loginAsStudent: 'ကျောင်းသားအဖြစ်လော့ဂ်အင်ဝင်ရန်',
 
     // Social Media
     connectWithUsSocial: 'ကျွန်ုပ်တို့နှင့် ဆိုရှယ်မီဒီယာတွင် ချိတ်ဆက်ပါ!',
@@ -1352,6 +1598,7 @@ const translations = {
 
     // Teacher Screen
     confirmLogout: 'လော့ဂ်အောက်ထွက်ရန် သေချာပါသလား?',
+    logoutFailed: 'လော့ဂ်အောက်ထွက်ခြင်း မအောင်မြင်ပါ။ ထပ်မံကြိုးစားပါ။',
     scheduleAttendance: 'အချိန်ဇယား နှင့် တက်ရောက်မှု',
     assignmentsReview: 'အိမ်စာများ နှင့် ပြန်လည်သုံးသပ်ခြင်း',
     chatCommunication: 'စကားပြောဆိုမှု နှင့် ဆက်သွယ်မှု',
@@ -1567,6 +1814,33 @@ const translations = {
     primaryPhone: 'အဓိကဖုန်းနံပါတ်',
     secondaryContact: 'ဒုတိယဆက်သွယ်ရမည့်သူ',
     secondaryPhone: 'ဒုတိယဖုန်းနံပါတ်',
+
+    // Guardian Management
+    relationToChild: 'ကလေးနှင့်ဆက်နွယ်မှု',
+    nationalId: 'နိုင်ငံသားစိစစ်ရေးကတ်',
+    relationRequired: 'ဆက်နွယ်မှုလိုအပ်သည်',
+    nationalIdTooShort: 'နိုင်ငံသားစိစစ်ရေးကတ်သည် အနည်းဆုံး ၅ လုံးရှိရမည်',
+    invalidPhoneFormat: 'ဖုန်းနံပါတ်ပုံစံမှားနေသည်',
+    profileUpdatedSuccessfully:
+      'ကိုယ်ရေးအချက်အလက် အောင်မြင်စွာ ပြင်ဆင်ပြီးပါပြီ',
+    failedToUpdateProfile: 'ကိုယ်ရေးအချက်အလက် ပြင်ဆင်မှု မအောင်မြင်ပါ',
+    profilePhoto: 'ကိုယ်ရေးအချက်အလက်ဓာတ်ပုံ',
+    addPhoto: 'ဓာတ်ပုံထည့်ရန်',
+    changePhoto: 'ဓာတ်ပုံပြောင်းရန်',
+    failedToTakePhoto: 'ဓာတ်ပုံရိုက်မရပါ',
+    failedToSelectPhoto: 'ဓာတ်ပုံရွေးမရပါ',
+    photoUploadedSuccessfully: 'ဓာတ်ပုံ အောင်မြင်စွာ တင်ပြီးပါပြီ',
+    failedToUploadPhoto: 'ဓာတ်ပုံတင်မရပါ',
+    profileAndPhotoUpdatedSuccessfully:
+      'ကိုယ်ရေးအချက်အလက်နှင့် ဓာတ်ပုံ အောင်မြင်စွာ ပြင်ဆင်ပြီးပါပြီ',
+    networkError: 'ကွန်ယက်အမှား',
+    requestTimeout: 'တောင်းဆိုမှု အချိန်ကုန်',
+    sessionExpired: 'အသုံးပြုမှုအချိန် ကုန်ဆုံးပြီ',
+    tryAgain: 'ထပ်မံကြိုးစားပါ',
+    fullName: 'အမည်အပြည့်အစုံ',
+    guardianInformation: 'အုပ်ထိန်းသူအချက်အလက်',
+    myPickupQrCode: 'ကျွန်ုပ်၏ ကလေးခေါ်သွားရန် QR ကုဒ်',
+    qrCodeNotAvailable: 'ဤအုပ်ထိန်းသူအတွက် QR ကုဒ်မရရှိနိုင်ပါ',
   },
   zh: {
     // Common
@@ -1576,6 +1850,8 @@ const translations = {
     cancel: '取消',
     ok: '确定',
     save: '保存',
+    saveChanges: '保存更改',
+    noChangesToSave: '没有更改需要保存',
     delete: '删除',
     edit: '编辑',
     back: '返回',
@@ -1590,6 +1866,7 @@ const translations = {
     dashboard: '仪表板',
     settings: '设置',
     profile: '个人资料',
+    editProfile: '编辑个人资料',
     logout: '退出',
 
     // Authentication
@@ -1630,6 +1907,7 @@ const translations = {
     // Specific UI Elements
     parentDashboard: '家长仪表板',
     teacherDashboard: '教师仪表板',
+    studentDashboard: '学生仪表板',
     yourChildren: '您的孩子',
     yourChild: '您的孩子',
     menu: '菜单',
@@ -1829,7 +2107,15 @@ const translations = {
 
     // New Features
     myProfile: '我的个人资料',
+    studentProfile: '学生档案',
     personalInformation: '个人信息',
+    academicInformation: '学术信息',
+
+    // Time formatting
+    justNow: '刚刚',
+    minutesAgo: '分钟前',
+    hoursAgo: '小时前',
+    daysAgo: '天前',
     workInformation: '工作信息',
     rolesResponsibilities: '角色与职责',
     fullName: '全名',
@@ -2037,7 +2323,7 @@ const translations = {
     failedToConnect: '连接服务器失败',
     connectionError: '连接错误',
     serverError: '服务器错误',
-    incorrectCredentials: '错误的{loginType}账号或密码！',
+    incorrectCredentials: '用户名或密码错误！',
 
     // Home Screen Navigation & Diagnostics
 
@@ -2051,8 +2337,6 @@ const translations = {
     runDiagnostics: '运行诊断',
     accessScreen: '访问{screenName}',
     schoolInfoAccessMessage: '要查看学校信息，您可以直接登录或添加学生账户。',
-    loginAsTeacher: '以教师身份登录',
-    loginAsStudent: '以学生身份登录',
 
     // Social Media
     connectWithUsSocial: '在社交媒体上关注我们！',
@@ -2063,6 +2347,7 @@ const translations = {
 
     // Teacher Screen
     confirmLogout: '您确定要退出登录吗？',
+    logoutFailed: '退出登录失败。请重试。',
     scheduleAttendance: '课程表和考勤',
     assignmentsReview: '作业和复习',
     chatCommunication: '聊天和沟通',
@@ -2253,6 +2538,20 @@ const translations = {
     primaryPhone: '主要电话',
     secondaryContact: '次要联系人',
     secondaryPhone: '次要电话',
+
+    // Guardian Management
+    relationToChild: '与孩子的关系',
+    nationalId: '身份证号',
+    profilePhoto: '个人照片',
+    addPhoto: '添加照片',
+    changePhoto: '更换照片',
+    failedToTakePhoto: '拍照失败',
+    failedToSelectPhoto: '选择照片失败',
+    photoUploadedSuccessfully: '照片上传成功',
+    failedToUploadPhoto: '照片上传失败',
+    profileAndPhotoUpdatedSuccessfully: '个人资料和照片更新成功',
+    myPickupQrCode: '我的接送二维码',
+    qrCodeNotAvailable: '此监护人的二维码不可用',
   },
   th: {
     // Common
@@ -2262,6 +2561,8 @@ const translations = {
     cancel: 'ยกเลิก',
     ok: 'ตกลง',
     save: 'บันทึก',
+    saveChanges: 'บันทึกการเปลี่ยนแปลง',
+    noChangesToSave: 'ไม่มีการเปลี่ยนแปลงที่จะบันทึก',
     delete: 'ลบ',
     edit: 'แก้ไข',
     back: 'กลับ',
@@ -2276,6 +2577,7 @@ const translations = {
     dashboard: 'แดชบอร์ด',
     settings: 'การตั้งค่า',
     profile: 'โปรไฟล์',
+    editProfile: 'แก้ไขโปรไฟล์',
     logout: 'ออกจากระบบ',
 
     // Authentication
@@ -2316,6 +2618,7 @@ const translations = {
     // Specific UI Elements
     parentDashboard: 'แดชบอร์ดผู้ปกครอง',
     teacherDashboard: 'แดชบอร์ดครู',
+    studentDashboard: 'แดชบอร์ดนักเรียน',
     yourChildren: 'บุตรหลานของคุณ',
     yourChild: 'บุตรหลานของคุณ',
     menu: 'เมนู',
@@ -2527,7 +2830,15 @@ const translations = {
 
     // New Features
     myProfile: 'โปรไฟล์ของฉัน',
+    studentProfile: 'โปรไฟล์นักเรียน',
     personalInformation: 'ข้อมูลส่วนตัว',
+    academicInformation: 'ข้อมูลการศึกษา',
+
+    // Time formatting
+    justNow: 'เมื่อสักครู่',
+    minutesAgo: 'นาทีที่แล้ว',
+    hoursAgo: 'ชั่วโมงที่แล้ว',
+    daysAgo: 'วันที่แล้ว',
     workInformation: 'ข้อมูลการทำงาน',
     rolesResponsibilities: 'บทบาทและความรับผิดชอบ',
     fullName: 'ชื่อเต็ม',
@@ -2740,7 +3051,7 @@ const translations = {
     failedToConnect: 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ',
     connectionError: 'ข้อผิดพลาดการเชื่อมต่อ',
     serverError: 'ข้อผิดพลาดเซิร์ฟเวอร์',
-    incorrectCredentials: '{loginType} ID หรือรหัสผ่านไม่ถูกต้อง!',
+    incorrectCredentials: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง!',
 
     // Home Screen Navigation & Diagnostics
     dataClearedMessage:
@@ -2755,8 +3066,6 @@ const translations = {
     accessScreen: 'เข้าถึง{screenName}',
     schoolInfoAccessMessage:
       'เพื่อดูข้อมูลโรงเรียน คุณสามารถเข้าสู่ระบบโดยตรงหรือเพิ่มบัญชีนักเรียน',
-    loginAsTeacher: 'เข้าสู่ระบบในฐานะครู',
-    loginAsStudent: 'เข้าสู่ระบบในฐานะนักเรียน',
 
     // Social Media
     connectWithUsSocial: 'ติดตามเราบนโซเชียลมีเดีย!',
@@ -2767,6 +3076,7 @@ const translations = {
 
     // Teacher Screen
     confirmLogout: 'คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?',
+    logoutFailed: 'การออกจากระบบล้มเหลว กรุณาลองใหม่อีกครั้ง',
     scheduleAttendance: 'ตารางเรียนและการเข้าเรียน',
     assignmentsReview: 'การบ้านและการทบทวน',
     chatCommunication: 'แชทและการสื่อสาร',
@@ -2967,6 +3277,20 @@ const translations = {
     primaryPhone: 'เบอร์โทรหลัก',
     secondaryContact: 'ผู้ติดต่อรอง',
     secondaryPhone: 'เบอร์โทรรอง',
+
+    // Guardian Management
+    relationToChild: 'ความสัมพันธ์กับเด็ก',
+    nationalId: 'เลขบัตรประชาชน',
+    profilePhoto: 'รูปโปรไฟล์',
+    addPhoto: 'เพิ่มรูปภาพ',
+    changePhoto: 'เปลี่ยนรูปภาพ',
+    failedToTakePhoto: 'ถ่ายรูปไม่สำเร็จ',
+    failedToSelectPhoto: 'เลือกรูปภาพไม่สำเร็จ',
+    photoUploadedSuccessfully: 'อัปโหลดรูปภาพสำเร็จ',
+    failedToUploadPhoto: 'อัปโหลดรูปภาพไม่สำเร็จ',
+    profileAndPhotoUpdatedSuccessfully: 'อัปเดตโปรไฟล์และรูปภาพสำเร็จ',
+    myPickupQrCode: 'QR Code รับส่งของฉัน',
+    qrCodeNotAvailable: 'QR Code ไม่พร้อมใช้งานสำหรับผู้ปกครองนี้',
   },
   km: {
     // Common
@@ -2976,6 +3300,8 @@ const translations = {
     cancel: 'បោះបង់',
     ok: 'យល់ព្រម',
     save: 'រក្សាទុក',
+    saveChanges: 'រក្សាទុកការផ្លាស់ប្តូរ',
+    noChangesToSave: 'មិនមានការផ្លាស់ប្តូរដើម្បីរក្សាទុក',
     delete: 'លុប',
     edit: 'កែសម្រួល',
     back: 'ត្រលប់',
@@ -2990,6 +3316,7 @@ const translations = {
     dashboard: 'ផ្ទាំងគ្រប់គ្រង',
     settings: 'ការកំណត់',
     profile: 'ប្រវត្តិរូប',
+    editProfile: 'កែសម្រួលប្រវត្តិរូប',
     logout: 'ចាកចេញ',
 
     // Authentication
@@ -3030,6 +3357,7 @@ const translations = {
     // Specific UI Elements
     parentDashboard: 'ផ្ទាំងគ្រប់គ្រងឪពុកម្តាយ',
     teacherDashboard: 'ផ្ទាំងគ្រប់គ្រងគ្រូ',
+    studentDashboard: 'ផ្ទាំងគ្រប់គ្រងសិស្ស',
     yourChildren: 'កូនរបស់អ្នក',
     yourChild: 'កូនរបស់អ្នក',
     menu: 'ម៉ឺនុយ',
@@ -3241,7 +3569,15 @@ const translations = {
 
     // New Features
     myProfile: 'ប្រវត្តិរូបរបស់ខ្ញុំ',
+    studentProfile: 'ប្រវត្តិរូបសិស្ស',
     personalInformation: 'ព័ត៌មានផ្ទាល់ខ្លួន',
+    academicInformation: 'ព័ត៌មានសិក្សា',
+
+    // Time formatting
+    justNow: 'ទើបតែ',
+    minutesAgo: 'នាទីមុន',
+    hoursAgo: 'ម៉ោងមុន',
+    daysAgo: 'ថ្ងៃមុន',
     workInformation: 'ព័ត៌មានការងារ',
     rolesResponsibilities: 'តួនាទី និងទំនួលខុសត្រូវ',
     fullName: 'ឈ្មោះពេញ',
@@ -3256,6 +3592,13 @@ const translations = {
     loadingProfile: 'កំពុងផ្ទុកប្រវត្តិរូប...',
     viewEditProfile: 'មើល និងកែសម្រួលព័ត៌មានប្រវត្តិរូប',
     areYouSureLogout: 'តើអ្នកប្រាកដថាចង់ចាកចេញទេ?',
+    confirmLogout: 'តើអ្នកប្រាកដថាចង់ចាកចេញទេ?',
+    logoutFailed: 'ការចាកចេញបរាជ័យ។ សូមព្យាយាមម្តងទៀត។',
+
+    // Authentication & Connection
+    connectionError: 'កំហុសការតភ្ជាប់',
+    serverError: 'កំហុសម៉ាស៊ីនមេ',
+    incorrectCredentials: 'ឈ្មោះអ្នកប្រើប្រាស់ ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ!',
 
     // Coming Soon
     comingSoon: 'នឹងមកដល់ឆាប់ៗ',
@@ -3265,6 +3608,21 @@ const translations = {
     library: 'បណ្ណាល័យ',
     analyticsStats: 'ការវិភាគ និងស្ថិតិ',
     resourcesFiles: 'ធនធាន និងឯកសារ',
+
+    // Guardian Management
+    relationToChild: 'ទំនាក់ទំនងជាមួយកុមារ',
+    nationalId: 'លេខអត្តសញ្ញាណប័ណ្ណ',
+    profilePhoto: 'រូបភាពប្រវត្តិរូប',
+    addPhoto: 'បន្ថែមរូបភាព',
+    changePhoto: 'ផ្លាស់ប្តូររូបភាព',
+    failedToTakePhoto: 'ថតរូបមិនបានសម្រេច',
+    failedToSelectPhoto: 'ជ្រើសរើសរូបភាពមិនបានសម្រេច',
+    photoUploadedSuccessfully: 'បានផ្ទុករូបភាពឡើងដោយជោគជ័យ',
+    failedToUploadPhoto: 'ផ្ទុករូបភាពឡើងមិនបានសម្រេច',
+    profileAndPhotoUpdatedSuccessfully:
+      'បានកែប្រែប្រវត្តិរូបនិងរូបភាពដោយជោគជ័យ',
+    myPickupQrCode: 'QR Code ទទួលកុមាររបស់ខ្ញុំ',
+    qrCodeNotAvailable: 'QR Code មិនអាចប្រើបានសម្រាប់អាណាព្យាបាលនេះ',
   },
 };
 

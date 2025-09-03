@@ -9,7 +9,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Clipboard,
   Alert,
 } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -24,8 +23,9 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { getDemoCredentials } from '../services/authService';
+import Clipboard from '@react-native-clipboard/clipboard';
 
-const DemoCredentialsCard = ({ onCredentialSelect, currentLoginType }) => {
+const DemoCredentialsCard = ({ onCredentialSelect }) => {
   const { theme } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
   const demoCredentials = getDemoCredentials();
@@ -76,7 +76,11 @@ const DemoCredentialsCard = ({ onCredentialSelect, currentLoginType }) => {
         onPress={() => setIsExpanded(!isExpanded)}
       >
         <View style={styles.headerLeft}>
-          <FontAwesomeIcon icon={faFlask} size={16} color={theme.colors.primary} />
+          <FontAwesomeIcon
+            icon={faFlask}
+            size={16}
+            color={theme.colors.primary}
+          />
           <Text style={styles.headerTitle}>Demo Credentials</Text>
         </View>
         <FontAwesomeIcon
@@ -89,7 +93,8 @@ const DemoCredentialsCard = ({ onCredentialSelect, currentLoginType }) => {
       {isExpanded && (
         <View style={styles.content}>
           <Text style={styles.description}>
-            Use these credentials to explore the app in demo mode with sample data:
+            Use these credentials to explore the app in demo mode with sample
+            data:
           </Text>
 
           {Object.entries(demoCredentials).map(([type, creds]) => (
@@ -100,7 +105,12 @@ const DemoCredentialsCard = ({ onCredentialSelect, currentLoginType }) => {
                   size={16}
                   color={getColorForType(type)}
                 />
-                <Text style={[styles.credentialType, { color: getColorForType(type) }]}>
+                <Text
+                  style={[
+                    styles.credentialType,
+                    { color: getColorForType(type) },
+                  ]}
+                >
                   {type.charAt(0).toUpperCase() + type.slice(1)}
                 </Text>
               </View>
@@ -113,7 +123,11 @@ const DemoCredentialsCard = ({ onCredentialSelect, currentLoginType }) => {
                     onPress={() => copyToClipboard(creds.username, 'Username')}
                   >
                     <Text style={styles.fieldText}>{creds.username}</Text>
-                    <FontAwesomeIcon icon={faCopy} size={12} color={theme.colors.textSecondary} />
+                    <FontAwesomeIcon
+                      icon={faCopy}
+                      size={12}
+                      color={theme.colors.textSecondary}
+                    />
                   </TouchableOpacity>
                 </View>
 
@@ -124,28 +138,38 @@ const DemoCredentialsCard = ({ onCredentialSelect, currentLoginType }) => {
                     onPress={() => copyToClipboard(creds.password, 'Password')}
                   >
                     <Text style={styles.fieldText}>{creds.password}</Text>
-                    <FontAwesomeIcon icon={faCopy} size={12} color={theme.colors.textSecondary} />
+                    <FontAwesomeIcon
+                      icon={faCopy}
+                      size={12}
+                      color={theme.colors.textSecondary}
+                    />
                   </TouchableOpacity>
                 </View>
               </View>
 
-              <Text style={styles.credentialDescription}>{creds.description}</Text>
+              <Text style={styles.credentialDescription}>
+                {creds.description}
+              </Text>
 
-              {currentLoginType === type && (
-                <TouchableOpacity
-                  style={[styles.useButton, { backgroundColor: getColorForType(type) }]}
-                  onPress={() => handleCredentialPress(creds.username, creds.password)}
-                >
-                  <Text style={styles.useButtonText}>Use These Credentials</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={[
+                  styles.useButton,
+                  { backgroundColor: getColorForType(type) },
+                ]}
+                onPress={() =>
+                  handleCredentialPress(creds.username, creds.password)
+                }
+              >
+                <Text style={styles.useButtonText}>Use These Credentials</Text>
+              </TouchableOpacity>
             </View>
           ))}
 
           <View style={styles.note}>
             <Text style={styles.noteText}>
-              💡 Demo mode includes sample data for all features including timetables, grades, 
-              attendance, homework, behavior points, and notifications.
+              💡 Demo mode includes sample data for all features including
+              timetables, grades, attendance, homework, behavior points, and
+              notifications.
             </Text>
           </View>
         </View>

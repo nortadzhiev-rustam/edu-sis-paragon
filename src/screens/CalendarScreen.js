@@ -144,14 +144,8 @@ export default function CalendarScreen({ navigation, route }) {
         Alert.alert(t('loginRequired'), t('loginRequiredCalendarMessage'), [
           { text: t('cancel'), onPress: () => navigation.goBack() },
           {
-            text: t('loginAsTeacher'),
-            onPress: () =>
-              navigation.navigate('Login', { loginType: 'teacher' }),
-          },
-          {
-            text: t('loginAsStudent'),
-            onPress: () =>
-              navigation.navigate('Login', { loginType: 'student' }),
+            text: t('login'),
+            onPress: () => navigation.navigate('Login'),
           },
         ]);
         return;

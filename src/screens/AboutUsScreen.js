@@ -21,9 +21,13 @@ import {
   getUniqueBranches,
 } from '../services/informationService';
 
-export default function AboutUsScreen({ navigation }) {
+export default function AboutUsScreen({ route, navigation }) {
   const { theme } = useTheme();
   const { t } = useLanguage();
+
+  // Check if this is public access (no login required)
+  const isPublicAccess = route?.params?.publicAccess || false;
+
   const [aboutData, setAboutData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -189,7 +193,24 @@ export default function AboutUsScreen({ navigation }) {
     try {
       setError(null);
 
-      // Get all unique branches from all user data
+      // If this is public access, fetch all available school information
+      if (isPublicAccess) {
+        console.log(
+          '📖 ABOUT US: Public access mode - fetching all school information'
+        );
+
+        const response = await getAboutUsData();
+
+        if (response.success) {
+          setAboutData(response);
+          console.log('📖 ABOUT US: Public data loaded successfully');
+        } else {
+          throw new Error('Failed to fetch public About Us data');
+        }
+        return;
+      }
+
+      // Get all unique branches from all user data (authenticated access)
       const uniqueBranches = await getUniqueBranches();
 
       if (uniqueBranches.length === 0) {

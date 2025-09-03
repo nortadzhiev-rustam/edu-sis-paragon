@@ -15,14 +15,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDeviceToken } from '../utils/messaging';
 import { logDeviceInfo } from '../utils/deviceInfo';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import {
-  teacherLogin,
-  studentLogin,
-  saveUserData,
-} from '../services/authService';
+  debugLogin,
+  quickNetworkTest,
+  formatDebugInfo,
+} from '../utils/loginDebugger';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+
+import { unifiedLogin, saveUserData } from '../services/authService';
 
 import { Config } from '../config/env';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
@@ -30,6 +30,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import useThemeLogo from '../hooks/useThemeLogo';
 import { createSmallShadow } from '../utils/commonStyles';
 import { updateLastLogin } from '../services/deviceService';
+import { SchoolResourcesSection } from '../components';
 
 const { width, height } = Dimensions.get('window');
 
@@ -39,8 +40,7 @@ export default function LoginScreen({ route, navigation }) {
   const fontSizes = getLanguageFontSizes(currentLanguage);
   const logoSource = useThemeLogo();
 
-  // Get login type from route params or default to teacher
-  const routeLoginType = route.params?.loginType;
+  // Get parameters from route
   const isAddingStudent = route.params?.isAddingStudent || false;
 
   // Form state
@@ -48,9 +48,8 @@ export default function LoginScreen({ route, navigation }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [deviceToken, setDeviceToken] = useState('');
-
-  // Login type state (teacher or student)
-  const [loginType, setLoginType] = useState(routeLoginType || 'teacher');
+  const [debugInfo, setDebugInfo] = useState(null);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
 
   const styles = createStyles(theme, fontSizes);
 
@@ -88,19 +87,61 @@ export default function LoginScreen({ route, navigation }) {
     fetchDeviceToken();
   }, []);
 
-  // Handle login based on selected type
+  // Debug functions
+  const handleDebugLogin = async () => {
+    try {
+      setLoading(true);
+      const debug = await debugLogin(username, password);
+      setDebugInfo(debug);
+      setShowDebugInfo(true);
+
+      Alert.alert(
+        'Debug Information',
+        `Found ${debug.issues.length} issues. ${
+          debug.issues.length > 0
+            ? 'Check console for details.'
+            : 'No issues detected.'
+        }`,
+        [
+          { text: 'OK' },
+          {
+            text: 'Copy Debug Info',
+            onPress: () => {
+              // In a real app, you'd copy to clipboard
+              console.log('📋 DEBUG INFO TO COPY:\n', formatDebugInfo(debug));
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Debug Error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickNetworkTest = async () => {
+    try {
+      const result = await quickNetworkTest();
+      Alert.alert('Network Test', result.message, [{ text: 'OK' }]);
+    } catch (error) {
+      Alert.alert('Network Test Error', error.message);
+    }
+  };
+
+  // Handle unified login (supports both students and parents)
   const handleUserLogin = async (username, password) => {
     setLoading(true);
 
     try {
-      let userData;
-
-      if (loginType === 'teacher') {
-        userData = await teacherLogin(username, password, deviceToken);
-      } else {
-        userData = await studentLogin(username, password, deviceToken);
-      }
-
+      // Use unified login endpoint that automatically detects user type
+      const userData = await unifiedLogin(
+        username,
+        password,
+        deviceToken,
+        Platform.OS === 'ios' ? 'ios' : 'android',
+        `${Platform.OS} Device`
+      );
       setLoading(false);
       return userData;
     } catch (error) {
@@ -122,10 +163,7 @@ export default function LoginScreen({ route, navigation }) {
     console.log('🔍 LOGIN DEBUG: userData received:', userData);
     console.log('🔍 LOGIN DEBUG: userData type:', typeof userData);
     console.log('🔍 LOGIN DEBUG: userData is null:', userData === null);
-    console.log(
-      '🔍 LOGIN DEBUG: userData has error:',
-      userData && userData.error
-    );
+    console.log('🔍 LOGIN DEBUG: userData has error:', userData?.error);
 
     if (userData && !userData.error) {
       // Handle successful login
@@ -216,12 +254,9 @@ export default function LoginScreen({ route, navigation }) {
       }
     } else {
       // Handle login failure with detailed error information
-      let errorMessage = t('incorrectCredentials').replace(
-        '{loginType}',
-        t(loginType)
-      );
+      let errorMessage = t('incorrectCredentials');
 
-      if (userData && userData.error) {
+      if (userData?.error) {
         console.log('🔍 LOGIN DEBUG: Error details received:', userData);
 
         // Provide more specific error messages based on error type
@@ -247,7 +282,6 @@ export default function LoginScreen({ route, navigation }) {
           errorMessage: userData.errorMessage,
           errorCode: userData.errorCode,
           timestamp: userData.timestamp,
-          loginType,
           username: username ? 'provided' : 'missing',
           deviceToken: deviceToken ? 'available' : 'missing',
         });
@@ -257,16 +291,10 @@ export default function LoginScreen({ route, navigation }) {
     }
   };
 
-  // Handle families policy compliance checking
+  // Handle compliance checking for users
   const handleComplianceCheck = async (userData) => {
     try {
-      // For teachers, skip compliance check
-      if (userData.userType === 'teacher') {
-        await proceedWithLogin(userData);
-        return;
-      }
-
-      // Proceed with login
+      // Proceed with user login
       await proceedWithLogin(userData);
     } catch (error) {
       console.error('Login error:', error);
@@ -278,7 +306,21 @@ export default function LoginScreen({ route, navigation }) {
   const proceedWithLogin = async (userData) => {
     try {
       // Save user data to AsyncStorage
-      await saveUserData(userData, AsyncStorage);
+      console.log('💾 LOGIN: Saving user data to AsyncStorage...');
+      const saveResult = await saveUserData(userData, AsyncStorage);
+      console.log('💾 LOGIN: Save result:', saveResult);
+
+      // Verify the data was saved
+      const savedData = await AsyncStorage.getItem('userData');
+      console.log('🔍 LOGIN: Verification - data saved:', !!savedData);
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        console.log('🔍 LOGIN: Verification - saved data structure:', {
+          userType: parsed.userType,
+          name: parsed.name || parsed.user_name,
+          hasAuthCode: !!(parsed.authCode || parsed.auth_code),
+        });
+      }
 
       // Update last login timestamp after successful login
       console.log(
@@ -307,25 +349,46 @@ export default function LoginScreen({ route, navigation }) {
         // Continue with navigation even if update fails
       }
 
+      // Navigate based on user type
+      const userName = userData.name || userData.user_name || 'User';
+      const userType = userData.userType || userData.user_type || 'student';
+
+      console.log(
+        `✅ LOGIN: ${userType} ${userName} logged in successfully, navigating to appropriate screen`
+      );
+
       // Navigate to appropriate screen based on user type
-      if (userData.userType === 'teacher') {
-        navigation.replace('TeacherScreen', { userData });
-      } else if (userData.userType === 'student') {
-        // For direct student login, navigate to home screen
-        console.log(
-          '✅ STUDENT LOGIN: Student logged in successfully, navigating to home'
-        );
-        Alert.alert(
-          t('loginSuccessful'),
-          t('welcomeMessage').replace('{name}', userData.name),
-          [
-            {
-              text: t('ok'),
-              onPress: () => navigation.replace('Home'),
-            },
-          ]
-        );
+      console.log(
+        `🧭 LOGIN: Attempting to navigate based on user type: ${userType}...`
+      );
+      try {
+        if (userType === 'parent') {
+          navigation.replace('ParentScreen');
+          console.log(
+            '✅ LOGIN: Navigation to ParentScreen initiated successfully'
+          );
+        } else {
+          navigation.replace('StudentScreen');
+          console.log(
+            '✅ LOGIN: Navigation to StudentScreen initiated successfully'
+          );
+        }
+      } catch (navError) {
+        console.error('❌ LOGIN: Navigation error:', navError);
+        Alert.alert(t('error'), 'Navigation failed: ' + navError.message);
+        return;
       }
+
+      // Show success message after navigation
+      setTimeout(() => {
+        const welcomeMessage =
+          userType === 'parent'
+            ? t('welcomeParentMessage')?.replace('{name}', userName) ||
+              t('welcomeMessage').replace('{name}', userName)
+            : t('welcomeMessage').replace('{name}', userName);
+
+        Alert.alert(t('loginSuccessful'), welcomeMessage);
+      }, 500);
     } catch (error) {
       console.error('Login completion error:', error);
       Alert.alert(t('error'), t('failedToCompleteLogin'));
@@ -335,13 +398,6 @@ export default function LoginScreen({ route, navigation }) {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {/* Back Button */}
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <FontAwesomeIcon icon={faArrowLeft} size={20} color='#007AFF' />
-        </TouchableOpacity>
         <Animated.Image
           source={logoSource}
           style={styles.logo}
@@ -353,57 +409,12 @@ export default function LoginScreen({ route, navigation }) {
           style={styles.formContainer}
         >
           <Text style={styles.title}>
-            {isAddingStudent
-              ? t('addStudentAccount')
-              : routeLoginType
-              ? `${t(routeLoginType)} ${t('login')}`
-              : t('login')}
+            {isAddingStudent ? t('addStudentAccount') : t('login')}
           </Text>
-
-          {/* Login Type Selector - only show if not coming from a specific route */}
-          {!routeLoginType && (
-            <View style={styles.loginTypeContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.loginTypeButton,
-                  loginType === 'teacher' && styles.activeLoginType,
-                ]}
-                onPress={() => setLoginType('teacher')}
-              >
-                <Text
-                  style={[
-                    styles.loginTypeText,
-                    loginType === 'teacher' && styles.activeLoginTypeText,
-                  ]}
-                >
-                  {t('teacher')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.loginTypeButton,
-                  loginType === 'student' && styles.activeLoginType,
-                ]}
-                onPress={() => setLoginType('student')}
-              >
-                <Text
-                  style={[
-                    styles.loginTypeText,
-                    loginType === 'student' && styles.activeLoginTypeText,
-                  ]}
-                >
-                  {t('student')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
 
           <TextInput
             style={styles.input}
-            placeholder={
-              loginType === 'teacher' ? t('teacherId') : t('studentId')
-            }
+            placeholder={t('username')}
             placeholderTextColor={theme.colors.textLight}
             value={username}
             onChangeText={setUsername}
@@ -427,10 +438,18 @@ export default function LoginScreen({ route, navigation }) {
             {loading ? (
               <ActivityIndicator color='#fff' size='small' />
             ) : (
-              <Text style={styles.loginButtonText}>
-                {`${t(loginType)} ${t('login')}`}
-              </Text>
+              <Text style={styles.loginButtonText}>{t('login')}</Text>
             )}
+          </TouchableOpacity>
+
+          {/* Guardian Login Button */}
+          <TouchableOpacity
+            style={styles.guardianLoginButton}
+            onPress={() => navigation.navigate('GuardianLogin')}
+          >
+            <Text style={styles.guardianLoginButtonText}>
+              {t('guardianLogin')}
+            </Text>
           </TouchableOpacity>
 
           {/* Debug Information for App Review */}
@@ -450,12 +469,58 @@ export default function LoginScreen({ route, navigation }) {
               <Text style={styles.debugText}>
                 Network Timeout: {Config.NETWORK.TIMEOUT}ms
               </Text>
+
+              {/* Debug Action Buttons */}
+              <View style={styles.debugButtonsContainer}>
+                <TouchableOpacity
+                  style={styles.debugButton}
+                  onPress={handleQuickNetworkTest}
+                  disabled={loading}
+                >
+                  <Text style={styles.debugButtonText}>Test Network</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.debugButton}
+                  onPress={handleDebugLogin}
+                  disabled={loading}
+                >
+                  <Text style={styles.debugButtonText}>Debug Login</Text>
+                </TouchableOpacity>
+              </View>
+
+              {debugInfo && showDebugInfo && (
+                <View style={styles.debugInfoContainer}>
+                  <Text style={styles.debugInfoTitle}>
+                    Debug Results ({debugInfo.issues.length} issues)
+                  </Text>
+                  <ScrollView
+                    style={styles.debugInfoScroll}
+                    nestedScrollEnabled
+                  >
+                    <Text style={styles.debugInfoText}>
+                      {formatDebugInfo(debugInfo)}
+                    </Text>
+                  </ScrollView>
+                </View>
+              )}
             </View>
           )}
 
           <TouchableOpacity style={styles.forgotPassword}>
             <Text style={styles.forgotPasswordText}>{t('forgotPassword')}</Text>
           </TouchableOpacity>
+        </Animated.View>
+
+        {/* School Resources Section */}
+        <Animated.View
+          entering={FadeInDown.delay(600).springify()}
+          style={styles.schoolResourcesContainer}
+        >
+          <SchoolResourcesSection
+            navigation={navigation}
+            showCalendar={false}
+          />
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
@@ -492,7 +557,7 @@ const createStyles = (theme, fontSizes) =>
     logo: {
       width: width * 1,
       height: height * 0.15,
-      marginTop: height * 0.1,
+      marginTop: height * 0.03,
     },
     formContainer: {
       width: '100%',
@@ -534,39 +599,31 @@ const createStyles = (theme, fontSizes) =>
       fontSize: fontSizes.buttonText,
       fontWeight: '600',
     },
+    guardianLoginButton: {
+      width: '100%',
+      height: 50,
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      borderColor: theme.mode === 'dark' ? '#fff' : theme.colors.primary,
+      borderRadius: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 12,
+    },
+    guardianLoginButtonText: {
+      color: theme.mode === 'dark' ? '#fff' : theme.colors.primary,
+      fontSize: fontSizes.buttonText,
+      fontWeight: '600',
+    },
     forgotPassword: {
       marginTop: 15,
       alignItems: 'center',
     },
     forgotPasswordText: {
-      color: theme.colors.primary,
+      color: theme.mode === 'dark' ? '#fff' : theme.colors.primary,
       fontSize: fontSizes.bodySmall,
     },
-    loginTypeContainer: {
-      flexDirection: 'row',
-      marginBottom: 20,
-      borderRadius: 10,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    loginTypeButton: {
-      flex: 1,
-      paddingVertical: 12,
-      alignItems: 'center',
-      backgroundColor: theme.colors.surface,
-    },
-    activeLoginType: {
-      backgroundColor: theme.colors.primary,
-    },
-    loginTypeText: {
-      fontSize: fontSizes.body,
-      fontWeight: '500',
-      color: theme.colors.textSecondary,
-    },
-    activeLoginTypeText: {
-      color: '#fff',
-    },
+
     debugContainer: {
       marginTop: 20,
       padding: 15,
@@ -585,5 +642,53 @@ const createStyles = (theme, fontSizes) =>
       fontSize: fontSizes.small,
       color: theme.colors.textSecondary,
       marginBottom: 4,
+    },
+    debugButtonsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 10,
+      gap: 10,
+    },
+    debugButton: {
+      flex: 1,
+      backgroundColor: theme.colors.primary,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 6,
+      alignItems: 'center',
+    },
+    debugButtonText: {
+      color: '#fff',
+      fontSize: fontSizes.small,
+      fontWeight: '600',
+    },
+    debugInfoContainer: {
+      marginTop: 10,
+      padding: 10,
+      backgroundColor: theme.colors.background,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    debugInfoTitle: {
+      fontSize: fontSizes.small,
+      fontWeight: 'bold',
+      color: theme.colors.text,
+      marginBottom: 8,
+    },
+    debugInfoScroll: {
+      maxHeight: 200,
+    },
+    debugInfoText: {
+      fontSize: fontSizes.small - 1,
+      color: theme.colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+      lineHeight: 16,
+    },
+    schoolResourcesContainer: {
+      width: '100%',
+      paddingHorizontal: 30,
+      marginTop: 30,
+      marginBottom: 20,
     },
   });

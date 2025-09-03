@@ -51,11 +51,20 @@ import { createSmallShadow, createMediumShadow } from '../utils/commonStyles';
 import { getDemoStudentHomeworkData } from '../services/demoModeService';
 import { getStudentHomeworkList } from '../services/homeworkService';
 
+// Import Parent Proxy Access System
+import { getChildHomework } from '../services/parentService';
+import {
+  shouldUseParentProxy,
+  extractProxyOptions,
+} from '../services/parentProxyAdapter';
+
 export default function AssignmentsScreen({ navigation, route }) {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
-  const { studentName, authCode } = route.params || {};
+  // Extract route parameters including parent proxy parameters
+  const { studentName, authCode, studentId, useParentProxy, parentData } =
+    route.params || {};
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState(null);
@@ -231,7 +240,7 @@ export default function AssignmentsScreen({ navigation, route }) {
     // Array of beautiful colors
     const colors = [
       '#FF9500', // Orange
-      '#007AFF', // Blue
+      '#1D428A', // Blue (brand primary)
       '#34C759', // Green
       '#AF52DE', // Purple
       '#FF3B30', // Red
@@ -410,27 +419,69 @@ export default function AssignmentsScreen({ navigation, route }) {
         return;
       }
 
-      // Use homework assignment API
-      const response = await getStudentHomeworkList(authCode);
+      // Check if this is parent proxy access
+      const proxyOptions = extractProxyOptions(route.params);
+      if (shouldUseParentProxy(route.params)) {
+        console.log('🔄 HOMEWORK: Using parent proxy access');
+        console.log('🔑 Parent Auth Code:', authCode);
+        console.log('👤 Student ID:', proxyOptions.studentId);
 
-      if (response.success && Array.isArray(response.data)) {
-        // The API returns assignments directly in the data array
-        // Transform the data to ensure compatibility with existing UI components
-        const transformedData = response.data.map((assignment) => ({
-          ...assignment,
-          // Ensure compatibility with existing component expectations
-          subject: assignment.subject_name,
-          completed: assignment.is_completed === 1,
-          // Add any missing fields that the UI might expect
-          days_remaining: assignment.is_overdue ? 0 : null,
-        }));
+        const response = await getChildHomework(
+          authCode,
+          proxyOptions.studentId
+        );
 
-        setAssignments(transformedData);
+        if (response.success && response.homework) {
+          // Transform parent proxy response to match expected format
+          const homeworkData = Array.isArray(response.homework)
+            ? response.homework
+            : [];
+          const transformedData = homeworkData.map((assignment) => ({
+            ...assignment,
+            // Ensure compatibility with existing component expectations
+            subject: assignment.subject_name || assignment.subject,
+            completed:
+              assignment.is_completed === 1 ||
+              assignment.status === 'submitted',
+            // Add any missing fields that the UI might expect
+            days_remaining: assignment.is_overdue ? 0 : null,
+          }));
+
+          setAssignments(transformedData);
+        } else {
+          console.warn(
+            '⚠️ HOMEWORK: No homework data in parent proxy response'
+          );
+          setAssignments([]);
+        }
       } else {
-        Alert.alert(t('error'), response.message || t('failedToFetchClasses'));
+        // Use direct student access (existing behavior)
+        console.log('📚 HOMEWORK: Using direct student access');
+
+        const response = await getStudentHomeworkList(authCode);
+
+        if (response.success && Array.isArray(response.data)) {
+          // The API returns assignments directly in the data array
+          // Transform the data to ensure compatibility with existing UI components
+          const transformedData = response.data.map((assignment) => ({
+            ...assignment,
+            // Ensure compatibility with existing component expectations
+            subject: assignment.subject_name,
+            completed: assignment.is_completed === 1,
+            // Add any missing fields that the UI might expect
+            days_remaining: assignment.is_overdue ? 0 : null,
+          }));
+
+          setAssignments(transformedData);
+        } else {
+          Alert.alert(
+            t('error'),
+            response.message || t('failedToFetchClasses')
+          );
+        }
       }
     } catch (error) {
-      console.error('Error fetching assignments:', error);
+      console.error('❌ HOMEWORK: Error fetching assignments:', error);
       Alert.alert(t('error'), t('failedToConnect'));
     } finally {
       setLoading(false);

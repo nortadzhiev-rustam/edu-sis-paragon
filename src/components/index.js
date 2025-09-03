@@ -57,3 +57,6 @@ export { default as ParentNotificationBadge } from './ParentNotificationBadge';
 // Demo Mode Components
 export { default as DemoModeIndicator } from './DemoModeIndicator';
 export { default as DemoCredentialsCard } from './DemoCredentialsCard';
+
+// School Resources Components
+export { default as SchoolResourcesSection } from './SchoolResourcesSection';

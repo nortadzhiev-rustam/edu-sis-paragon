@@ -1,6 +1,11 @@
 /**
  * Homework Service
  * Handles all homework-related API calls including file uploads, folder creation, and submissions
+ *
+ * @note New homework endpoints are available in staffService.js:
+ * - createHomeworkAssignment() - Uses /homework/create endpoint
+ * - getTeacherHomeworkClasses() - Uses /teacher/homework/classes endpoint
+ * - gradeHomeworkSubmission() - Uses /homework/grade endpoint
  */
 
 import { Config, buildApiUrl } from '../config/env';

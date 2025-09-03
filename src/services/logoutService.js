@@ -6,6 +6,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { clearNotificationHistory } from '../utils/messaging';
+import guardianStorageService from './guardianStorageService';
 import {
   removeCurrentUserFromDevice,
   removeStudentFromDevice,
@@ -146,6 +147,10 @@ export const performLogout = async (options = {}) => {
     await AsyncStorage.removeItem('userData');
     await AsyncStorage.removeItem('calendarUserData'); // Clear temporary calendar user data
 
+    // 3.1. Clear guardian data
+    console.log('🛡️ LOGOUT: Clearing guardian data...');
+    await guardianStorageService.clearGuardianData();
+
     // 4. Clear notification history and related data
     console.log('🔔 LOGOUT: Clearing notification data...');
     await clearNotificationHistory();
@@ -160,7 +165,6 @@ export const performLogout = async (options = {}) => {
       'lastMessageUpdate',
     ];
     await AsyncStorage.multiRemove(messagingKeys);
-
 
     // 7. Clear cached user-specific data
     console.log('🗂️ LOGOUT: Clearing cached data...');

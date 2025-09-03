@@ -9,6 +9,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { isIPad, isTablet } from '../utils/deviceDetection';
+import { useTheme } from '../contexts/ThemeContext';
 
 /**
  * CommonHeader Component
@@ -19,7 +20,6 @@ import { isIPad, isTablet } from '../utils/deviceDetection';
  * @param {string} props.title - The title to display in the header
  * @param {Function} props.onBackPress - Callback function when back button is pressed
  * @param {Array} props.rightActions - Array of action objects for right side buttons
- * @param {Object} props.theme - Theme object containing colors and styles
  * @param {Object} props.style - Additional styles for the header container
  * @param {Object} props.titleStyle - Additional styles for the title text
  * @param {boolean} props.showBackButton - Whether to show the back button (default: true)
@@ -30,13 +30,13 @@ const CommonHeader = ({
   title,
   onBackPress,
   rightActions = [],
-  theme,
   style = {},
   titleStyle = {},
   showBackButton = true,
   leftComponent,
   rightComponent,
 }) => {
+  const { theme } = useTheme();
   const styles = createStyles(theme);
 
   // Calculate responsive font size based on device width and number of buttons

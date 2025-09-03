@@ -49,13 +49,23 @@ const DEFAULT_SCHOOL_CONFIGS = {
     branding: {
       name: 'BFI International School',
       logo: {
-        light: require('../../assets/app_logo.png'),
-        dark: require('../../assets/app_logo_dark.png'),
+        light: require('../../assets/teacher_app_logo.png'),
+        dark: require('../../assets/teacher_app_logo_dark.png'),
       },
       colors: {
-        primary: '#007AFF',
-        secondary: '#5856D6',
-        accent: '#FF9500',
+        primary: '#231F20', // Navy blue - primary color
+        secondary: '#EC2227', // Red - secondary color
+        accent: '#2756C6', // Merchandise blue - accent color
+        tertiary: {
+          yellow: '#FFD700',
+          beige: '#D4A574',
+          lightBlue: '#9AC4E4',
+          brown: '#8B4513',
+          darkRed: '#B22222',
+          burgundy: '#800020',
+          gray: '#A9A9A9',
+          green: '#7CB342',
+        },
       },
     },
     features: {
@@ -105,13 +115,23 @@ const DEFAULT_SCHOOL_CONFIGS = {
     branding: {
       name: 'Demo School',
       logo: {
-        light: require('../../assets/app_logo.png'),
-        dark: require('../../assets/app_logo_dark.png'),
+        light: require('../../assets/teacher_app_logo.png'),
+        dark: require('../../assets/teacher_app_logo_dark.png'),
       },
       colors: {
-        primary: '#007AFF',
-        secondary: '#5856D6',
-        accent: '#FF9500',
+        primary: '#231F20', // Navy blue - primary color
+        secondary: '#EC2227', // Red - secondary color
+        accent: '#2756C6', // Merchandise blue - accent color
+        tertiary: {
+          yellow: '#FFD700',
+          beige: '#D4A574',
+          lightBlue: '#9AC4E4',
+          brown: '#8B4513',
+          darkRed: '#B22222',
+          burgundy: '#800020',
+          gray: '#A9A9A9',
+          green: '#7CB342',
+        },
       },
     },
     features: {
@@ -474,10 +494,20 @@ class SchoolConfigService {
       }
 
       // Method 3: Call backend API to detect school (if endpoint exists)
+      // DISABLED: This endpoint may not exist and can cause login hanging
+      console.log(
+        '⏭️ SCHOOL CONFIG: Skipping API detection to prevent hanging'
+      );
+
+      // Uncomment below if you have a working /detect-school endpoint
+      /*
       try {
-        // Create timeout controller for older environments
+        // Create timeout controller with shorter timeout
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const timeoutId = setTimeout(() => {
+          console.log('⏰ SCHOOL CONFIG: API detection timed out after 2 seconds');
+          controller.abort();
+        }, 2000); // Reduced from 5s to 2s
 
         const response = await fetch(buildApiUrl('/detect-school'), {
           method: 'POST',
@@ -507,6 +537,7 @@ class SchoolConfigService {
         );
         // Continue to fallback - this is expected if endpoint doesn't exist
       }
+      */
 
       // Method 4: Fallback - use default school
       console.log('🔍 SCHOOL CONFIG: Using default school (BFI)');

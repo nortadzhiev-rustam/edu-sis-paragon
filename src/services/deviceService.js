@@ -5,6 +5,7 @@
 
 import { Config, buildApiUrl } from '../config/env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 /**
  * Logout user from device using authCode (NEW METHOD)
@@ -351,6 +352,111 @@ export const removeStudentFromDevice = async (studentData) => {
     return {
       success: false,
       error: error.message || 'Unknown error occurred',
+    };
+  }
+};
+
+/**
+ * Register device token with the backend for push notifications
+ * @param {string} authCode - The user's authentication code
+ * @param {string} deviceToken - The FCM device token
+ * @param {string} deviceType - The device type ('ios' or 'android')
+ * @returns {Promise<Object>} - Response from the API
+ */
+export const registerDeviceToken = async (
+  authCode,
+  deviceToken,
+  deviceType = Platform.OS
+) => {
+  try {
+    console.log('📱 DEVICE SERVICE: Registering device token with backend...');
+    console.log(
+      `🔑 Auth Code: ${authCode ? authCode.substring(0, 10) + '...' : 'null'}`
+    );
+    console.log(
+      `🎫 Device Token: ${
+        deviceToken ? deviceToken.substring(0, 30) + '...' : 'null'
+      }`
+    );
+    console.log(`📱 Device Type: ${deviceType}`);
+
+    if (!authCode) {
+      console.warn('⚠️ DEVICE SERVICE: No auth code provided');
+      return { success: false, error: 'No auth code provided' };
+    }
+
+    if (!deviceToken) {
+      console.warn('⚠️ DEVICE SERVICE: No device token provided');
+      return { success: false, error: 'No device token provided' };
+    }
+
+    // Get app version and OS version
+    const appVersion = '1.0.0'; // You might want to get this from package.json or app config
+    const osVersion = Platform.Version.toString();
+
+    // Build the API URL for device token registration
+    const url = buildApiUrl('/notifications/device-token');
+
+    console.log('🔗 DEVICE SERVICE: Device token registration API URL:', url);
+
+    // Add timeout for the request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+    const response = await fetch(url, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        authCode: authCode,
+        device_token: deviceToken,
+        device_type: deviceType,
+        app_version: appVersion,
+        os_version: osVersion,
+      }),
+    });
+
+    clearTimeout(timeoutId);
+
+    console.log(
+      '📡 DEVICE SERVICE: Device token registration response status:',
+      response.status
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log(
+        '✅ DEVICE SERVICE: Device token registered successfully:',
+        data
+      );
+
+      return {
+        success: true,
+        data: data,
+        message: data.message || 'Device token registered successfully',
+      };
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      console.error(
+        '❌ DEVICE SERVICE: Device token registration failed with status:',
+        response.status
+      );
+      console.error('❌ DEVICE SERVICE: Error data:', errorData);
+
+      return {
+        success: false,
+        error: errorData.error || `HTTP ${response.status}`,
+        status: response.status,
+      };
+    }
+  } catch (error) {
+    console.error('❌ DEVICE SERVICE: Device token registration error:', error);
+    return {
+      success: false,
+      error: error.message || 'Network error during device token registration',
     };
   }
 };

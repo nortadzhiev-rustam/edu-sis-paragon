@@ -54,6 +54,13 @@ import {
 } from '../utils/commonStyles';
 import { getDemoStudentGradesData } from '../services/demoModeService';
 
+// Import Parent Proxy Access System
+import { getChildGrades } from '../services/parentService';
+import {
+  shouldUseParentProxy,
+  extractProxyOptions,
+} from '../services/parentProxyAdapter';
+
 // Simple separator component - only shows in portrait mode
 const GradeSeparator = () => null; // We'll use marginVertical on cards instead
 
@@ -64,7 +71,9 @@ export default function GradesScreen({ navigation, route }) {
 
   const [activeTab, setActiveTab] = useState('summative');
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
-  const { authCode } = route.params || {};
+  // Extract route parameters including parent proxy parameters
+  const { authCode, studentId, useParentProxy, parentData, studentName } =
+    route.params || {};
   const [grades, setGrades] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -120,28 +129,48 @@ export default function GradesScreen({ navigation, route }) {
         return;
       }
 
-      const url = buildApiUrl(Config.API_ENDPOINTS.GET_STUDENT_GRADES, {
-        authCode,
-      });
+      // Check if this is parent proxy access
+      const proxyOptions = extractProxyOptions(route.params);
+      if (shouldUseParentProxy(route.params)) {
+        console.log('🔄 GRADES: Using parent proxy access');
+        console.log('🔑 Parent Auth Code:', authCode);
+        console.log('👤 Student ID:', proxyOptions.studentId);
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
+        const response = await getChildGrades(authCode, proxyOptions.studentId);
 
-      if (response.ok) {
-        const data = await response.json();
-        setGrades(data);
+        if (response.success && response.grades) {
+          setGrades(response.grades);
+        } else {
+          console.warn('⚠️ GRADES: No grades data in parent proxy response');
+          setGrades(null);
+        }
       } else {
-        // Handle error silently
-        console.error('Failed to fetch grades:', response.status);
+        // Use direct student access (existing behavior)
+        console.log('📚 GRADES: Using direct student access');
+
+        const url = buildApiUrl(Config.API_ENDPOINTS.GET_STUDENT_GRADES, {
+          authCode,
+        });
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setGrades(data);
+        } else {
+          // Handle error silently
+          console.error('Failed to fetch grades:', response.status);
+        }
       }
     } catch (error) {
       // Handle error silently
-      console.error('Failed to fetch grades:', error);
+      console.error('❌ GRADES: Failed to fetch grades:', error);
     } finally {
       setLoading(false);
     }
@@ -628,7 +657,7 @@ export default function GradesScreen({ navigation, route }) {
   // Helper function to get grade performance color
   const getGradeColor = (percentage) => {
     if (percentage >= 90) return '#34C759'; // Green for excellent
-    if (percentage >= 80) return '#007AFF'; // Blue for good
+    if (percentage >= 80) return '#1D428A'; // Blue for good (brand primary)
     if (percentage >= 70) return '#FF9500'; // Orange for average
     if (percentage >= 60) return '#FF3B30'; // Red for below average
     return '#8E8E93'; // Gray for poor
@@ -1451,7 +1480,7 @@ const createStyles = (theme) =>
     subjectListContainer: {
       flex: 1,
       alignItems: 'center',
-      paddingTop: 20,
+      paddingTop: 10,
     },
     // Enhanced Header Section
     headerSection: {
@@ -1466,7 +1495,7 @@ const createStyles = (theme) =>
       backgroundColor: 'rgba(255, 149, 0, 0.1)',
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 20,
+      marginBottom: 10,
       shadowColor: theme.colors.warning,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.2,

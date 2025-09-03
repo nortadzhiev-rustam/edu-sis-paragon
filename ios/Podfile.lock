@@ -241,6 +241,10 @@ PODS:
     - React-Core
   - ExpoAsset (11.0.5):
     - ExpoModulesCore
+  - ExpoCamera (16.0.18):
+    - ExpoModulesCore
+    - ZXingObjC/OneD
+    - ZXingObjC/PDF417
   - ExpoDevice (7.0.3):
     - ExpoModulesCore
   - ExpoDocumentPicker (13.0.3):
@@ -252,6 +256,8 @@ PODS:
   - ExpoImagePicker (16.0.6):
     - ExpoModulesCore
   - ExpoKeepAwake (14.0.3):
+    - ExpoModulesCore
+  - ExpoLocation (18.0.10):
     - ExpoModulesCore
   - ExpoModulesCore (2.2.3):
     - DoubleConversion
@@ -298,6 +304,8 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - ExpoSharing (13.1.5):
+    - ExpoModulesCore
   - ExpoSystemUI (4.0.9):
     - ExpoModulesCore
   - EXStructuredHeaders (4.0.0)
@@ -1687,6 +1695,10 @@ PODS:
     - Yoga
   - react-native-get-random-values (1.11.0):
     - React-Core
+  - react-native-maps (1.18.0):
+    - React-Core
+  - react-native-netinfo (11.4.1):
+    - React-Core
   - react-native-orientation-locker (1.7.0):
     - React-Core
   - react-native-safe-area-context (4.12.0):
@@ -2361,6 +2373,11 @@ PODS:
     - Yoga
   - SocketRocket (0.7.1)
   - Yoga (0.0.0)
+  - ZXingObjC/Core (3.6.9)
+  - ZXingObjC/OneD (3.6.9):
+    - ZXingObjC/Core
+  - ZXingObjC/PDF417 (3.6.9):
+    - ZXingObjC/Core
 
 DEPENDENCIES:
   - boost (from `../node_modules/react-native/third-party-podspecs/boost.podspec`)
@@ -2379,14 +2396,17 @@ DEPENDENCIES:
   - expo-dev-menu-interface (from `../node_modules/expo-dev-menu-interface/ios`)
   - "ExpoAdapterGoogleSignIn (from `../node_modules/@react-native-google-signin/google-signin/expo/ios`)"
   - ExpoAsset (from `../node_modules/expo-asset/ios`)
+  - ExpoCamera (from `../node_modules/expo-camera/ios`)
   - ExpoDevice (from `../node_modules/expo-device/ios`)
   - ExpoDocumentPicker (from `../node_modules/expo-document-picker/ios`)
   - ExpoFileSystem (from `../node_modules/expo-file-system/ios`)
   - ExpoFont (from `../node_modules/expo-font/ios`)
   - ExpoImagePicker (from `../node_modules/expo-image-picker/ios`)
   - ExpoKeepAwake (from `../node_modules/expo-keep-awake/ios`)
+  - ExpoLocation (from `../node_modules/expo-location/ios`)
   - ExpoModulesCore (from `../node_modules/expo-modules-core`)
   - ExpoScreenOrientation (from `../node_modules/expo-screen-orientation/ios`)
+  - ExpoSharing (from `../node_modules/expo-sharing/ios`)
   - ExpoSystemUI (from `../node_modules/expo-system-ui/ios`)
   - EXStructuredHeaders (from `../node_modules/expo-structured-headers/ios`)
   - EXUpdates (from `../node_modules/expo-updates/ios`)
@@ -2428,6 +2448,8 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-get-random-values (from `../node_modules/react-native-get-random-values`)
+  - react-native-maps (from `../node_modules/react-native-maps`)
+  - "react-native-netinfo (from `../node_modules/@react-native-community/netinfo`)"
   - react-native-orientation-locker (from `../node_modules/react-native-orientation-locker`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - react-native-webview (from `../node_modules/react-native-webview`)
@@ -2490,6 +2512,7 @@ SPEC REPOS:
     - PromisesObjC
     - ReachabilitySwift
     - SocketRocket
+    - ZXingObjC
 
 EXTERNAL SOURCES:
   boost:
@@ -2524,6 +2547,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-google-signin/google-signin/expo/ios"
   ExpoAsset:
     :path: "../node_modules/expo-asset/ios"
+  ExpoCamera:
+    :path: "../node_modules/expo-camera/ios"
   ExpoDevice:
     :path: "../node_modules/expo-device/ios"
   ExpoDocumentPicker:
@@ -2536,10 +2561,14 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-image-picker/ios"
   ExpoKeepAwake:
     :path: "../node_modules/expo-keep-awake/ios"
+  ExpoLocation:
+    :path: "../node_modules/expo-location/ios"
   ExpoModulesCore:
     :path: "../node_modules/expo-modules-core"
   ExpoScreenOrientation:
     :path: "../node_modules/expo-screen-orientation/ios"
+  ExpoSharing:
+    :path: "../node_modules/expo-sharing/ios"
   ExpoSystemUI:
     :path: "../node_modules/expo-system-ui/ios"
   EXStructuredHeaders:
@@ -2619,6 +2648,10 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   react-native-get-random-values:
     :path: "../node_modules/react-native-get-random-values"
+  react-native-maps:
+    :path: "../node_modules/react-native-maps"
+  react-native-netinfo:
+    :path: "../node_modules/@react-native-community/netinfo"
   react-native-orientation-locker:
     :path: "../node_modules/react-native-orientation-locker"
   react-native-safe-area-context:
@@ -2723,14 +2756,17 @@ SPEC CHECKSUMS:
   expo-dev-menu-interface: 00dc42302a72722fdecec3fa048de84a9133bcc4
   ExpoAdapterGoogleSignIn: cde973fe0134b1c0204502eeae5ec701cc379a57
   ExpoAsset: 48386d40d53a8c1738929b3ed509bcad595b5516
+  ExpoCamera: 0a3e78de7b1ca8c438ee6784fa6f22c5b1b36966
   ExpoDevice: d36ab4186b6799a28fd449bb9a1c77455f23fd1a
   ExpoDocumentPicker: 6d3d499cf15b692688a804f42927d0f35de5ebaa
   ExpoFileSystem: 42d363d3b96f9afab980dcef60d5657a4443c655
   ExpoFont: f354e926f8feae5e831ec8087f36652b44a0b188
   ExpoImagePicker: 24e5ba8da111f74519b1e6dc556e0b438b2b8464
   ExpoKeepAwake: b0171a73665bfcefcfcc311742a72a956e6aa680
+  ExpoLocation: de58a60756fad907139ec422ccabb1ba734e080d
   ExpoModulesCore: c3e810e874b33139221bea656743f106a2826f47
   ExpoScreenOrientation: af8b31d3164239a4ef3ea0b32bd63fb65df70d58
+  ExpoSharing: b0377be82430d07398c6a4cd60b5a15696accbd3
   ExpoSystemUI: b82a45cf0f6a4fa18d07c46deba8725dd27688b4
   EXStructuredHeaders: 09c70347b282e3d2507e25fb4c747b1b885f87f6
   EXUpdates: 4fc73950af0af03388063823e75eb2f7566a48c9
@@ -2784,6 +2820,8 @@ SPEC CHECKSUMS:
   React-Mapbuffer: 9343a5c14536d4463c80f09a960653d754daae21
   React-microtasksnativemodule: c7cafd8f4470cf8a4578ee605daa4c74d3278bf8
   react-native-get-random-values: d16467cf726c618e9c7a8c3c39c31faa2244bbba
+  react-native-maps: 3b0c8378ff774053bdd8954c820e987fdd7b4d72
+  react-native-netinfo: cec9c4e86083cb5b6aba0e0711f563e2fbbff187
   react-native-orientation-locker: cc6f357b289a2e0dd2210fea0c52cb8e0727fdaa
   react-native-safe-area-context: 3ec0dbf4635e3344cb1303d15fcc4a22876b3e59
   react-native-webview: e20ba089a590ed5a914f4c1ec9d0afdd8b3f4987
@@ -2827,6 +2865,7 @@ SPEC CHECKSUMS:
   RNSVG: d332ea2a8540218eadc5c8f31c2b58dfba6b14b5
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: 1259c7a8cbaccf7b4c3ddf8ee36ca11be9dee407
+  ZXingObjC: 8898711ab495761b2dbbdec76d90164a6d7e14c5
 
 PODFILE CHECKSUM: 1e673fc1c9f2ac2c19a1c83da4ac73ec6c736226
 

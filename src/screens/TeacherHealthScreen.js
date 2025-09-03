@@ -704,7 +704,7 @@ const createStyles = (theme, fontSizes) =>
       backgroundColor: theme.colors.surface,
       borderRadius: 12,
       marginBottom: 12,
-      overflow: 'hidden',
+      
       ...createCustomShadow(theme, {
         height: 1,
         opacity: 0.08,

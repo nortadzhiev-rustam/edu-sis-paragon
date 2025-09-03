@@ -4,13 +4,18 @@
 // API Configuration
 export const Config = {
   // Base API Configuration
-  API_BASE_URL: 'https://sis.bfi.edu.mm/mobile-api',
-  API_DOMAIN: 'sis.bfi.edu.mm',
+  // For physical devices, use your computer's IP address instead of 127.0.0.1
+  // Your Mac's IP address: 192.168.10.2
+  API_BASE_URL: 'http://192.168.10.2:8000/mobile-api',
+  API_DOMAIN: 'http://192.168.10.2:8000',
 
   // API Endpoints
   API_ENDPOINTS: {
+    // Authentication Endpoints
+    UNIFIED_LOGIN: '/login',
     CHECK_STAFF_CREDENTIALS: '/check-staff-credentials',
     CHECK_STUDENT_CREDENTIALS: '/check-student-credentials',
+    CHECK_PARENT_CREDENTIALS: '/check-parent-credentials',
     GET_STUDENT_TIMETABLE: '/get-student-timetable2',
     GET_TEACHER_TIMETABLE: '/get-teacher-timetable-data/',
     GET_STUDENT_GRADES: '/get-student-grades',
@@ -56,6 +61,7 @@ export const Config = {
     GET_AVAILABLE_USERS: '/messaging/available-users', // Legacy endpoint (deprecated)
     GET_AVAILABLE_USERS_STUDENT: '/messaging/available-users/student', // Student-specific endpoint
     GET_AVAILABLE_USERS_STAFF: '/messaging/available-users/staff', // Staff-specific endpoint
+    GET_AVAILABLE_USERS_PARENT: '/messaging/available-users/parent', // Parent-specific endpoint
     SEARCH_MESSAGES: '/messaging/search',
     MARK_MESSAGES_READ: '/messaging/mark-read',
     MARK_MESSAGE_READ: '/messaging/mark-message-read', // NEW: Individual message read endpoint
@@ -88,6 +94,33 @@ export const Config = {
     GET_ABOUT_DATA: '/about-data/',
     GET_CONTACTS_DATA: '/contacts-data/',
     GET_FAQ_DATA: '/faq-data/',
+
+    // Guardian Pickup API Endpoints
+    CREATE_GUARDIAN: '/pickup/guardians/create',
+    LIST_GUARDIANS: '/pickup/guardians/list',
+    UPDATE_GUARDIAN_PROFILE: '/guardian/complete-profile',
+    ROTATE_QR_TOKEN: '/pickup/guardians/rotate-qr',
+    QR_LOGIN: '/pickup/qr/login',
+
+    // Pickup Request API Endpoints
+    CREATE_PICKUP_REQUEST: '/pickup-request/',
+    PARENT_CREATE_PICKUP_REQUEST: '/pickup-request/',
+    PARENT_CREATE_MULTIPLE_PICKUP_REQUESTS: '/pickup-request/multiple',
+    GUARDIAN_CREATE_PICKUP_REQUEST: '/pickup-request/',
+    GET_SCHOOL_LOCATION: '/school/location',
+    PARENT_GENERATE_QR: '/pickup/parent/generate-qr',
+    GET_PENDING_PICKUP_REQUESTS: '/pickup/parent/pending-requests',
+
+    // Parent Proxy API Endpoints (Parent-Student Access System)
+    GET_PARENT_CHILDREN: '/parent/children/',
+    PARENT_STUDENT_TIMETABLE: '/parent/student/timetable',
+    PARENT_STUDENT_HOMEWORK: '/parent/student/homework',
+    PARENT_STUDENT_ATTENDANCE: '/parent/student/attendance',
+    PARENT_STUDENT_GRADES: '/parent/student/grades',
+    PARENT_STUDENT_ASSESSMENT: '/parent/student/assessment',
+    PARENT_STUDENT_BPS_PROFILE: '/parent/student/bps-profile',
+    PARENT_STUDENT_HEALTH_INFO: '/parent/student/health-info',
+    PARENT_STUDENT_HEALTH_RECORDS: '/parent/student/health-records',
 
     // Calendar API Endpoints
     GET_CALENDAR_DATA: '/calendar/data',
@@ -156,8 +189,8 @@ export const Config = {
 
   // App Configuration
   APP: {
-    NAME: 'EduSIS',
-    VERSION: '1.0.1',
+    NAME: 'ParagonISC - Student',
+    VERSION: '1.0.0',
     BUNDLE_ID: 'com.edunovaasia.edusis',
   },
 
@@ -178,6 +211,18 @@ export const Config = {
   DEVICE: {
     DEFAULT_TYPE: 'ios',
   },
+
+  // Storage Keys
+  STORAGE_KEYS: {
+    USER_DATA: 'userData',
+    STUDENT_ACCOUNTS: 'studentAccounts',
+    SELECTED_STUDENT: 'selectedStudent',
+    CALENDAR_USER_DATA: 'calendarUserData',
+    GUARDIAN_DATA: 'guardianData',
+    GUARDIAN_AUTH_CODE: 'guardianAuthCode',
+    GUARDIAN_CHILD_DATA: 'guardianChildData',
+    NOTIFICATION_HISTORY: 'notificationHistory',
+  },
 };
 
 // Helper functions to build URLs
@@ -190,17 +235,22 @@ export const buildApiUrl = (endpoint, params = {}) => {
     ? Config.API_BASE_URL
     : Config.API_BASE_URL + '/';
 
-  // Construct the full URL
-  const fullUrl = baseUrl + cleanEndpoint;
-  const url = new URL(fullUrl);
+  // Build base URL
+  let fullUrl = baseUrl + cleanEndpoint;
 
+  // Manually build query string without encoding
+  const queryParams = [];
   Object.keys(params).forEach((key) => {
     if (params[key] !== undefined && params[key] !== null) {
-      url.searchParams.append(key, params[key]);
+      queryParams.push(`${key}=${params[key]}`);
     }
   });
 
-  return url.toString();
+  if (queryParams.length > 0) {
+    fullUrl += '?' + queryParams.join('&');
+  }
+
+  return fullUrl;
 };
 
 export const buildWebUrl = (endpoint, params = {}) => {

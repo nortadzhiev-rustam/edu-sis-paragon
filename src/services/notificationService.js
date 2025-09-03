@@ -6,26 +6,29 @@
 import { Config, buildApiUrl } from '../config/env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Helper function to get auth code from storage
+// Helper function to get auth code from storage (supports both regular users and guardians)
 const getAuthCode = async () => {
   try {
+    // First try to get from regular user data
     const userData = await AsyncStorage.getItem('userData');
     if (userData) {
       const user = JSON.parse(userData);
       const authCode = user.authCode || user.auth_code;
-      if (!authCode) {
-        console.warn(
-          '⚠️ NOTIFICATION SERVICE: User data found but no authCode available'
-        );
-        console.log(
-          'ℹ️ NOTIFICATION SERVICE: This usually means user is not properly logged in'
-        );
+      if (authCode) {
+        return authCode;
       }
-      return authCode;
-    } else {
-      console.warn('⚠️ NOTIFICATION SERVICE: No user data found in storage');
-      console.log('ℹ️ NOTIFICATION SERVICE: User appears to be logged out');
     }
+
+    // If no regular auth code found, try guardian auth code
+    const guardianAuthCode = await AsyncStorage.getItem('guardianAuthCode');
+    if (guardianAuthCode) {
+      console.log('📱 NOTIFICATION SERVICE: Using guardian auth code');
+      return guardianAuthCode;
+    }
+
+    // No auth code found
+    console.warn('⚠️ NOTIFICATION SERVICE: No auth code found in storage');
+    console.log('ℹ️ NOTIFICATION SERVICE: User appears to be logged out');
     return null;
   } catch (error) {
     console.error('❌ NOTIFICATION SERVICE: Error getting auth code:', error);

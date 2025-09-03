@@ -28,9 +28,13 @@ import {
   getUniqueBranches,
 } from '../services/informationService';
 
-export default function ContactsScreen({ navigation }) {
+export default function ContactsScreen({ route, navigation }) {
   const { theme } = useTheme();
   const { t } = useLanguage();
+
+  // Check if this is public access (no login required)
+  const isPublicAccess = route?.params?.publicAccess || false;
+
   const [contactsData, setContactsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -204,7 +208,24 @@ export default function ContactsScreen({ navigation }) {
     try {
       setError(null);
 
-      // Get all unique branches from all user data
+      // If this is public access, fetch all available school contact information
+      if (isPublicAccess) {
+        console.log(
+          '📞 CONTACTS: Public access mode - fetching all school contact information'
+        );
+
+        const response = await getContactsData();
+
+        if (response.success) {
+          setContactsData(response);
+          console.log('📞 CONTACTS: Public data loaded successfully');
+        } else {
+          throw new Error('Failed to fetch public contacts data');
+        }
+        return;
+      }
+
+      // Get all unique branches from all user data (authenticated access)
       const uniqueBranches = await getUniqueBranches();
 
       if (uniqueBranches.length === 0) {
