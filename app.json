@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Paragon ISC",
-    "slug": "edu-sis",
+    "slug": "edu-sis-paragon",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/app_logo.png",
