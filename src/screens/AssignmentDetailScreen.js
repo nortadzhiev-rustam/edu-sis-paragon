@@ -43,7 +43,11 @@ import {
 export default function AssignmentDetailScreen({ navigation, route }) {
   const { theme } = useTheme();
   const { t } = useLanguage();
-  const { assignment, authCode } = route.params || {};
+  const { assignment, authCode, useParentProxy, studentId, parentData } =
+    route.params || {};
+
+  // Determine if this is parent access (read-only mode)
+  const isParentAccess = useParentProxy || (parentData && studentId);
 
   const [submitting, setSubmitting] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -56,10 +60,10 @@ export default function AssignmentDetailScreen({ navigation, route }) {
   const styles = createStyles(theme);
 
   useEffect(() => {
-    if (assignment && authCode) {
+    if (assignment && authCode && !isParentAccess) {
       markAsViewed();
     }
-  }, [assignment, authCode]);
+  }, [assignment, authCode, isParentAccess]);
 
   // Mark assignment as viewed
   const markAsViewed = async () => {
@@ -551,7 +555,11 @@ export default function AssignmentDetailScreen({ navigation, route }) {
           >
             <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Assignment Details</Text>
+          <Text style={styles.headerTitle}>
+            {isParentAccess
+              ? 'Assignment Details (Parent View)'
+              : 'Assignment Details'}
+          </Text>
           <View style={styles.headerRight} />
         </View>
 
@@ -935,8 +943,8 @@ export default function AssignmentDetailScreen({ navigation, route }) {
               </View>
             )}
 
-            {/* Update Submission Button - only show if assignment can be updated */}
-            {canUpdateAssignment() && (
+            {/* Update Submission Button - only show if assignment can be updated and not parent access */}
+            {!isParentAccess && canUpdateAssignment() && (
               <TouchableOpacity
                 style={[styles.actionButton, styles.updateButton]}
                 onPress={() => setShowUpdateForm(!showUpdateForm)}
@@ -962,8 +970,8 @@ export default function AssignmentDetailScreen({ navigation, route }) {
               </View>
             )}
 
-            {/* Update Form */}
-            {showUpdateForm && (
+            {/* Update Form - only show for student access */}
+            {!isParentAccess && showUpdateForm && (
               <View style={styles.updateFormContainer}>
                 <Text style={styles.updateFormTitle}>
                   Update Your Submission
@@ -1048,8 +1056,8 @@ export default function AssignmentDetailScreen({ navigation, route }) {
               </View>
             )}
           </View>
-        ) : (
-          /* Submission Form */
+        ) : !isParentAccess ? (
+          /* Submission Form - only show for student access */
           <View style={styles.submissionCard}>
             <Text style={styles.sectionTitle}>
               {assignmentData.is_completed &&
@@ -1137,6 +1145,19 @@ export default function AssignmentDetailScreen({ navigation, route }) {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        ) : (
+          /* Parent Access - Read Only Mode */
+          <View style={styles.parentAccessNotice}>
+            <FontAwesomeIcon
+              icon={faEye}
+              size={20}
+              color={theme.colors.primary}
+            />
+            <Text style={styles.parentAccessText}>
+              You are viewing this assignment as a parent. Submission features
+              are not available.
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -1719,6 +1740,23 @@ const createStyles = (theme) =>
     approvedNoticeText: {
       fontSize: 14,
       color: '#34C759',
+      fontWeight: '600',
+      flex: 1,
+    },
+    parentAccessNotice: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.primary + '20',
+      padding: 16,
+      borderRadius: 12,
+      borderLeftWidth: 4,
+      borderLeftColor: theme.colors.primary,
+      gap: 12,
+      marginTop: 16,
+    },
+    parentAccessText: {
+      fontSize: 14,
+      color: theme.colors.primary,
       fontWeight: '600',
       flex: 1,
     },

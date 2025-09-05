@@ -966,6 +966,177 @@ export const getChildById = (children, studentId) => {
 };
 
 /**
+ * Get parent calendar data
+ * @param {string} authCode - Parent's authentication code
+ * @returns {Promise<Object>} - Calendar data
+ */
+export const getParentCalendarData = async (authCode) => {
+  try {
+    console.log('📅 PARENT SERVICE: Fetching parent calendar data');
+    console.log('🔑 PARENT SERVICE: Auth code:', authCode);
+
+    if (USE_MOCK_DATA) {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      return {
+        success: true,
+        calendar: {
+          events: [
+            {
+              id: 1,
+              title: 'Parent-Teacher Conference',
+              date: '2025-09-10',
+              time: '14:00',
+              type: 'meeting',
+              description:
+                'Quarterly parent-teacher conference for all students',
+              location: 'School Auditorium',
+            },
+            {
+              id: 2,
+              title: 'School Holiday',
+              date: '2025-09-15',
+              type: 'holiday',
+              description: 'National Holiday - School Closed',
+            },
+            {
+              id: 3,
+              title: 'Sports Day',
+              date: '2025-09-20',
+              time: '08:00',
+              type: 'event',
+              description: 'Annual school sports day event',
+              location: 'School Sports Ground',
+            },
+          ],
+          total_events: 3,
+        },
+      };
+    }
+
+    const url = buildApiUrl(Config.API_ENDPOINTS.PARENT_CALENDAR_DATA, {
+      authCode,
+    });
+    const response = await makeApiRequest(url);
+
+    return response;
+  } catch (error) {
+    console.error('❌ PARENT SERVICE: Error fetching calendar data:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get parent upcoming calendar events
+ * @param {string} authCode - Parent's authentication code
+ * @returns {Promise<Object>} - Upcoming events data
+ */
+export const getParentCalendarUpcoming = async (authCode) => {
+  try {
+    console.log('📅 PARENT SERVICE: Fetching upcoming calendar events');
+    console.log('🔑 PARENT SERVICE: Auth code:', authCode);
+
+    if (USE_MOCK_DATA) {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
+      return {
+        success: true,
+        upcoming_events: [
+          {
+            id: 1,
+            title: 'Parent-Teacher Conference',
+            date: '2025-09-10',
+            time: '14:00',
+            type: 'meeting',
+            days_until: 5,
+            priority: 'high',
+          },
+          {
+            id: 3,
+            title: 'Sports Day',
+            date: '2025-09-20',
+            time: '08:00',
+            type: 'event',
+            days_until: 15,
+            priority: 'medium',
+          },
+        ],
+        total_upcoming: 2,
+      };
+    }
+
+    const url = buildApiUrl(Config.API_ENDPOINTS.PARENT_CALENDAR_UPCOMING, {
+      authCode,
+    });
+    const response = await makeApiRequest(url);
+
+    return response;
+  } catch (error) {
+    console.error('❌ PARENT SERVICE: Error fetching upcoming events:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get parent personal calendar events
+ * @param {string} authCode - Parent's authentication code
+ * @returns {Promise<Object>} - Personal calendar data
+ */
+export const getParentCalendarPersonal = async (authCode) => {
+  try {
+    console.log('📅 PARENT SERVICE: Fetching personal calendar events');
+    console.log('🔑 PARENT SERVICE: Auth code:', authCode);
+
+    if (USE_MOCK_DATA) {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      return {
+        success: true,
+        personal_events: [
+          {
+            id: 101,
+            title: 'Meeting with Math Teacher',
+            date: '2025-09-08',
+            time: '15:30',
+            type: 'appointment',
+            student_name: 'Samithidh Koeut',
+            teacher_name: 'Ms. Johnson',
+            subject: 'Mathematics',
+            notes: 'Discuss progress in algebra',
+          },
+          {
+            id: 102,
+            title: 'Pickup Reminder',
+            date: '2025-09-09',
+            time: '16:00',
+            type: 'reminder',
+            student_name: 'Hengpiseth Sok',
+            notes: 'Early pickup for dental appointment',
+          },
+        ],
+        total_personal: 2,
+      };
+    }
+
+    const url = buildApiUrl(Config.API_ENDPOINTS.PARENT_CALENDAR_PERSONAL, {
+      authCode,
+    });
+    const response = await makeApiRequest(url);
+
+    return response;
+  } catch (error) {
+    console.error(
+      '❌ PARENT SERVICE: Error fetching personal calendar:',
+      error
+    );
+    throw error;
+  }
+};
+
+/**
  * Parent Service Export
  */
 export default {
@@ -980,6 +1151,11 @@ export default {
   getChildHealthInfo,
   getChildHealthRecords,
   getChildComprehensiveData,
+
+  // Calendar API methods
+  getParentCalendarData,
+  getParentCalendarUpcoming,
+  getParentCalendarPersonal,
 
   // Utility methods
   saveParentData,

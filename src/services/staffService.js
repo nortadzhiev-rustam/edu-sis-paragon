@@ -5,18 +5,37 @@
 
 import { Config, buildApiUrl } from '../config/env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserData } from './authService';
 
-// Helper function to get auth code from storage
+// Helper function to get auth code from storage (supports user-type-specific storage)
 const getAuthCode = async () => {
   try {
+    // Try user-type-specific storage keys first
+    const userTypes = ['teacher', 'parent', 'student'];
+    for (const userType of userTypes) {
+      const userData = await getUserData(userType, AsyncStorage);
+      if (userData) {
+        const authCode = userData.authCode || userData.auth_code;
+        if (authCode) {
+          console.log(`👥 STAFF SERVICE: Using ${userType} auth code`);
+          return authCode;
+        }
+      }
+    }
+
+    // Fallback to generic userData for backward compatibility
     const userData = await AsyncStorage.getItem('userData');
     if (userData) {
       const user = JSON.parse(userData);
-      return user.authCode || user.auth_code;
+      const authCode = user.authCode || user.auth_code;
+      if (authCode) {
+        console.log('👥 STAFF SERVICE: Using generic auth code');
+        return authCode;
+      }
     }
     return null;
   } catch (error) {
-    console.error('Error getting auth code:', error);
+    console.error('👥 STAFF SERVICE: Error getting auth code:', error);
     return null;
   }
 };
@@ -621,11 +640,19 @@ export const getStaffPickupRequests = async (
     const auth = authCode || (await getAuthCode());
     if (!auth) throw new Error('No authentication code found');
 
+    console.log('📋 STAFF SERVICE: Fetching pickup requests with params:', {
+      authCode: auth ? auth.substring(0, 8) + '...' : 'null',
+      date,
+      status,
+    });
+
     const params = { authCode: auth };
     if (date) params.date = date;
     if (status) params.status = status;
 
     const url = buildApiUrl(Config.API_ENDPOINTS.STAFF_PICKUP_REQUESTS, params);
+    console.log('📋 STAFF SERVICE: Request URL:', url);
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -633,10 +660,52 @@ export const getStaffPickupRequests = async (
         'Content-Type': 'application/json',
       },
     });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    return await response.json();
+
+    console.log('📋 STAFF SERVICE: Response status:', response.status);
+    console.log('📋 STAFF SERVICE: Response headers:', response.headers);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // Get response text first to debug
+    const responseText = await response.text();
+    console.log('📋 STAFF SERVICE: Raw response text:', responseText);
+    console.log('📋 STAFF SERVICE: Response text type:', typeof responseText);
+
+    // Try to parse as JSON
+    if (!responseText || responseText.trim() === '') {
+      console.warn('⚠️ STAFF SERVICE: Empty response received');
+      return {
+        success: false,
+        message: 'Empty response from server',
+        requests: [],
+      };
+    }
+
+    try {
+      const jsonData = JSON.parse(responseText);
+      console.log('📋 STAFF SERVICE: Parsed JSON data:', jsonData);
+      return jsonData;
+    } catch (parseError) {
+      console.error('📋 STAFF SERVICE: JSON parse error:', parseError);
+      console.log('📋 STAFF SERVICE: Attempting text response parsing...');
+
+      // Try to parse as text response (like "ok|message" format)
+      const { parseApiTextResponse } = await import('../utils/apiHelpers');
+      const parsedResponse = parseApiTextResponse(responseText);
+      console.log('📋 STAFF SERVICE: Parsed text response:', parsedResponse);
+
+      return {
+        ...parsedResponse,
+        requests: [], // Ensure requests array exists
+      };
+    }
   } catch (error) {
-    console.error('Error fetching staff pickup requests:', error);
+    console.error(
+      '❌ STAFF SERVICE: Error fetching staff pickup requests:',
+      error
+    );
     throw error;
   }
 };

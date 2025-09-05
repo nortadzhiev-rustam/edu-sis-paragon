@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Config, buildApiUrl } from '../config/env';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getUserData } from '../services/authService';
 import { getDemoBPSData } from '../services/demoModeService';
 
 // Import reusable components
@@ -888,19 +889,25 @@ export default function TeacherBPS({ route, navigation }) {
 
   // Load user data from AsyncStorage to check admin permissions
   useEffect(() => {
-    const getUserData = async () => {
+    const loadUserData = async () => {
       try {
-        const storedUserData = await AsyncStorage.getItem('userData');
-        if (storedUserData) {
-          const parsedData = JSON.parse(storedUserData);
-          setUserData(parsedData);
+        console.log('🔍 TEACHER BPS: Loading teacher data...');
+
+        // First try to get teacher-specific data
+        const teacherData = await getUserData('teacher', AsyncStorage);
+
+        if (teacherData && teacherData.userType === 'teacher') {
+          console.log('✅ TEACHER BPS: Found teacher data:', teacherData.name);
+          setUserData(teacherData);
+        } else {
+          console.log('❌ TEACHER BPS: No valid teacher data found');
         }
       } catch (error) {
-        console.error('Error loading user data for BPS permissions:', error);
+        console.error('❌ TEACHER BPS: Error loading user data:', error);
       }
     };
 
-    getUserData();
+    loadUserData();
   }, []);
 
   // Initialize selectedBranchId when bpsData changes
@@ -1988,7 +1995,7 @@ const getStyles = (theme) =>
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.15,
       shadowRadius: 4,
-      
+
       zIndex: 1,
     },
     navigationHeader: {

@@ -5,6 +5,8 @@
 
 import SchoolConfigService from './schoolConfigService';
 import { Config, buildApiUrl } from '../config/env';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserData } from './authService';
 
 /**
  * Unified Calendar Service Class
@@ -49,6 +51,97 @@ class CalendarService {
   }
 
   /**
+   * Get auth code from AsyncStorage for the current user type
+   * @returns {Promise<string|null>} Auth code or null if not found
+   */
+  async getAuthCodeFromStorage() {
+    try {
+      // If we have auth code in userData, use it first
+      const userDataAuthCode =
+        this.userData.authCode ||
+        this.userData.auth_code ||
+        this.userData.authenticationCode;
+      if (userDataAuthCode) {
+        console.log('📅 CALENDAR SERVICE: Using auth code from userData');
+        return userDataAuthCode;
+      }
+
+      // Try to get auth code from AsyncStorage based on user type
+      const userType = this.userData.userType || 'student';
+      console.log(
+        '📅 CALENDAR SERVICE: Retrieving auth code from AsyncStorage for user type:',
+        userType
+      );
+
+      const userData = await getUserData(userType, AsyncStorage);
+      if (userData) {
+        const authCode = userData.authCode || userData.auth_code;
+        if (authCode) {
+          console.log(
+            `📅 CALENDAR SERVICE: Found ${userType} auth code in AsyncStorage`
+          );
+          return authCode;
+        }
+      }
+
+      // Try all user types as fallback
+      const userTypes = ['teacher', 'parent', 'student'];
+      for (const type of userTypes) {
+        const fallbackUserData = await getUserData(type, AsyncStorage);
+        if (fallbackUserData) {
+          const authCode =
+            fallbackUserData.authCode || fallbackUserData.auth_code;
+          if (authCode) {
+            console.log(
+              `📅 CALENDAR SERVICE: Found ${type} auth code as fallback`
+            );
+            return authCode;
+          }
+        }
+      }
+
+      console.warn('⚠️ CALENDAR SERVICE: No auth code found in AsyncStorage');
+      return null;
+    } catch (error) {
+      console.error(
+        '❌ CALENDAR SERVICE: Error retrieving auth code from storage:',
+        error
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Normalize user data to ensure consistent auth code access
+   * @param {Object} userData - Raw user data from login
+   * @returns {Object} Normalized user data
+   */
+  static normalizeUserData(userData) {
+    if (!userData) {
+      throw new Error('User data is required for calendar service');
+    }
+
+    // Ensure auth code is available in the expected property
+    const authCode =
+      userData.authCode || userData.auth_code || userData.authenticationCode;
+
+    if (!authCode) {
+      console.warn(
+        '⚠️ CALENDAR SERVICE: No auth code found in user data:',
+        Object.keys(userData)
+      );
+    }
+
+    return {
+      ...userData,
+      authCode: authCode, // Normalize to authCode property
+      userType: userData.userType || userData.user_type || 'student',
+      id: userData.id || userData.user_id,
+      name: userData.name || userData.username || userData.user_name,
+    };
+  }
+
+  /**
    * Initialize calendar service for a user
    * @param {Object} userData - User data from login
    * @param {Object} options - Service options (mode: 'branch-only' or 'combined')
@@ -56,13 +149,20 @@ class CalendarService {
    */
   static async initialize(userData, options = {}) {
     try {
+      // Validate and normalize userData
+      const normalizedUserData = CalendarService.normalizeUserData(userData);
+
       // Get school configuration
       const schoolConfig = await SchoolConfigService.getCurrentSchoolConfig();
       if (!schoolConfig) {
         throw new Error('School configuration not found');
       }
 
-      const service = new CalendarService(schoolConfig, userData, options);
+      const service = new CalendarService(
+        schoolConfig,
+        normalizedUserData,
+        options
+      );
 
       // Initialize Google Calendar services if available
       console.log(
@@ -361,23 +461,55 @@ class CalendarService {
 
   /**
    * Get calendar data from backend API
+   * Supports both direct student access and parent proxy access
    * @param {Date} startDate - Start date
    * @param {Date} endDate - End date
    * @returns {Promise<Array>} Calendar events from all sources
    */
   async getCalendarDataFromAPI(startDate, endDate) {
     try {
-      const authCode = this.userData.authCode;
+      // Get auth code from AsyncStorage
+      const authCode = await this.getAuthCodeFromStorage();
+
+      console.log('🔍 CALENDAR SERVICE: Auth code debug:', {
+        hasUserData: !!this.userData,
+        userDataKeys: this.userData ? Object.keys(this.userData) : [],
+        authCode: authCode ? authCode.substring(0, 8) + '...' : 'null',
+        userType: this.userData?.userType || 'unknown',
+      });
+
       if (!authCode) {
+        console.error(
+          '❌ CALENDAR SERVICE: No auth code found in userData or AsyncStorage:',
+          this.userData
+        );
         throw new Error('No authentication code available');
       }
 
       const startDateStr = startDate.toISOString().split('T')[0]; // YYYY-MM-DD
       const endDateStr = endDate.toISOString().split('T')[0];
 
-      const url = buildApiUrl(
-        `/calendar/data?authCode=${authCode}&start_date=${startDateStr}&end_date=${endDateStr}`
-      );
+      // Determine endpoint based on user type
+      let endpoint, url;
+      if (this.userData.userType === 'parent') {
+        endpoint = Config.API_ENDPOINTS.PARENT_CALENDAR_DATA;
+        url = buildApiUrl(endpoint, {
+          authCode: authCode,
+          start_date: startDateStr,
+          end_date: endDateStr,
+        });
+        console.log('📅 CALENDAR SERVICE: Using parent calendar data endpoint');
+      } else {
+        endpoint = Config.API_ENDPOINTS.GET_CALENDAR_DATA;
+        url = buildApiUrl(endpoint, {
+          authCode: authCode,
+          start_date: startDateStr,
+          end_date: endDateStr,
+        });
+        console.log(
+          '📅 CALENDAR SERVICE: Using student/teacher calendar data endpoint'
+        );
+      }
 
       console.log('� CALENDAR SERVICE: Fetching calendar data:', {
         url: url,
@@ -787,23 +919,48 @@ class CalendarService {
 
   /**
    * Get upcoming calendar events from backend API (includes personal events)
+   * Supports both direct student access and parent proxy access
    * @param {number} days - Number of days to look ahead (default: 30)
    * @returns {Promise<Array>} Upcoming calendar events
    */
   async getUpcomingEvents(days = 30) {
     try {
-      const authCode = this.userData.authCode;
+      // Get auth code from AsyncStorage
+      const authCode = await this.getAuthCodeFromStorage();
+
       if (!authCode) {
+        console.error(
+          '❌ CALENDAR SERVICE: No auth code found for upcoming events:',
+          this.userData
+        );
         throw new Error('No authentication code available');
       }
 
       // Fetch both regular calendar events and personal events
       const promises = [];
 
-      // Regular upcoming events
-      const upcomingUrl = buildApiUrl(
-        `/mobile-api/calendar/upcoming?authCode=${authCode}&days=${days}`
-      );
+      // Determine endpoint based on user type
+      let upcomingUrl;
+      if (this.userData.userType === 'parent') {
+        upcomingUrl = buildApiUrl(
+          Config.API_ENDPOINTS.PARENT_CALENDAR_UPCOMING,
+          {
+            authCode: authCode,
+            days: days,
+          }
+        );
+        console.log(
+          '📅 CALENDAR SERVICE: Using parent upcoming events endpoint'
+        );
+      } else {
+        upcomingUrl = buildApiUrl(Config.API_ENDPOINTS.GET_CALENDAR_UPCOMING, {
+          authCode: authCode,
+          days: days,
+        });
+        console.log(
+          '📅 CALENDAR SERVICE: Using student/teacher upcoming events endpoint'
+        );
+      }
 
       promises.push(
         fetch(upcomingUrl, {
@@ -886,6 +1043,7 @@ class CalendarService {
   /**
    * Get personal calendar events from backend API
    * Includes homework due dates, exam schedules, and student birthdays
+   * Supports both direct student access and parent proxy access
    * @param {string} startDate - Start date in YYYY-MM-DD format (optional)
    * @param {string} endDate - End date in YYYY-MM-DD format (optional)
    * @returns {Promise<Array>} Personal calendar events
@@ -902,8 +1060,14 @@ class CalendarService {
         return this.transformPersonalEvents(demoData.personal_events || []);
       }
 
-      const authCode = this.userData.authCode;
+      // Get auth code from AsyncStorage
+      const authCode = await this.getAuthCodeFromStorage();
+
       if (!authCode) {
+        console.error(
+          '❌ CALENDAR SERVICE: No auth code found for personal events:',
+          this.userData
+        );
         throw new Error('No authentication code available');
       }
 
@@ -916,10 +1080,14 @@ class CalendarService {
         params.end_date = endDate;
       }
 
-      const url = buildApiUrl(
-        Config.API_ENDPOINTS.GET_CALENDAR_PERSONAL,
-        params
-      );
+      // Determine endpoint based on user type
+      let endpoint = Config.API_ENDPOINTS.GET_CALENDAR_PERSONAL;
+      if (this.userData.userType === 'parent') {
+        endpoint = Config.API_ENDPOINTS.PARENT_CALENDAR_PERSONAL;
+        console.log('📅 CALENDAR SERVICE: Using parent calendar endpoint');
+      }
+
+      const url = buildApiUrl(endpoint, params);
 
       console.log(
         `📅 CALENDAR SERVICE: Fetching personal events${
@@ -1107,21 +1275,92 @@ class CalendarService {
    * @returns {Object} Auth code debug information
    */
   debugAuthCode() {
-    const authCode = this.userData.authCode;
+    // Try multiple sources for auth code (same as in API methods)
+    const authCode =
+      this.userData.authCode ||
+      this.userData.auth_code ||
+      this.userData.authenticationCode;
+
     return {
       hasAuthCode: !!authCode,
       authCodePreview: authCode ? `${authCode.substring(0, 8)}...` : 'none',
       userType: this.userData.userType || 'unknown',
       userId: this.userData.id,
       username: this.userData.username || this.userData.name || 'unknown',
+      availableAuthFields: Object.keys(this.userData).filter(
+        (key) =>
+          key.toLowerCase().includes('auth') ||
+          key.toLowerCase().includes('code')
+      ),
       fullUserData: {
         id: this.userData.id,
         userType: this.userData.userType,
         name: this.userData.name,
         username: this.userData.username,
         authCode: authCode ? `${authCode.substring(0, 8)}...` : 'none',
+        allUserDataKeys: Object.keys(this.userData),
       },
     };
+  }
+
+  /**
+   * Quick method to check if calendar service is properly configured
+   * @returns {Object} Configuration status
+   */
+  checkConfiguration() {
+    const authDebug = this.debugAuthCode();
+
+    return {
+      isConfigured: !!authDebug.hasAuthCode,
+      hasSchoolConfig: !!this.schoolConfig,
+      calendarMode: this.calendarMode,
+      includePersonalEvents: this.includePersonalEvents,
+      authStatus: authDebug,
+      recommendations: this.getConfigurationRecommendations(authDebug),
+    };
+  }
+
+  /**
+   * Get configuration recommendations based on current state
+   * @param {Object} authDebug - Auth debug information
+   * @returns {Array} Array of recommendation strings
+   */
+  getConfigurationRecommendations(authDebug) {
+    const recommendations = [];
+
+    if (!authDebug.hasAuthCode) {
+      recommendations.push(
+        '❌ No auth code found. Ensure user data contains authCode, auth_code, or authenticationCode field.'
+      );
+
+      if (authDebug.availableAuthFields.length > 0) {
+        recommendations.push(
+          `🔍 Found these auth-related fields: ${authDebug.availableAuthFields.join(
+            ', '
+          )}`
+        );
+      }
+    }
+
+    if (!this.schoolConfig) {
+      recommendations.push(
+        '❌ No school configuration found. Call SchoolConfigService.getCurrentSchoolConfig() first.'
+      );
+    }
+
+    if (authDebug.userType === 'unknown') {
+      recommendations.push(
+        '⚠️ User type is unknown. Set userType or user_type field in user data.'
+      );
+    }
+
+    if (recommendations.length === 0) {
+      recommendations.push(
+        '✅ Calendar service appears to be properly configured.'
+      );
+    }
+
+    return recommendations;
   }
 
   /**
@@ -1286,14 +1525,21 @@ class CalendarService {
 
   /**
    * Get monthly calendar events from backend API (includes personal events)
+   * Supports both direct student access and parent proxy access
    * @param {number} year - Year (2020-2030)
    * @param {number} month - Month (1-12)
    * @returns {Promise<Array>} Monthly calendar events
    */
   async getMonthlyEvents(year, month) {
     try {
-      const authCode = this.userData.authCode;
+      // Get auth code from AsyncStorage
+      const authCode = await this.getAuthCodeFromStorage();
+
       if (!authCode) {
+        console.error(
+          '❌ CALENDAR SERVICE: No auth code found for monthly events:',
+          this.userData
+        );
         throw new Error('No authentication code available');
       }
 
@@ -1310,10 +1556,19 @@ class CalendarService {
       // Fetch both regular calendar events and personal events
       const promises = [];
 
+      // Determine endpoint based on user type
+      let monthlyEndpoint = `/mobile-api/calendar/monthly?authCode=${authCode}&year=${targetYear}&month=${targetMonth}`;
+      if (this.userData.userType === 'parent') {
+        monthlyEndpoint = `/parent/calendar/data?authCode=${authCode}&start_date=${
+          startDate.toISOString().split('T')[0]
+        }&end_date=${endDate.toISOString().split('T')[0]}`;
+        console.log(
+          '📅 CALENDAR SERVICE: Using parent calendar data endpoint for monthly view'
+        );
+      }
+
       // Regular monthly events
-      const monthlyUrl = buildApiUrl(
-        `/mobile-api/calendar/monthly?authCode=${authCode}&year=${targetYear}&month=${targetMonth}`
-      );
+      const monthlyUrl = buildApiUrl(monthlyEndpoint);
 
       promises.push(
         fetch(monthlyUrl, {

@@ -378,7 +378,7 @@ export default function App() {
                       component={HomeroomScreen}
                     />
                     <Stack.Screen
-                      name='HomeroomStudentsScreen'
+                      name='HomeroomStudents'
                       component={HomeroomStudentsScreen}
                     />
                     <Stack.Screen
@@ -404,7 +404,7 @@ export default function App() {
                       component={StudentScreen}
                     />
                     <Stack.Screen
-                      name='StudentProfileScreen'
+                      name='StudentProfile'
                       component={StudentProfileScreen}
                     />
                     <Stack.Screen
@@ -444,7 +444,7 @@ export default function App() {
                       component={ParentMessagingScreen}
                     />
                     <Stack.Screen
-                      name='StudentCreateConversationScreen'
+                      name='StudentCreateConversation'
                       component={StudentCreateConversationScreen}
                     />
                     <Stack.Screen
@@ -452,7 +452,7 @@ export default function App() {
                       component={StudentHealthScreen}
                     />
                     <Stack.Screen
-                      name='ParentPickupRequestScreen'
+                      name='ParentPickupRequest'
                       component={ParentPickupRequestScreen}
                     />
 
@@ -466,39 +466,39 @@ export default function App() {
                       component={GuardianAutoLoginScreen}
                     />
                     <Stack.Screen
-                      name='GuardianDashboardScreen'
+                      name='GuardianDashboard'
                       component={GuardianDashboardScreen}
                     />
                     <Stack.Screen
-                      name='GuardianDetailScreen'
+                      name='GuardianDetail'
                       component={GuardianDetailScreen}
                     />
                     <Stack.Screen
-                      name='GuardianLoginScreen'
+                      name='GuardianLogin'
                       component={GuardianLoginScreen}
                     />
                     <Stack.Screen
-                      name='GuardianManagementScreen'
+                      name='GuardianManagement'
                       component={GuardianManagementScreen}
                     />
                     <Stack.Screen
-                      name='GuardianPickupRequestScreen'
+                      name='GuardianPickupRequest'
                       component={GuardianPickupRequestScreen}
                     />
                     <Stack.Screen
-                      name='GuardianProfileCompletionScreen'
+                      name='GuardianProfileCompletion'
                       component={GuardianProfileCompletionScreen}
                     />
                     <Stack.Screen
-                      name='GuardianProfileEditScreen'
+                      name='GuardianProfileEdit'
                       component={GuardianProfileEditScreen}
                     />
                     <Stack.Screen
-                      name='GuardianQRScannerFallbackScreen'
+                      name='GuardianQRScannerFallback'
                       component={GuardianQRScannerFallbackScreen}
                     />
                     <Stack.Screen
-                      name='GuardianQRScannerScreen'
+                      name='GuardianQRScanner'
                       component={GuardianQRScannerScreen}
                     />
 

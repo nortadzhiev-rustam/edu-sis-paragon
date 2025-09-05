@@ -13,6 +13,9 @@ import {
   getChildBpsProfile,
   getChildHealthInfo,
   getChildHealthRecords,
+  getParentCalendarData,
+  getParentCalendarUpcoming,
+  getParentCalendarPersonal,
 } from './parentService';
 
 /**
@@ -272,6 +275,122 @@ export const adaptBehaviorService = (originalService) => {
 };
 
 /**
+ * Adapter for Calendar Service
+ * Intercepts calendar requests and routes them through parent proxy if needed
+ */
+export const adaptCalendarService = (originalService) => {
+  return {
+    ...originalService,
+
+    /**
+     * Get calendar data - supports both student direct access and parent proxy
+     */
+    getCalendarData: async (authCode, options = {}) => {
+      try {
+        // Check if this is a parent proxy request
+        if (options.useParentProxy) {
+          console.log('🔄 CALENDAR ADAPTER: Using parent proxy access');
+          console.log('🔑 Parent Auth Code:', authCode);
+
+          const response = await getParentCalendarData(authCode);
+
+          // Transform response to match expected format
+          return {
+            success: response.success,
+            calendar: response.calendar || response.data?.calendar,
+            events: response.calendar?.events || response.data?.events,
+            message: response.message,
+          };
+        } else {
+          // Use original student service
+          console.log('📅 CALENDAR ADAPTER: Using direct student access');
+          return await originalService.getCalendarData(authCode, options);
+        }
+      } catch (error) {
+        console.error('❌ CALENDAR ADAPTER: Error:', error);
+        throw error;
+      }
+    },
+
+    /**
+     * Get upcoming calendar events - supports both student direct access and parent proxy
+     */
+    getUpcomingEvents: async (authCode, options = {}) => {
+      try {
+        // Check if this is a parent proxy request
+        if (options.useParentProxy) {
+          console.log(
+            '🔄 CALENDAR ADAPTER: Using parent proxy for upcoming events'
+          );
+          console.log('🔑 Parent Auth Code:', authCode);
+
+          const response = await getParentCalendarUpcoming(authCode);
+
+          // Transform response to match expected format
+          return {
+            success: response.success,
+            upcoming_events:
+              response.upcoming_events || response.data?.upcoming_events,
+            events: response.upcoming_events || response.data?.upcoming_events,
+            message: response.message,
+          };
+        } else {
+          // Use original student service
+          console.log(
+            '📅 CALENDAR ADAPTER: Using direct student access for upcoming'
+          );
+          return await originalService.getUpcomingEvents(authCode, options);
+        }
+      } catch (error) {
+        console.error(
+          '❌ CALENDAR ADAPTER: Error fetching upcoming events:',
+          error
+        );
+        throw error;
+      }
+    },
+
+    /**
+     * Get personal calendar events - supports both student direct access and parent proxy
+     */
+    getPersonalEvents: async (authCode, options = {}) => {
+      try {
+        // Check if this is a parent proxy request
+        if (options.useParentProxy) {
+          console.log(
+            '🔄 CALENDAR ADAPTER: Using parent proxy for personal events'
+          );
+          console.log('🔑 Parent Auth Code:', authCode);
+
+          const response = await getParentCalendarPersonal(authCode);
+
+          // Transform response to match expected format
+          return {
+            success: response.success,
+            personal_events:
+              response.personal_events || response.data?.personal_events,
+            events: response.personal_events || response.data?.personal_events,
+            message: response.message,
+          };
+        } else {
+          // Use original student service
+          console.log(
+            '📅 CALENDAR ADAPTER: Using direct student access for personal'
+          );
+          return await originalService.getPersonalEvents(authCode, options);
+        }
+      } catch (error) {
+        console.error(
+          '❌ CALENDAR ADAPTER: Error fetching personal events:',
+          error
+        );
+        throw error;
+      }
+    },
+  };
+};
+
+/**
  * Utility function to detect if request should use parent proxy
  */
 export const shouldUseParentProxy = (navigationParams) => {
@@ -331,6 +450,7 @@ export default {
   adaptGradesService,
   adaptAssessmentService,
   adaptBehaviorService,
+  adaptCalendarService,
   shouldUseParentProxy,
   extractProxyOptions,
   createServiceAdapter,

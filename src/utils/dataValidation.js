@@ -4,6 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserData, getAllLoggedInUsers } from '../services/authService';
 
 /**
  * Validate user data structure
@@ -17,8 +18,8 @@ export const isValidUserData = (userData) => {
 
   // Check for required fields
   const requiredFields = ['userType', 'name'];
-  const hasRequiredFields = requiredFields.every(field => 
-    userData[field] && typeof userData[field] === 'string'
+  const hasRequiredFields = requiredFields.every(
+    (field) => userData[field] && typeof userData[field] === 'string'
   );
 
   if (!hasRequiredFields) {
@@ -46,8 +47,8 @@ export const isValidStudentData = (studentData) => {
 
   // Check for required fields
   const requiredFields = ['name', 'authCode'];
-  const hasRequiredFields = requiredFields.every(field => 
-    studentData[field] && typeof studentData[field] === 'string'
+  const hasRequiredFields = requiredFields.every(
+    (field) => studentData[field] && typeof studentData[field] === 'string'
   );
 
   return hasRequiredFields;
@@ -64,7 +65,7 @@ export const safeJsonParse = (jsonString, fallback = null) => {
     if (!jsonString || typeof jsonString !== 'string') {
       return fallback;
     }
-    
+
     const parsed = JSON.parse(jsonString);
     return parsed;
   } catch (error) {
@@ -75,10 +76,37 @@ export const safeJsonParse = (jsonString, fallback = null) => {
 
 /**
  * Get and validate user data from AsyncStorage
+ * Checks both user-type-specific keys and generic key
  * @returns {Promise<Object|null>} - Valid user data or null
  */
 export const getValidatedUserData = async () => {
   try {
+    // First check all user-type-specific keys
+    const allUsers = await getAllLoggedInUsers(AsyncStorage);
+
+    // If we have any valid users, return the most recent one from generic key
+    if (Object.keys(allUsers).length > 0) {
+      const genericUserDataStr = await AsyncStorage.getItem('userData');
+      if (genericUserDataStr) {
+        const genericUserData = safeJsonParse(genericUserDataStr);
+        if (isValidUserData(genericUserData)) {
+          console.log(
+            '✅ VALIDATION: Found valid user data:',
+            genericUserData.userType
+          );
+          return genericUserData;
+        }
+      }
+
+      // If generic key is invalid but we have user-specific data, return the first valid one
+      const userTypes = Object.keys(allUsers);
+      if (userTypes.length > 0) {
+        console.log('✅ VALIDATION: Using user-specific data:', userTypes[0]);
+        return allUsers[userTypes[0]];
+      }
+    }
+
+    // Fallback to original logic for backward compatibility
     const userDataStr = await AsyncStorage.getItem('userData');
     if (!userDataStr) {
       return null;
@@ -111,13 +139,15 @@ export const getValidatedStudentAccounts = async () => {
 
     const studentAccounts = safeJsonParse(studentAccountsStr, []);
     if (!Array.isArray(studentAccounts)) {
-      console.warn('⚠️ VALIDATION: Student accounts is not an array, clearing...');
+      console.warn(
+        '⚠️ VALIDATION: Student accounts is not an array, clearing...'
+      );
       await AsyncStorage.removeItem('studentAccounts');
       return [];
     }
 
     // Filter out invalid student accounts
-    const validStudents = studentAccounts.filter(student => {
+    const validStudents = studentAccounts.filter((student) => {
       const isValid = isValidStudentData(student);
       if (!isValid) {
         console.warn('⚠️ VALIDATION: Invalid student account found:', student);
@@ -127,13 +157,21 @@ export const getValidatedStudentAccounts = async () => {
 
     // If some students were invalid, update the storage with only valid ones
     if (validStudents.length !== studentAccounts.length) {
-      console.log('🔧 VALIDATION: Updating student accounts with valid data only');
-      await AsyncStorage.setItem('studentAccounts', JSON.stringify(validStudents));
+      console.log(
+        '🔧 VALIDATION: Updating student accounts with valid data only'
+      );
+      await AsyncStorage.setItem(
+        'studentAccounts',
+        JSON.stringify(validStudents)
+      );
     }
 
     return validStudents;
   } catch (error) {
-    console.error('❌ VALIDATION: Error getting validated student accounts:', error);
+    console.error(
+      '❌ VALIDATION: Error getting validated student accounts:',
+      error
+    );
     return [];
   }
 };
@@ -146,10 +184,10 @@ export const clearCorruptedData = async (keys = []) => {
   try {
     const defaultKeys = ['userData', 'studentAccounts', 'selectedStudent'];
     const keysToRemove = keys.length > 0 ? keys : defaultKeys;
-    
+
     console.log('🧹 VALIDATION: Clearing corrupted data keys:', keysToRemove);
     await AsyncStorage.multiRemove(keysToRemove);
-    
+
     console.log('✅ VALIDATION: Corrupted data cleared successfully');
   } catch (error) {
     console.error('❌ VALIDATION: Error clearing corrupted data:', error);
@@ -164,7 +202,7 @@ export const validateAndSanitizeAllData = async () => {
   const results = {
     userData: { valid: false, cleared: false },
     studentAccounts: { valid: false, cleared: false, count: 0 },
-    selectedStudent: { valid: false, cleared: false }
+    selectedStudent: { valid: false, cleared: false },
   };
 
   try {

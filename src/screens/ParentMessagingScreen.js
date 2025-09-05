@@ -518,14 +518,14 @@ const ParentMessagingScreen = ({ navigation, route }) => {
               style={styles.headerActionButton}
               onPress={() => {
                 console.log(
-                  '🚨 PARENT MESSAGING: Navigating to ParentCreateConversation route'
+                  '✅ PARENT MESSAGING: Navigating to CreateConversationScreen'
                 );
-                console.log('🚨 PARENT MESSAGING: Passing params:', {
+                console.log('✅ PARENT MESSAGING: Passing params:', {
                   authCode,
                   parentName,
                   userType: 'parent',
                 });
-                navigation.navigate('ParentCreateConversation', {
+                navigation.navigate('CreateConversationScreen', {
                   authCode,
                   parentName,
                   userType: 'parent',

@@ -38,6 +38,7 @@ import {
   faGear,
   faUserShield,
   faCar,
+  faArrowLeft,
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -46,6 +47,7 @@ import ParentNotificationBadge from '../components/ParentNotificationBadge';
 import MessageBadge from '../components/MessageBadge';
 import { QuickActionTile, ComingSoonBadge } from '../components';
 import { cleanupStudentData, performLogout } from '../services/logoutService';
+import { getUserData } from '../services/authService';
 import { isIPad, isTablet } from '../utils/deviceDetection';
 import DemoModeIndicator from '../components/DemoModeIndicator';
 import { updateLastLogin } from '../services/deviceService';
@@ -286,13 +288,14 @@ export default function ParentScreen({ navigation }) {
 
             // Use the comprehensive logout service
             const logoutResult = await performLogout({
+              userType: 'parent', // Specify that this is a parent logout
               clearDeviceToken: false, // Keep device token for future logins
               clearAllData: false, // Keep student accounts for parent dashboard
             });
 
             if (logoutResult.success) {
               console.log('✅ PARENT: Logout completed successfully');
-              navigation.replace('Login');
+              navigation.replace('Home');
             } else {
               console.error('❌ PARENT: Logout failed:', logoutResult.error);
               // Fallback to basic logout
@@ -301,7 +304,7 @@ export default function ParentScreen({ navigation }) {
                 'selectedStudent',
                 'calendarUserData',
               ]);
-              navigation.replace('Login');
+              navigation.replace('Home');
             }
           } catch (error) {
             console.error('❌ PARENT: Error during logout:', error);
@@ -312,7 +315,7 @@ export default function ParentScreen({ navigation }) {
                 'selectedStudent',
                 'calendarUserData',
               ]);
-              navigation.replace('Login');
+              navigation.replace('Home');
             } catch (fallbackError) {
               console.error(
                 '❌ PARENT: Fallback logout also failed:',
@@ -549,11 +552,55 @@ export default function ParentScreen({ navigation }) {
   // Extract loadStudents function to make it reusable
   const loadStudents = React.useCallback(async () => {
     try {
-      // Check if we have user data (could be parent login or demo mode)
-      const userData = await AsyncStorage.getItem('userData');
-      if (userData) {
-        const parsedUserData = JSON.parse(userData);
+      console.log('👨‍👩‍👧‍👦 PARENT: Starting loadStudents...');
+
+      // First check for parent-specific data
+      const parentData = await getUserData('parent', AsyncStorage);
+      const studentData = await getUserData('student', AsyncStorage);
+
+      console.log('👨‍👩‍👧‍👦 PARENT: Data check:', {
+        hasParentData: !!parentData,
+        hasStudentData: !!studentData,
+        parentUserType: parentData?.userType,
+        studentUserType: studentData?.userType,
+      });
+
+      // Use parent data if available, otherwise student data, otherwise fallback to generic
+      let parsedUserData = null;
+      if (parentData && parentData.userType === 'parent') {
+        parsedUserData = parentData;
+        console.log('✅ PARENT: Using parent-specific data');
+      } else if (studentData && studentData.userType === 'student') {
+        parsedUserData = studentData;
+        console.log('✅ PARENT: Using student-specific data');
+      } else {
+        // Fallback to generic userData for backward compatibility
+        const userData = await AsyncStorage.getItem('userData');
+        if (userData) {
+          parsedUserData = JSON.parse(userData);
+          console.log(
+            '⚠️ PARENT: Using generic userData as fallback:',
+            parsedUserData.userType
+          );
+        }
+      }
+
+      if (parsedUserData) {
         setCurrentUserData(parsedUserData); // Set current user data for demo mode indicator
+
+        // Check if we have teacher data but no parent/student data
+        if (
+          parsedUserData.userType === 'teacher' &&
+          !parentData &&
+          !studentData
+        ) {
+          console.log(
+            '⚠️ PARENT: Teacher data found but no parent/student data available'
+          );
+          setLoading(false);
+          // The screen will show empty state, which is appropriate
+          return;
+        }
 
         // Handle parent login from unified login endpoint
         if (parsedUserData.userType === 'parent') {
@@ -918,7 +965,14 @@ export default function ParentScreen({ navigation }) {
       {/* Compact Header */}
       <View style={styles.compactHeaderContainer}>
         {/* Navigation Header */}
+
         <View style={styles.navigationHeader}>
+          <TouchableOpacity
+            style={styles.headerActionButton}
+            onPress={() => navigation.goBack()}
+          >
+            <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
+          </TouchableOpacity>
           <Text
             style={[
               styles.headerTitle,
@@ -1006,12 +1060,7 @@ export default function ParentScreen({ navigation }) {
                 showAllStudents={false}
               />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerActionButton}
-              onPress={() => navigation.navigate('Settings')}
-            >
-              <FontAwesomeIcon icon={faGear} size={18} color='#fff' />
-            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.headerActionButton}
               onPress={handleLogout}

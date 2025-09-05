@@ -5,18 +5,37 @@
 
 import { Config, buildApiUrl } from '../config/env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserData } from './authService';
 
-// Helper function to get auth code from storage
+// Helper function to get auth code from storage (supports user-type-specific storage)
 const getAuthCode = async () => {
   try {
+    // Try user-type-specific storage keys first
+    const userTypes = ['teacher', 'parent', 'student'];
+    for (const userType of userTypes) {
+      const userData = await getUserData(userType, AsyncStorage);
+      if (userData) {
+        const authCode = userData.authCode || userData.auth_code;
+        if (authCode) {
+          console.log(`📊 STAFF REPORTS SERVICE: Using ${userType} auth code`);
+          return authCode;
+        }
+      }
+    }
+
+    // Fallback to generic userData for backward compatibility
     const userData = await AsyncStorage.getItem('userData');
     if (userData) {
       const user = JSON.parse(userData);
-      return user.authCode || user.auth_code;
+      const authCode = user.authCode || user.auth_code;
+      if (authCode) {
+        console.log('📊 STAFF REPORTS SERVICE: Using generic auth code');
+        return authCode;
+      }
     }
     return null;
   } catch (error) {
-    console.error('Error getting auth code:', error);
+    console.error('📊 STAFF REPORTS SERVICE: Error getting auth code:', error);
     return null;
   }
 };
@@ -58,12 +77,15 @@ export const getClassAttendanceReport = async (
       params.end_date = endDate;
     }
 
-    const url = buildApiUrl(Config.API_ENDPOINTS.REPORTS_STAFF_CLASS_ATTENDANCE, params);
+    const url = buildApiUrl(
+      Config.API_ENDPOINTS.REPORTS_STAFF_CLASS_ATTENDANCE,
+      params
+    );
 
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'Content-Type': 'application/json',
       },
     });
@@ -116,12 +138,15 @@ export const getHomeworkAnalytics = async (
       params.end_date = endDate;
     }
 
-    const url = buildApiUrl(Config.API_ENDPOINTS.REPORTS_STAFF_HOMEWORK_ANALYTICS, params);
+    const url = buildApiUrl(
+      Config.API_ENDPOINTS.REPORTS_STAFF_HOMEWORK_ANALYTICS,
+      params
+    );
 
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'Content-Type': 'application/json',
       },
     });
@@ -145,7 +170,11 @@ export const getHomeworkAnalytics = async (
  * @param {string} authCode - Staff authentication code
  * @returns {Promise<Object>} - Report data
  */
-export const generateStaffReport = async (reportType, filters = {}, authCode = null) => {
+export const generateStaffReport = async (
+  reportType,
+  filters = {},
+  authCode = null
+) => {
   try {
     const auth = authCode || (await getAuthCode());
     if (!auth) {
@@ -160,7 +189,7 @@ export const generateStaffReport = async (reportType, filters = {}, authCode = n
           filters.startDate,
           filters.endDate
         );
-      
+
       case 'homework':
         return await getHomeworkAnalytics(
           auth,
@@ -168,7 +197,7 @@ export const generateStaffReport = async (reportType, filters = {}, authCode = n
           filters.startDate,
           filters.endDate
         );
-      
+
       default:
         throw new Error(`Unsupported report type: ${reportType}`);
     }
@@ -193,19 +222,22 @@ export const exportReportData = async (reportData, format = 'json') => {
     switch (format.toLowerCase()) {
       case 'json':
         return JSON.stringify(reportData, null, 2);
-      
+
       case 'csv':
         // Basic CSV conversion for simple data structures
-        if (reportData.student_breakdown && Array.isArray(reportData.student_breakdown)) {
+        if (
+          reportData.student_breakdown &&
+          Array.isArray(reportData.student_breakdown)
+        ) {
           const headers = Object.keys(reportData.student_breakdown[0] || {});
           const csvHeaders = headers.join(',');
-          const csvRows = reportData.student_breakdown.map(row => 
-            headers.map(header => `"${row[header] || ''}"`).join(',')
+          const csvRows = reportData.student_breakdown.map((row) =>
+            headers.map((header) => `"${row[header] || ''}"`).join(',')
           );
           return [csvHeaders, ...csvRows].join('\n');
         }
         return JSON.stringify(reportData, null, 2);
-      
+
       default:
         throw new Error(`Unsupported export format: ${format}`);
     }
@@ -227,7 +259,7 @@ export const getReportSummary = (reportData) => {
     }
 
     const { report_data } = reportData;
-    
+
     return {
       totalRecords: report_data.student_breakdown?.length || 0,
       averageScore: report_data.summary?.class_average || 0,
@@ -251,24 +283,24 @@ export const getReportSummary = (reportData) => {
  */
 export const validateReportParameters = (reportType, filters = {}) => {
   const errors = [];
-  
+
   if (!reportType) {
     errors.push('Report type is required');
   }
-  
+
   if (reportType === 'attendance' && !filters.classId) {
     errors.push('Class ID is required for attendance reports');
   }
-  
+
   if (filters.startDate && filters.endDate) {
     const startDate = new Date(filters.startDate);
     const endDate = new Date(filters.endDate);
-    
+
     if (startDate > endDate) {
       errors.push('Start date must be before end date');
     }
   }
-  
+
   return {
     isValid: errors.length === 0,
     errors,

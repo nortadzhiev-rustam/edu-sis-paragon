@@ -19,7 +19,6 @@ import {
   faBirthdayCake,
   faVenusMars,
   faUserMd,
-  faUserGraduate,
   faUsers,
   faMars,
   faVenus,
@@ -232,7 +231,9 @@ export default function HomeroomStudentsScreen({ route, navigation }) {
           >
             <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Students</Text>
+          <Text style={styles.headerTitle}>
+            {classroomData?.classroom_name || 'Students'}
+          </Text>
           <View style={styles.headerRight} />
         </View>
         <View style={styles.loadingContainer}>
@@ -253,7 +254,9 @@ export default function HomeroomStudentsScreen({ route, navigation }) {
           >
             <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Students</Text>
+          <Text style={styles.headerTitle}>
+            {classroomData?.classroom_name || 'Students'}
+          </Text>
           <View style={styles.headerRight} />
         </View>
         <View style={styles.errorContainer}>
@@ -268,37 +271,24 @@ export default function HomeroomStudentsScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          Students ({Array.isArray(students) ? students.length : 0})
-        </Text>
-        <View style={styles.headerRight} />
-      </View>
+      {/* Combined Header with Classroom Info */}
+      <View style={styles.combinedHeaderContainer}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>
+            {classroomData?.classroom_name || 'Students'}
+          </Text>
+          <View style={styles.headerRight} />
+        </View>
 
-      {/* Fixed Compact Classroom Overview */}
-      {classroomData && (
-        <View style={styles.compactOverviewCard}>
-          <View style={styles.compactHeader}>
-            <View style={styles.compactIconContainer}>
-              <FontAwesomeIcon icon={faUserGraduate} size={20} color='#fff' />
-            </View>
-            <View style={styles.compactTitleContainer}>
-              <Text style={styles.compactClassroomTitle}>
-                {classroomData.classroom_name}
-              </Text>
-              <Text style={styles.compactClassroomSubtitle}>
-                Homeroom Class
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.compactStatsContainer}>
+        {/* Integrated Classroom Stats */}
+        {classroomData && (
+          <View style={styles.integratedStatsContainer}>
             <View style={styles.compactStatItem}>
               <FontAwesomeIcon icon={faUsers} size={16} color='#007AFF' />
               <Text style={styles.compactStatNumber}>
@@ -327,8 +317,8 @@ export default function HomeroomStudentsScreen({ route, navigation }) {
               <Text style={styles.compactStatLabel}>Female</Text>
             </View>
           </View>
-        </View>
-      )}
+        )}
+      </View>
 
       <ScrollView
         style={styles.content}
@@ -380,8 +370,8 @@ const createStyles = (theme) =>
       justifyContent: 'space-between',
       alignItems: 'center',
       ...theme.shadows.medium,
-      marginHorizontal: 16,
-      borderRadius: 16,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
     },
     backButton: {
       width: 36,
@@ -398,6 +388,25 @@ const createStyles = (theme) =>
     },
     headerRight: {
       width: 34,
+    },
+    combinedHeaderContainer: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      marginHorizontal: 16,
+      marginTop: 8,
+      marginBottom: 8,
+      ...theme.shadows.medium,
+      zIndex: 1,
+    },
+    integratedStatsContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-around',
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
     },
     loadingContainer: {
       flex: 1,
@@ -435,50 +444,7 @@ const createStyles = (theme) =>
     content: {
       flex: 1,
     },
-    // Compact Overview Card Styles - Fixed at top
-    compactOverviewCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 16,
-      marginHorizontal: 16,
-      marginTop: 8,
-      marginBottom: 8,
-      elevation: 3,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 4,
-      overflow: 'hidden',
-      zIndex: 1,
-    },
-    compactHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: theme.colors.primary,
-      paddingHorizontal: 20,
-      paddingVertical: 16,
-    },
-    compactIconContainer: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 12,
-    },
-    compactTitleContainer: {
-      flex: 1,
-    },
-    compactClassroomTitle: {
-      fontSize: 18,
-      fontWeight: 'bold',
-      color: '#fff',
-    },
-    compactClassroomSubtitle: {
-      fontSize: 12,
-      color: 'rgba(255, 255, 255, 0.8)',
-      marginTop: 2,
-    },
+    // Integrated Header Stats Styles
     compactStatsContainer: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -542,11 +508,7 @@ const createStyles = (theme) =>
       marginBottom: 12,
       flexDirection: 'row',
       alignItems: 'center',
-      elevation: 1,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 1,
+      ...theme.shadows.small,
     },
     studentAvatar: {
       width: 50,

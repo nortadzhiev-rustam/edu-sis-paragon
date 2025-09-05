@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Paragon ISC",
-    "slug": "edu-sis-paragan",
+    "slug": "edu-sis",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/app_logo.png",
@@ -21,7 +21,6 @@
         }
       ],
       "@react-native-firebase/messaging",
-
       [
         "expo-notifications",
         {
@@ -72,7 +71,8 @@
           "UIInterfaceOrientationLandscapeRight"
         ],
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "appleTeamId": "Z93ADA39QK"
     },
     "android": {
       "adaptiveIcon": {
@@ -100,6 +100,7 @@
     },
     "updates": {
       "url": "https://u.expo.dev/5c37501a-d3f1-49d2-bf38-28446fc1b0bb"
-    }
+    },
+    "owner": "rustam-nortadzhiev"
   }
 }

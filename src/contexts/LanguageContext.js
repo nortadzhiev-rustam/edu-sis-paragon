@@ -14,6 +14,7 @@ export const useLanguage = () => {
 // Available languages
 export const LANGUAGES = {
   en: {
+    // Other
     code: 'en',
     name: 'English',
     nativeName: 'English',
@@ -350,12 +351,10 @@ const translations = {
     areYouSureLogout: 'Are you sure you want to logout?',
 
     // Student Profile specific
-    username: 'Username',
     gender: 'Gender',
     nationality: 'Nationality',
     address: 'Address',
     academicYear: 'Academic Year',
-    branch: 'Branch',
     class: 'Class',
     homeroomTeacher: 'Homeroom Teacher',
     status: 'Status',
@@ -364,7 +363,6 @@ const translations = {
     system: 'System',
     lastLogin: 'Last Login',
     profileCompletion: 'Profile Completion',
-    quickActions: 'Quick Actions',
 
     // Time formatting
     justNow: 'Just now',
@@ -495,8 +493,6 @@ const translations = {
     photoRequired: 'Photo is required',
     selectPhoto: 'Select Photo',
     choosePhotoSource: 'Choose photo source',
-    camera: 'Camera',
-    gallery: 'Gallery',
     cameraPermissionRequired: 'Camera permission is required to take photos',
     galleryPermissionRequired:
       'Gallery permission is required to select photos',
@@ -517,13 +513,11 @@ const translations = {
       'Profile completed successfully! You can now access all features.',
     failedToCompleteProfile: 'Failed to complete profile. Please try again.',
     childName: 'Child Name',
-    continue: 'Continue',
 
     // Guardian Dashboard
     guardianDashboard: 'Guardian Dashboard',
     guardian: 'Guardian',
     authorizedFor: 'Authorized For',
-    studentId: 'Student ID',
     contactInformation: 'Contact Information',
     showMyQrCode: 'Show My QR Code',
     myPickupQrCode: 'My Pickup QR Code',
@@ -542,7 +536,6 @@ const translations = {
       'Camera access is required to scan QR codes for guardian login',
     grantPermission: 'Grant Permission',
     enterManually: 'Enter Manually',
-    loginFailed: 'Login Failed',
     invalidQrCode: 'Invalid QR code. Please try again.',
     tryAgain: 'Try Again',
     enterQrToken: 'Enter QR Token',
@@ -596,10 +589,8 @@ const translations = {
     visualization: 'Visualization',
 
     // Report Types - Student
-    attendance: 'Attendance',
     grades: 'Grades',
     bps: 'Behavior Points',
-    homework: 'Homework',
 
     // Report Types - Staff
     classAttendance: 'Class Attendance',
@@ -609,8 +600,6 @@ const translations = {
 
     // Attendance Stats
     totalDays: 'Total Days',
-    present: 'Present',
-    absent: 'Absent',
     attendanceRate: 'Attendance Rate',
     totalStudents: 'Total Students',
     presentCount: 'Present Count',
@@ -625,18 +614,14 @@ const translations = {
     failingGrade: 'Failing Grade',
 
     // BPS Stats
-    totalPoints: 'Total Points',
     positivePoints: 'Positive Points',
     negativePoints: 'Negative Points',
     netPoints: 'Net Points',
-    totalRecords: 'Total Records',
     positiveRecords: 'Positive Records',
     negativeRecords: 'Negative Records',
 
     // Homework Stats
     totalHomework: 'Total Homework',
-    completed: 'Completed',
-    pending: 'Pending',
     completionRate: 'Completion Rate',
     totalAssigned: 'Total Assigned',
     totalSubmissions: 'Total Submissions',
@@ -718,7 +703,6 @@ const translations = {
     homeworkDescription: 'Homework Description',
     enterHomeworkTitle: 'Enter homework title...',
     enterHomeworkDescription: 'Enter homework description and instructions...',
-    selectClass: 'Select Class',
     selectStudents: 'Select Students',
     selectDeadline: 'Select Deadline',
     setDeadline: 'Set Deadline',
@@ -829,8 +813,8 @@ const translations = {
     serverError: 'Server Error',
     incorrectCredentials: 'Incorrect username or password!',
 
-    // Home Screen Navigation & Diagnostics
 
+    // Home Screen Navigation & Diagnostics
     dataClearedMessage:
       'All user data has been cleared. Please restart the app and log in again.',
     failedToClearData: 'Failed to clear data. Please restart the app manually.',
@@ -863,7 +847,6 @@ const translations = {
     teacherStudentWellbeing: 'Teacher/Student Well-being',
     classManagement: 'Class Management',
     selectBranch: 'Select Branch',
-    academicYear: 'Academic Year',
     week: 'Week',
     id: 'ID',
 
@@ -917,7 +900,6 @@ const translations = {
     unableToLoadAboutUs:
       'Unable to load About Us information. Please try again.',
     loadingAboutUs: 'Loading About Us information...',
-    lastUpdated: 'Last updated:',
     noAboutUsInfo: 'No About Us information available at the moment.',
 
     // Attendance Screen
@@ -938,7 +920,6 @@ const translations = {
     // Contacts Screen
     unableToLoadContactInfo:
       'Unable to load contact information. Please try again.',
-    address: 'Address',
     website: 'Website',
 
     // FAQ Screen
@@ -1014,7 +995,6 @@ const translations = {
     failedToUpdateAssignment: 'Failed to update assignment',
     failedToSubmitAssignment: 'Failed to submit assignment',
     alreadySubmitted: 'Already Submitted',
-    assignmentAlreadySubmitted: 'This assignment has already been submitted.',
     contactTeacher: 'Contact Teacher',
     contactTeacherMessage:
       'Please contact your teacher if you need to update your submission.',
@@ -1061,6 +1041,31 @@ const translations = {
     primaryPhone: 'Primary Phone',
     secondaryContact: 'Secondary Contact',
     secondaryPhone: 'Secondary Phone',
+
+
+
+
+
+
+    // Teacher Profile - New keys
+    staffInformation: 'Staff Information',
+    staffCategory: 'Staff Category',
+    professionPosition: 'Position',
+    categoryId: 'Category ID',
+    accessibleBranches: 'Accessible Branches',
+
+    // Home Screen Navigation & Diagnostics
+    loginAsStudent: 'Login as Student',
+
+
+
+
+    // Pickup Management
+    pickupManagement: 'Pickup Management',
+    scanAndProcess: 'Scan & Process',
+    scanFailed: 'Scan Failed',
+    processing: 'Processing...',
+     
   },
   my: {
     // Common
@@ -1390,10 +1395,8 @@ const translations = {
     visualization: 'ပုံဖော်ပြသမှု',
 
     // Report Types - Student
-    attendance: 'တက်ရောက်မှု',
     grades: 'အမှတ်များ',
     bps: 'အပြုအမူ အမှတ်များ',
-    homework: 'အိမ်စာ',
 
     // Report Types - Staff
     classAttendance: 'အတန်း တက်ရောက်မှု',
@@ -1403,8 +1406,6 @@ const translations = {
 
     // Attendance Stats
     totalDays: 'စုစုပေါင်း ရက်များ',
-    present: 'တက်ရောက်',
-    absent: 'မတက်ရောက်',
     attendanceRate: 'တက်ရောက်မှု နှုန်း',
     totalStudents: 'စုစုပေါင်း ကျောင်းသားများ',
     presentCount: 'တက်ရောက်သူ အရေအတွက်',
@@ -1419,18 +1420,14 @@ const translations = {
     failingGrade: 'ကျရှုံးသော အမှတ်',
 
     // BPS Stats
-    totalPoints: 'စုစုပေါင်း အမှတ်များ',
     positivePoints: 'အပြုသဘော အမှတ်များ',
     negativePoints: 'အနုတ်လက္ခဏာ အမှတ်များ',
     netPoints: 'သုံးသပ် အမှတ်များ',
-    totalRecords: 'စုစုပေါင်း မှတ်တမ်းများ',
     positiveRecords: 'အပြုသဘော မှတ်တမ်းများ',
     negativeRecords: 'အနုတ်လက္ခဏာ မှတ်တမ်းများ',
 
     // Homework Stats
     totalHomework: 'စုစုပေါင်း အိမ်စာ',
-    completed: 'ပြီးစီး',
-    pending: 'ဆိုင်းငံ့',
     completionRate: 'ပြီးစီးမှု နှုန်း',
     totalAssigned: 'စုစုပေါင်း ပေးအပ်ထား',
     totalSubmissions: 'စုစုပေါင်း တင်သွင်းမှုများ',
@@ -1462,7 +1459,6 @@ const translations = {
     enterHomeworkTitle: 'အိမ်စာခေါင်းစဉ်ရိုက်ထည့်ပါ...',
     enterHomeworkDescription:
       'အိမ်စာဖော်ပြချက်နှင့် လမ်းညွှန်ချက်များရိုက်ထည့်ပါ...',
-    selectClass: 'အတန်းရွေးချယ်ပါ',
     selectStudents: 'ကျောင်းသားများရွေးချယ်ပါ',
     selectDeadline: 'သတ်မှတ်ရက်ရွေးချယ်ပါ',
     setDeadline: 'သတ်မှတ်ရက်သတ်မှတ်ပါ',
@@ -1767,7 +1763,6 @@ const translations = {
     failedToUpdateAssignment: 'အလုပ်စာ ပြင်ဆင်မှု မအောင်မြင်ပါ',
     failedToSubmitAssignment: 'အလုပ်စာ တင်သွင်းမှု မအောင်မြင်ပါ',
     alreadySubmitted: 'ပြီးပြီ',
-    assignmentAlreadySubmitted: 'ဤအလုပ်စာကို တင်သွင်းပြီးပါပြီ။',
     contactTeacher: 'ဆရာ/ဆရာမကို ဆက်သွယ်ပါ',
     contactTeacherMessage:
       'သင့်တင်သွင်းမှုကို ပြင်ဆင်ရန် လိုအပ်ပါက ဆရာ/ဆရာမကို ဆက်သွယ်ပါ။',
@@ -1833,14 +1828,50 @@ const translations = {
     failedToUploadPhoto: 'ဓာတ်ပုံတင်မရပါ',
     profileAndPhotoUpdatedSuccessfully:
       'ကိုယ်ရေးအချက်အလက်နှင့် ဓာတ်ပုံ အောင်မြင်စွာ ပြင်ဆင်ပြီးပါပြီ',
-    networkError: 'ကွန်ယက်အမှား',
     requestTimeout: 'တောင်းဆိုမှု အချိန်ကုန်',
     sessionExpired: 'အသုံးပြုမှုအချိန် ကုန်ဆုံးပြီ',
     tryAgain: 'ထပ်မံကြိုးစားပါ',
-    fullName: 'အမည်အပြည့်အစုံ',
     guardianInformation: 'အုပ်ထိန်းသူအချက်အလက်',
     myPickupQrCode: 'ကျွန်ုပ်၏ ကလေးခေါ်သွားရန် QR ကုဒ်',
     qrCodeNotAvailable: 'ဤအုပ်ထိန်းသူအတွက် QR ကုဒ်မရရှိနိုင်ပါ',
+
+
+
+
+    // Teacher Profile - New keys
+    staffInformation: 'ဝန်ထမ်းအချက်အလက်',
+    staffCategory: 'ဝန်ထမ်းအမျိုးအစား',
+    professionPosition: 'ရာထူး',
+    categoryId: 'အမျိုးအစား ID',
+    accessibleBranches: 'ဝင်ရောက်နိုင်သောဌာနခွဲများ',
+
+
+    // Home Screen Navigation & Diagnostics
+    loginAsTeacher: 'ဆရာအဖြစ်လော့ဂ်အင်ဝင်ရန်',
+    loginAsStudent: 'ကျောင်းသားအဖြစ်လော့ဂ်အင်ဝင်ရန်',
+
+
+
+
+    // Pickup Management
+    pickupManagement: 'ကလေးခေါ်ယူမှုစီမံခန့်ခွဲမှု',
+    scanAndProcess: 'စကင်နှင့်လုပ်ဆောင်ရန်',
+    scanQrCode: 'QR ကုဒ်စကင်လုပ်ရန်',
+    scanFailed: 'စကင်လုပ်မှုမအောင်မြင်ပါ',
+    invalidQrCode: 'မမှန်ကန်သော QR ကုဒ်',
+    enterQrToken: 'QR တိုကင်ရိုက်ထည့်ပါ',
+    enterQrTokenManually: 'QR တိုကင်ကို လက်ဖြင့်ရိုက်ထည့်ပါ',
+    manual: 'လက်ဖြင့်',
+    flash: 'မီးလုံး',
+    processing: 'လုပ်ဆောင်နေသည်...',
+    authenticating: 'အထောက်အထားစိစစ်နေသည်...',
+    qrScannerInstructions:
+      'အလိုအလျောက်စကင်လုပ်ရန် QR ကုဒ်ကို ဘောင်အတွင်းတွင် နေရာချပါ',
+    cameraPermissionRequired: 'ကင်မရာခွင့်ပြုချက်လိုအပ်သည်',
+    cameraPermissionMessage: 'QR ကုဒ်များစကင်လုပ်ရန် ကင်မရာခွင့်ပြုချက်ပေးပါ',
+    requestingCameraPermission: 'ကင်မရာခွင့်ပြုချက်တောင်းနေသည်...',
+    grantPermission: 'ခွင့်ပြုချက်ပေးပါ',
+    enterManually: 'လက်ဖြင့်ရိုက်ထည့်ပါ',
   },
   zh: {
     // Common
@@ -2218,7 +2249,6 @@ const translations = {
     homeworkDescription: '家庭作业描述',
     enterHomeworkTitle: '输入家庭作业标题...',
     enterHomeworkDescription: '输入家庭作业描述和说明...',
-    selectClass: '选择班级',
     selectStudents: '选择学生',
     selectDeadline: '选择截止日期',
     setDeadline: '设置截止日期',
@@ -2325,8 +2355,8 @@ const translations = {
     serverError: '服务器错误',
     incorrectCredentials: '用户名或密码错误！',
 
-    // Home Screen Navigation & Diagnostics
 
+    // Home Screen Navigation & Diagnostics
     dataClearedMessage: '所有用户数据已清除。请重启应用并重新登录。',
     failedToClearData: '清除数据失败。请手动重启应用。',
     navigationError: '导航错误',
@@ -2492,7 +2522,6 @@ const translations = {
     failedToUpdateAssignment: '更新作业失败',
     failedToSubmitAssignment: '提交作业失败',
     alreadySubmitted: '已提交',
-    assignmentAlreadySubmitted: '此作业已经提交。',
     contactTeacher: '联系老师',
     contactTeacherMessage: '如需更新提交内容，请联系您的老师。',
     failedToConnectServer: '连接服务器失败：{error}',
@@ -2552,6 +2581,86 @@ const translations = {
     profileAndPhotoUpdatedSuccessfully: '个人资料和照片更新成功',
     myPickupQrCode: '我的接送二维码',
     qrCodeNotAvailable: '此监护人的二维码不可用',
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // Teacher Profile - New keys
+    staffInformation: '教职工信息',
+    staffCategory: '教职工类别',
+    professionPosition: '职位',
+    categoryId: '类别ID',
+    accessibleBranches: '可访问的分支',
+
+
+
+
+
+
+
+
+
+
+    // Home Screen Navigation & Diagnostics
+    loginAsTeacher: '以教师身份登录',
+    loginAsStudent: '以学生身份登录',
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // Pickup Management
+    pickupManagement: '接送管理',
+    scanAndProcess: '扫描并处理',
+    scanQrCode: '扫描二维码',
+    scanFailed: '扫描失败',
+    invalidQrCode: '无效的二维码',
+    tryAgain: '重试',
+    enterQrToken: '输入二维码令牌',
+    enterQrTokenManually: '手动输入二维码令牌',
+    manual: '手动',
+    flash: '闪光灯',
+    processing: '处理中...',
+    authenticating: '验证中...',
+    qrScannerInstructions: '将二维码放在框内以自动扫描',
+    cameraPermissionRequired: '需要相机权限',
+    cameraPermissionMessage: '请授予相机权限以扫描二维码',
+    requestingCameraPermission: '正在请求相机权限...',
+    grantPermission: '授予权限',
+    enterManually: '手动输入',
   },
   th: {
     // Common
@@ -2877,8 +2986,8 @@ const translations = {
     summary: 'สรุป',
     visualization: 'การแสดงผลด้วยภาพ',
 
-    // Report Types - Student
 
+    // Report Types - Student
     grades: 'เกรด',
     bps: 'คะแนนพฤติกรรม',
 
@@ -2912,8 +3021,6 @@ const translations = {
 
     // Homework Stats
     totalHomework: 'การบ้านทั้งหมด',
-    completed: 'เสร็จแล้ว',
-    pending: 'รอดำเนินการ',
     completionRate: 'อัตราการเสร็จสิ้น',
     totalAssigned: 'มอบหมายทั้งหมด',
     totalSubmissions: 'ส่งทั้งหมด',
@@ -3231,7 +3338,6 @@ const translations = {
     failedToUpdateAssignment: 'อัปเดตงานไม่สำเร็จ',
     failedToSubmitAssignment: 'ส่งงานไม่สำเร็จ',
     alreadySubmitted: 'ส่งแล้ว',
-    assignmentAlreadySubmitted: 'งานนี้ถูกส่งแล้ว',
     contactTeacher: 'ติดต่อครู',
     contactTeacherMessage: 'หากต้องการอัปเดตงานที่ส่ง กรุณาติดต่อครูของคุณ',
     failedToConnectServer: 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ: {error}',
@@ -3291,6 +3397,67 @@ const translations = {
     profileAndPhotoUpdatedSuccessfully: 'อัปเดตโปรไฟล์และรูปภาพสำเร็จ',
     myPickupQrCode: 'QR Code รับส่งของฉัน',
     qrCodeNotAvailable: 'QR Code ไม่พร้อมใช้งานสำหรับผู้ปกครองนี้',
+
+
+
+
+
+
+
+      
+
+
+
+
+
+    // Teacher Profile - New keys
+    staffInformation: 'ข้อมูลบุคลากร',
+    staffCategory: 'ประเภทบุคลากร',
+    professionPosition: 'ตำแหน่ง',
+    categoryId: 'รหัสประเภท',
+    accessibleBranches: 'สาขาที่เข้าถึงได้',
+
+
+
+
+
+
+
+
+
+
+
+
+    // Home Screen Navigation & Diagnostics
+    loginAsTeacher: 'เข้าสู่ระบบในฐานะครู',
+    loginAsStudent: 'เข้าสู่ระบบในฐานะนักเรียน',
+
+
+
+
+
+
+
+
+    // Pickup Management
+    pickupManagement: 'การจัดการรับส่งนักเรียน',
+    scanAndProcess: 'สแกนและดำเนินการ',
+    scanQrCode: 'สแกน QR Code',
+    scanFailed: 'การสแกนล้มเหลว',
+    invalidQrCode: 'QR Code ไม่ถูกต้อง',
+    tryAgain: 'ลองใหม่',
+    enterQrToken: 'ใส่ QR Token',
+    enterQrTokenManually: 'ใส่ QR Token ด้วยตนเอง',
+    manual: 'ด้วยตนเอง',
+    flash: 'แฟลช',
+    processing: 'กำลังดำเนินการ...',
+    authenticating: 'กำลังตรวจสอบ...',
+    qrScannerInstructions: 'วาง QR Code ในกรอบเพื่อสแกนอัตโนมัติ',
+    cameraPermissionRequired: 'ต้องการสิทธิ์กล้อง',
+    cameraPermissionMessage: 'กรุณาอนุญาตสิทธิ์กล้องเพื่อสแกน QR Code',
+    requestingCameraPermission: 'กำลังขอสิทธิ์กล้อง...',
+    grantPermission: 'อนุญาตสิทธิ์',
+    enterManually: 'ใส่ด้วยตนเอง',
   },
   km: {
     // Common
@@ -3623,6 +3790,35 @@ const translations = {
       'បានកែប្រែប្រវត្តិរូបនិងរូបភាពដោយជោគជ័យ',
     myPickupQrCode: 'QR Code ទទួលកុមាររបស់ខ្ញុំ',
     qrCodeNotAvailable: 'QR Code មិនអាចប្រើបានសម្រាប់អាណាព្យាបាលនេះ',
+
+
+    // Teacher Profile - New keys
+    staffInformation: 'ព័ត៌មានបុគ្គលិក',
+    staffCategory: 'ប្រភេទបុគ្គលិក',
+    professionPosition: 'តំណែង',
+    categoryId: 'លេខសម្គាល់ប្រភេទ',
+    accessibleBranches: 'សាខាដែលអាចចូលដំណើរការ',
+
+
+    // Pickup Management
+    pickupManagement: 'ការគ្រប់គ្រងការទទួលកុមារ',
+    scanAndProcess: 'ស្កេន និងដំណើរការ',
+    scanQrCode: 'ស្កេន QR កូដ',
+    scanFailed: 'ការស្កេនបរាជ័យ',
+    invalidQrCode: 'QR កូដមិនត្រឹមត្រូវ',
+    tryAgain: 'ព្យាយាមម្តងទៀត',
+    enterQrToken: 'បញ្ចូល QR តូខិន',
+    enterQrTokenManually: 'បញ្ចូល QR តូខិនដោយដៃ',
+    manual: 'ដោយដៃ',
+    flash: 'ពន្លឺបញ្ចាំង',
+    processing: 'កំពុងដំណើរការ...',
+    authenticating: 'កំពុងផ្ទៀងផ្ទាត់...',
+    qrScannerInstructions: 'ដាក់ QR កូដនៅក្នុងស៊ុមដើម្បីស្កេនដោយស្វ័យប្រវត្តិ',
+    cameraPermissionRequired: 'ត្រូវការការអនុញ្ញាតកាមេរ៉ា',
+    cameraPermissionMessage: 'សូមផ្តល់ការអនុញ្ញាតកាមេរ៉ាដើម្បីស្កេន QR កូដ',
+    requestingCameraPermission: 'កំពុងស្នើសុំការអនុញ្ញាតកាមេរ៉ា...',
+    grantPermission: 'ផ្តល់ការអនុញ្ញាត',
+    enterManually: 'បញ្ចូលដោយដៃ',
   },
 };
 

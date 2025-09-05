@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useNotificationAPI } from './useNotificationAPI';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserData } from '../services/authService';
 
 export const useStudentNotifications = (authCode = null) => {
   const {
@@ -31,52 +32,78 @@ export const useStudentNotifications = (authCode = null) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Get auth code from storage if not provided
+  // Get auth code from storage if not provided (supports user-type-specific storage)
   const getAuthCode = useCallback(async () => {
     if (authCode) return authCode;
-    
+
     try {
+      // Try user-type-specific storage keys first
+      const userTypes = ['teacher', 'parent', 'student'];
+      for (const userType of userTypes) {
+        const userData = await getUserData(userType, AsyncStorage);
+        if (userData) {
+          const authCode = userData.authCode || userData.auth_code;
+          if (authCode) {
+            console.log(
+              `🔔 STUDENT NOTIFICATIONS: Using ${userType} auth code`
+            );
+            return authCode;
+          }
+        }
+      }
+
+      // Fallback to generic userData for backward compatibility
       const userData = await AsyncStorage.getItem('userData');
       if (userData) {
         const user = JSON.parse(userData);
-        return user.authCode || user.auth_code;
+        const authCode = user.authCode || user.auth_code;
+        if (authCode) {
+          console.log('🔔 STUDENT NOTIFICATIONS: Using generic auth code');
+          return authCode;
+        }
       }
     } catch (error) {
-      console.error('Error getting auth code:', error);
+      console.error(
+        '🔔 STUDENT NOTIFICATIONS: Error getting auth code:',
+        error
+      );
     }
     return null;
   }, [authCode]);
 
   // Load notifications from API
-  const loadNotifications = useCallback(async (page = 1, reset = false) => {
-    try {
-      const userAuthCode = await getAuthCode();
-      if (!userAuthCode) return;
+  const loadNotifications = useCallback(
+    async (page = 1, reset = false) => {
+      try {
+        const userAuthCode = await getAuthCode();
+        if (!userAuthCode) return;
 
-      const params = {
-        page,
-        limit: 20,
-        category: selectedCategory,
-      };
+        const params = {
+          page,
+          limit: 20,
+          category: selectedCategory,
+        };
 
-      const response = await fetchNotifications(params);
-      
-      if (response?.success) {
-        const newNotifications = response.data || [];
-        
-        if (reset) {
-          setStudentNotifications(newNotifications);
-        } else {
-          setStudentNotifications(prev => [...prev, ...newNotifications]);
+        const response = await fetchNotifications(params);
+
+        if (response?.success) {
+          const newNotifications = response.data || [];
+
+          if (reset) {
+            setStudentNotifications(newNotifications);
+          } else {
+            setStudentNotifications((prev) => [...prev, ...newNotifications]);
+          }
+
+          setCurrentPage(page);
+          setHasMorePages(response.has_more_pages || false);
         }
-
-        setCurrentPage(page);
-        setHasMorePages(response.has_more_pages || false);
+      } catch (error) {
+        console.error('Error loading student notifications:', error);
       }
-    } catch (error) {
-      console.error('Error loading student notifications:', error);
-    }
-  }, [fetchNotifications, getAuthCode, selectedCategory]);
+    },
+    [fetchNotifications, getAuthCode, selectedCategory]
+  );
 
   // Load categories
   const loadCategories = useCallback(async () => {
@@ -112,28 +139,31 @@ export const useStudentNotifications = (authCode = null) => {
   }, [loading, hasMorePages, currentPage, loadNotifications]);
 
   // Mark notification as read
-  const handleMarkAsRead = useCallback(async (notificationId) => {
-    try {
-      const response = await markAsRead(notificationId);
-      if (response?.success) {
-        // Update local state
-        setStudentNotifications(prev =>
-          prev.map(notification =>
-            notification.id === notificationId
-              ? { ...notification, read: true }
-              : notification
-          )
-        );
-        
-        // Also refresh local notifications
-        await refreshNotifications();
-        return true;
+  const handleMarkAsRead = useCallback(
+    async (notificationId) => {
+      try {
+        const response = await markAsRead(notificationId);
+        if (response?.success) {
+          // Update local state
+          setStudentNotifications((prev) =>
+            prev.map((notification) =>
+              notification.id === notificationId
+                ? { ...notification, read: true }
+                : notification
+            )
+          );
+
+          // Also refresh local notifications
+          await refreshNotifications();
+          return true;
+        }
+      } catch (error) {
+        console.error('Error marking notification as read:', error);
       }
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
-    return false;
-  }, [markAsRead, refreshNotifications]);
+      return false;
+    },
+    [markAsRead, refreshNotifications]
+  );
 
   // Mark all notifications as read
   const handleMarkAllAsRead = useCallback(async () => {
@@ -141,10 +171,10 @@ export const useStudentNotifications = (authCode = null) => {
       const response = await markAllAsRead();
       if (response?.success) {
         // Update local state
-        setStudentNotifications(prev =>
-          prev.map(notification => ({ ...notification, read: true }))
+        setStudentNotifications((prev) =>
+          prev.map((notification) => ({ ...notification, read: true }))
         );
-        
+
         // Also refresh local notifications
         await refreshNotifications();
         return true;
@@ -156,41 +186,51 @@ export const useStudentNotifications = (authCode = null) => {
   }, [markAllAsRead, refreshNotifications]);
 
   // Filter notifications by category
-  const handleCategoryFilter = useCallback((category) => {
-    setSelectedCategory(category);
-    setCurrentPage(1);
-    loadNotifications(1, true);
-  }, [loadNotifications]);
+  const handleCategoryFilter = useCallback(
+    (category) => {
+      setSelectedCategory(category);
+      setCurrentPage(1);
+      loadNotifications(1, true);
+    },
+    [loadNotifications]
+  );
 
   // Get notifications by type
-  const getNotificationsByType = useCallback((type) => {
-    return studentNotifications.filter(notification => 
-      notification.type === type || notification.category === type
-    );
-  }, [studentNotifications]);
+  const getNotificationsByType = useCallback(
+    (type) => {
+      return studentNotifications.filter(
+        (notification) =>
+          notification.type === type || notification.category === type
+      );
+    },
+    [studentNotifications]
+  );
 
   // Get unread notifications
   const getUnreadNotifications = useCallback(() => {
-    return studentNotifications.filter(notification => !notification.read);
+    return studentNotifications.filter((notification) => !notification.read);
   }, [studentNotifications]);
 
   // Get recent notifications (last 7 days)
   const getRecentNotifications = useCallback(() => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    return studentNotifications.filter(notification => {
+
+    return studentNotifications.filter((notification) => {
       const notificationDate = new Date(notification.created_at);
       return notificationDate >= sevenDaysAgo;
     });
   }, [studentNotifications]);
 
   // Get notifications by priority
-  const getNotificationsByPriority = useCallback((priority) => {
-    return studentNotifications.filter(notification => 
-      notification.priority === priority
-    );
-  }, [studentNotifications]);
+  const getNotificationsByPriority = useCallback(
+    (priority) => {
+      return studentNotifications.filter(
+        (notification) => notification.priority === priority
+      );
+    },
+    [studentNotifications]
+  );
 
   // Get grade-related notifications
   const getGradeNotifications = useCallback(() => {
@@ -214,8 +254,10 @@ export const useStudentNotifications = (authCode = null) => {
 
   // Get emergency notifications
   const getEmergencyNotifications = useCallback(() => {
-    return getNotificationsByPriority('high').filter(notification =>
-      notification.category === 'emergency' || notification.type === 'emergency'
+    return getNotificationsByPriority('high').filter(
+      (notification) =>
+        notification.category === 'emergency' ||
+        notification.type === 'emergency'
     );
   }, [getNotificationsByPriority]);
 
@@ -225,15 +267,21 @@ export const useStudentNotifications = (authCode = null) => {
     const unread = getUnreadNotifications().length;
     const recent = getRecentNotifications().length;
     const emergency = getEmergencyNotifications().length;
-    
+
     return {
       total,
       unread,
       recent,
       emergency,
-      readPercentage: total > 0 ? Math.round(((total - unread) / total) * 100) : 0,
+      readPercentage:
+        total > 0 ? Math.round(((total - unread) / total) * 100) : 0,
     };
-  }, [studentNotifications, getUnreadNotifications, getRecentNotifications, getEmergencyNotifications]);
+  }, [
+    studentNotifications,
+    getUnreadNotifications,
+    getRecentNotifications,
+    getEmergencyNotifications,
+  ]);
 
   return {
     // Data
@@ -241,19 +289,19 @@ export const useStudentNotifications = (authCode = null) => {
     localNotifications,
     categories,
     selectedCategory,
-    
+
     // State
     loading,
     error,
     refreshing,
     hasMorePages,
     currentPage,
-    
+
     // Counts
     unreadCount: getUnreadNotifications().length,
     localUnreadCount,
     totalCount: studentNotifications.length,
-    
+
     // Actions
     loadNotifications,
     handleRefresh,
@@ -261,7 +309,7 @@ export const useStudentNotifications = (authCode = null) => {
     handleMarkAsRead,
     handleMarkAllAsRead,
     handleCategoryFilter,
-    
+
     // Getters
     getNotificationsByType,
     getUnreadNotifications,

@@ -7,6 +7,25 @@ import { Config, buildApiUrl } from '../config/env';
 import { getLoginDeviceInfo } from '../utils/deviceInfo';
 import SchoolConfigService from './schoolConfigService';
 
+/**
+ * Get the appropriate storage key for user data based on user type
+ * @param {string} userType - The type of user (teacher, parent, student)
+ * @returns {string} - The storage key to use
+ */
+export const getUserDataStorageKey = (userType) => {
+  switch (userType) {
+    case 'teacher':
+      return Config.STORAGE_KEYS.TEACHER_USER_DATA;
+    case 'parent':
+      return Config.STORAGE_KEYS.PARENT_USER_DATA;
+    case 'student':
+      return Config.STORAGE_KEYS.STUDENT_USER_DATA;
+    default:
+      // Fallback to generic key for backward compatibility
+      return Config.STORAGE_KEYS.USER_DATA;
+  }
+};
+
 // Flag to toggle between dummy data and real API
 const USE_DUMMY_DATA = Config.DEV.USE_DUMMY_DATA;
 
@@ -197,12 +216,11 @@ const encodeToBase64 = (str) => {
 };
 
 /**
- * Teacher login API call (Legacy endpoint)
+ * Teacher login API call using new staff login endpoint
  * @param {string} username - Teacher's username
  * @param {string} password - Teacher's password
  * @param {string} deviceToken - Firebase device token
  * @returns {Promise<Object>} - User data or null if login fails
- * @note New staff login endpoint is available in staffService.js - staffLogin()
  */
 export const teacherLogin = async (username, password, deviceToken) => {
   // Simulate network delay
@@ -317,21 +335,9 @@ export const teacherLogin = async (username, password, deviceToken) => {
         console.log('🔄 AUTH: Proceeding with empty token');
       }
 
-      const apiUrl = buildApiUrl(Config.API_ENDPOINTS.CHECK_STAFF_CREDENTIALS, {
-        username,
-        password,
-        deviceType: deviceInfo.deviceType,
-        deviceToken: finalToken,
-        deviceName: deviceInfo.deviceName,
-        deviceModel: deviceInfo.deviceModel,
-        deviceBrand: deviceInfo.deviceBrand,
-        platform: deviceInfo.platform,
-        osVersion: deviceInfo.osVersion,
-        appVersion: deviceInfo.appVersion,
-        isEmulator: deviceInfo.isEmulator,
-      });
+      const apiUrl = buildApiUrl(Config.API_ENDPOINTS.STAFF_LOGIN);
 
-      console.log('🔍 AUTH DEBUG: API URL:', apiUrl);
+      console.log('🔍 TEACHER LOGIN: Using new staff login endpoint:', apiUrl);
 
       // Add timeout and better error handling
       const controller = new AbortController();
@@ -344,12 +350,25 @@ export const teacherLogin = async (username, password, deviceToken) => {
       }, authTimeout);
 
       const response = await fetch(apiUrl, {
-        method: 'GET',
+        method: 'POST',
         signal: controller.signal,
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          username,
+          password,
+          deviceToken: finalToken,
+          deviceType: deviceInfo.deviceType,
+          deviceName: deviceInfo.deviceName,
+          deviceModel: deviceInfo.deviceModel,
+          deviceBrand: deviceInfo.deviceBrand,
+          platform: deviceInfo.platform,
+          osVersion: deviceInfo.osVersion,
+          appVersion: deviceInfo.appVersion,
+          isEmulator: deviceInfo.isEmulator,
+        }),
       });
 
       clearTimeout(timeoutId);
@@ -383,8 +402,7 @@ export const teacherLogin = async (username, password, deviceToken) => {
           data &&
           (data.message === 'Invalid credentials' ||
             data.status === 'error' ||
-            data.success === false ||
-            !data.success)
+            data.success === false)
         ) {
           console.log(
             '❌ TEACHER LOGIN: API returned invalid credentials or failed authentication'
@@ -392,30 +410,28 @@ export const teacherLogin = async (username, password, deviceToken) => {
           return null;
         }
 
+        // For the new staff login endpoint, check for success field
+        if (data && data.success !== true) {
+          console.log(
+            '❌ TEACHER LOGIN: API response indicates failure:',
+            data.message || 'Unknown error'
+          );
+          return null;
+        }
+
         // Validate that we have the expected response structure
         console.log('🔍 TEACHER LOGIN: Checking required fields...');
-        console.log(
-          '🔍 auth_code present:',
-          !!data.auth_code,
-          'value:',
-          data.auth_code
-        );
-        console.log(
-          '🔍 user_id present:',
-          !!data.user_id,
-          'value:',
-          data.user_id
-        );
-        console.log(
-          '🔍 user_name present:',
-          !!data.user_name,
-          'value:',
-          data.user_name
-        );
+        const authCode = data.auth_code || data.authCode;
+        const userId = data.user_id || data.userId || data.id;
+        const userName = data.user_name || data.userName || data.name;
+
+        console.log('🔍 auth_code present:', !!authCode, 'value:', authCode);
+        console.log('🔍 user_id present:', !!userId, 'value:', userId);
+        console.log('🔍 user_name present:', !!userName, 'value:', userName);
         console.log('🔍 success field:', data.success);
         console.log('🔍 message field:', data.message);
 
-        if (!data.auth_code || !data.user_id || !data.user_name) {
+        if (!authCode || !userId || !userName) {
           console.log(
             '❌ TEACHER LOGIN: API response missing required fields (auth_code, user_id, user_name)'
           );
@@ -470,11 +486,11 @@ export const teacherLogin = async (username, password, deviceToken) => {
 
         const transformedUserData = {
           // Core user information
-          id: data.user_id,
+          id: userId,
           username: data.username || username,
-          name: data.user_name,
+          name: userName,
           email: data.email,
-          authCode: data.auth_code,
+          authCode: authCode,
           userType: 'teacher', // Force to 'teacher' for teacher login (LoginScreen expects this)
           mobile_phone: data.mobile_phone,
           photo: data.photo,
@@ -882,19 +898,383 @@ export const studentLogin = async (username, password, deviceToken) => {
 };
 
 /**
- * Save user data to AsyncStorage
+ * Unified login function that handles both student and parent authentication
+ * @param {string} username - User's username
+ * @param {string} password - User's password
+ * @param {string} deviceToken - Firebase device token
+ * @param {string} deviceType - Device type (default: 'ios')
+ * @param {string} deviceName - Device name (default: 'Mobile Device')
+ * @param {Object} options - Additional options
+ * @returns {Promise<Object>} - User data or null if login fails
+ */
+export const unifiedLogin = async (
+  username,
+  password,
+  deviceToken,
+  deviceType = 'ios',
+  deviceName = 'Mobile Device',
+  options = {}
+) => {
+  // Simulate network delay
+  await new Promise((resolve) => setTimeout(resolve, 800));
+
+  // Check for demo mode credentials first
+  if (isDemoCredentials(username, password, 'student')) {
+    console.log('🎭 DEMO MODE: Student login detected via unified login');
+
+    // Set up demo school configuration
+    try {
+      const schoolConfig = await SchoolConfigService.detectSchoolFromLogin(
+        username,
+        'student'
+      );
+      await SchoolConfigService.saveCurrentSchoolConfig(schoolConfig);
+      console.log(
+        '🏫 DEMO MODE: School configuration saved:',
+        schoolConfig.name
+      );
+    } catch (schoolError) {
+      console.error('❌ DEMO MODE: School detection error:', schoolError);
+    }
+
+    const demoData = getDemoUserData('student');
+    return demoData;
+  }
+
+  if (USE_DUMMY_DATA) {
+    // Try to find student first
+    const student = findStudent(username, password);
+    if (student) {
+      return student;
+    }
+
+    // If not found as student, could add parent dummy data logic here
+    return null;
+  } else {
+    try {
+      // Use the unified login endpoint that handles both students and parents
+      console.log('🔍 UNIFIED LOGIN: Using /mobile-api/login/ endpoint');
+
+      // Get device information
+      const deviceInfo = await getLoginDeviceInfo();
+      console.log('🔍 UNIFIED LOGIN: Device info collected:', deviceInfo);
+
+      // Prepare device token
+      let finalToken = deviceToken;
+      if (typeof deviceToken !== 'string') {
+        finalToken = String(deviceToken);
+      }
+      if (finalToken.includes('Future') || finalToken.includes('Instance')) {
+        console.warn(
+          '⚠️ UNIFIED LOGIN: Invalid token detected, using empty token'
+        );
+        finalToken = '';
+      }
+
+      // Prepare request body for POST
+      const requestBody = {
+        username,
+        password,
+        deviceType: deviceInfo.deviceType,
+        deviceToken: finalToken,
+        deviceName: deviceInfo.deviceName,
+        deviceModel: deviceInfo.deviceModel,
+        osVersion: deviceInfo.osVersion,
+        appVersion: deviceInfo.appVersion,
+        isEmulator: deviceInfo.isEmulator,
+      };
+
+      const apiUrl = buildApiUrl(Config.API_ENDPOINTS.UNIFIED_LOGIN);
+      console.log('🔍 UNIFIED LOGIN: API URL:', apiUrl);
+      console.log('🔍 UNIFIED LOGIN: Request body:', {
+        username: requestBody.username,
+        password: '[HIDDEN]',
+        deviceType: requestBody.deviceType,
+        deviceName: requestBody.deviceName,
+        hasToken: !!requestBody.deviceToken,
+      });
+
+      // Add timeout and better error handling
+      const controller = new AbortController();
+      const authTimeout = Config.NETWORK.AUTH_TIMEOUT || Config.NETWORK.TIMEOUT;
+      const timeoutId = setTimeout(() => {
+        console.error(
+          `⏰ UNIFIED LOGIN: Request timed out after ${authTimeout}ms`
+        );
+        controller.abort();
+      }, authTimeout);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.status === 200 || response.status === 201) {
+        const data = await response.json();
+
+        console.log('🔍 UNIFIED LOGIN API RESPONSE:', data);
+        console.log('🔍 UNIFIED LOGIN API RESPONSE TYPE:', typeof data);
+
+        // Check if the API returned an error
+        if (data === 0 || data === '0' || data === null || data === false) {
+          console.log('❌ UNIFIED LOGIN: API returned invalid credentials');
+          return null;
+        }
+
+        if (data && data.error) {
+          console.log('❌ UNIFIED LOGIN: API returned error:', data.error);
+          return null;
+        }
+
+        // Validate response structure
+        if (!data.auth_code || !data.user_id || !data.user_name) {
+          console.log('❌ UNIFIED LOGIN: API response missing required fields');
+          return null;
+        }
+
+        // Detect user type from API response
+        const userType =
+          data.user_type || (data.is_student ? 'student' : 'parent');
+        console.log('🔍 UNIFIED LOGIN: Detected user type:', userType);
+
+        // Set up school configuration
+        try {
+          const schoolConfig = await SchoolConfigService.detectSchoolFromLogin(
+            username,
+            userType
+          );
+          await SchoolConfigService.saveCurrentSchoolConfig(schoolConfig);
+          console.log(
+            '🏫 UNIFIED LOGIN: School configuration saved:',
+            schoolConfig.name
+          );
+        } catch (schoolError) {
+          console.error(
+            '❌ UNIFIED LOGIN: School detection error:',
+            schoolError
+          );
+        }
+
+        // Transform API response to match expected user data format
+        const transformedUserData = {
+          // Core user information
+          id: data.user_id,
+          username: data.username || username,
+          name: data.user_name,
+          email: data.email,
+          authCode: data.auth_code,
+          userType: userType,
+          mobile_phone: data.mobile_phone,
+          photo: data.photo,
+
+          // Branch information
+          branch: data.branch,
+          branches: data.accessible_branches || [data.branch],
+          accessible_branches: data.accessible_branches,
+
+          // User-specific information
+          is_student: data.is_student || userType === 'student',
+          is_parent: data.is_parent || userType === 'parent',
+
+          // Student-specific information (if applicable)
+          student_id: data.student_details?.student_id,
+          grade: data.student_details?.grade,
+          class: data.student_details?.class,
+          section: data.student_details?.section,
+
+          // Parent-specific information (if applicable)
+          children: data.children || [],
+
+          // Academic information
+          academic_info: data.academic_info,
+
+          // Roles and permissions
+          roles: data.roles || [],
+
+          // Original API response for reference
+          originalResponse: data,
+        };
+
+        console.log('🔍 UNIFIED LOGIN: Transformed user data:', {
+          id: transformedUserData.id,
+          name: transformedUserData.name,
+          userType: transformedUserData.userType,
+          authCode: transformedUserData.authCode ? '[PRESENT]' : '[MISSING]',
+          hasChildren: transformedUserData.children?.length > 0,
+        });
+
+        return transformedUserData;
+      } else {
+        console.log(
+          '❌ UNIFIED LOGIN: API returned non-200 status:',
+          response.status
+        );
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ UNIFIED LOGIN: Error during login:', error);
+      return null;
+    }
+  }
+};
+
+/**
+ * Get user data from AsyncStorage, trying user-type-specific key first
+ * @param {string} userType - The type of user (teacher, parent, student)
+ * @param {Object} AsyncStorage - AsyncStorage instance
+ * @returns {Promise<Object|null>} - User data or null if not found
+ */
+export const getUserData = async (userType, AsyncStorage) => {
+  try {
+    // First try user-type-specific key
+    const storageKey = getUserDataStorageKey(userType);
+    let userData = await AsyncStorage.getItem(storageKey);
+    let actualStorageKey = storageKey;
+
+    // If not found, try generic key for backward compatibility
+    if (!userData) {
+      userData = await AsyncStorage.getItem('userData');
+      actualStorageKey = 'userData';
+    }
+
+    if (userData) {
+      const parsed = JSON.parse(userData);
+      console.log('✅ AUTH: userData retrieved from AsyncStorage:', {
+        userType: parsed.userType,
+        username: parsed.username,
+        hasAuthCode: !!(parsed.authCode || parsed.auth_code),
+        storageKey: actualStorageKey,
+        requestedUserType: userType,
+      });
+      return parsed;
+    }
+
+    console.log(
+      `ℹ️ AUTH: No userData found for ${userType} (checked ${storageKey} and userData)`
+    );
+    return null;
+  } catch (error) {
+    console.error('❌ AUTH: Failed to get userData:', error);
+    return null;
+  }
+};
+
+/**
+ * Get all logged-in users from AsyncStorage
+ * @param {Object} AsyncStorage - AsyncStorage instance
+ * @returns {Promise<Object>} - Object with user types as keys and user data as values
+ */
+export const getAllLoggedInUsers = async (AsyncStorage) => {
+  try {
+    const users = {};
+    const userTypes = ['teacher', 'parent', 'student'];
+
+    for (const userType of userTypes) {
+      const userData = await getUserData(userType, AsyncStorage);
+      if (userData) {
+        users[userType] = userData;
+      }
+    }
+
+    console.log('📊 AUTH: Found logged-in users:', Object.keys(users));
+    return users;
+  } catch (error) {
+    console.error('❌ AUTH: Failed to get all logged-in users:', error);
+    return {};
+  }
+};
+
+/**
+ * Get the most recently active user (from generic userData key)
+ * @param {Object} AsyncStorage - AsyncStorage instance
+ * @returns {Promise<Object|null>} - Most recent user data or null
+ */
+export const getMostRecentUser = async (AsyncStorage) => {
+  try {
+    const userData = await AsyncStorage.getItem('userData');
+    if (userData) {
+      const parsed = JSON.parse(userData);
+      console.log('📱 AUTH: Most recent user:', {
+        userType: parsed.userType,
+        username: parsed.username,
+      });
+      return parsed;
+    }
+    return null;
+  } catch (error) {
+    console.error('❌ AUTH: Failed to get most recent user:', error);
+    return null;
+  }
+};
+
+/**
+ * Save user data to AsyncStorage using user-type-specific storage key
  * @param {Object} userData - User data to save
+ * @param {Object} AsyncStorage - AsyncStorage instance
  * @returns {Promise<boolean>} - Success status
  */
 export const saveUserData = async (userData, AsyncStorage) => {
   try {
     const userDataString = JSON.stringify(userData);
-    await AsyncStorage.setItem('userData', userDataString);
+    const storageKey = getUserDataStorageKey(userData.userType);
+
+    // Save to user-type-specific key
+    await AsyncStorage.setItem(storageKey, userDataString);
+
+    // Smart handling of generic 'userData' key to prevent overwriting other user types
+    let shouldUpdateGenericKey = true;
+
+    try {
+      const existingGenericData = await AsyncStorage.getItem('userData');
+      if (existingGenericData) {
+        const existingParsed = JSON.parse(existingGenericData);
+
+        // Don't overwrite if it's a different user type
+        if (
+          existingParsed.userType &&
+          existingParsed.userType !== userData.userType
+        ) {
+          console.log(
+            `🔒 AUTH: Preserving existing ${existingParsed.userType} data in generic key, not overwriting with ${userData.userType} data`
+          );
+          shouldUpdateGenericKey = false;
+        }
+      }
+    } catch (parseError) {
+      console.warn(
+        '⚠️ AUTH: Error parsing existing userData, will overwrite:',
+        parseError
+      );
+      // If we can't parse existing data, it's safe to overwrite
+      shouldUpdateGenericKey = true;
+    }
+
+    // Only update generic key if it's safe to do so
+    if (shouldUpdateGenericKey) {
+      await AsyncStorage.setItem('userData', userDataString);
+      console.log(
+        `✅ AUTH: Updated generic 'userData' key with ${userData.userType} data`
+      );
+    } else {
+      console.log(
+        `ℹ️ AUTH: Skipped updating generic 'userData' key to preserve existing user session`
+      );
+    }
+
     console.log('✅ AUTH: userData saved to AsyncStorage:', {
       userType: userData.userType,
       username: userData.username,
       hasAuthCode: !!userData.authCode,
       dataLength: userDataString.length,
+      storageKey: storageKey,
+      updatedGenericKey: shouldUpdateGenericKey,
     });
     return true;
   } catch (error) {

@@ -32,6 +32,7 @@ import {
   faClock,
   faSignOutAlt,
   faGear,
+  faArrowLeft,
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -39,6 +40,7 @@ import { Config } from '../config/env';
 import ParentNotificationBadge from '../components/ParentNotificationBadge';
 import MessageBadge from '../components/MessageBadge';
 import { QuickActionTile, ComingSoonBadge } from '../components';
+import { performLogout } from '../services/logoutService';
 import { isIPad, isTablet } from '../utils/deviceDetection';
 import DemoModeIndicator from '../components/DemoModeIndicator';
 import { updateLastLogin } from '../services/deviceService';
@@ -184,11 +186,29 @@ export default function StudentScreen({ navigation }) {
     try {
       setLoading(true);
 
-      // Get student data from AsyncStorage
+      // Get student data from AsyncStorage - try both generic and student-specific keys
       const userData = await AsyncStorage.getItem('userData');
+      const studentUserData = await AsyncStorage.getItem('studentUserData');
 
-      if (userData) {
-        const parsedUserData = JSON.parse(userData);
+      console.log('🔍 STUDENT SCREEN: AsyncStorage keys check:', {
+        hasUserData: !!userData,
+        hasStudentUserData: !!studentUserData,
+      });
+
+      // Use student-specific data if available, otherwise fall back to generic
+      const dataToUse = studentUserData || userData;
+      const keyUsed = studentUserData ? 'studentUserData' : 'userData';
+
+      if (dataToUse) {
+        console.log(
+          `🔍 STUDENT SCREEN: Using data from ${keyUsed}:`,
+          dataToUse
+        );
+        const parsedUserData = JSON.parse(dataToUse);
+        console.log(
+          '🔍 STUDENT SCREEN: Parsed userData type:',
+          typeof parsedUserData
+        );
 
         // Check if this is actually a student user
         if (parsedUserData.userType !== 'student') {
@@ -201,11 +221,22 @@ export default function StudentScreen({ navigation }) {
           return;
         }
 
+        // Debug: Log the entire parsed user data structure
+        console.log('🔍 STUDENT SCREEN: Full parsed user data structure:', {
+          hasPersonalInfo: !!parsedUserData?.personal_info,
+          personalInfoKeys: parsedUserData?.personal_info
+            ? Object.keys(parsedUserData.personal_info)
+            : 'No personal_info',
+          topLevelKeys: Object.keys(parsedUserData),
+        });
+
         // Normalize the data structure for consistent property names
-        const profilePhotoPath = parsedUserData?.personal_info?.profile_photo;
-        const profilePhoto = profilePhotoPath
-          ? `https://sis.paragonisc.edu.kh${profilePhotoPath}`
-          : null;
+        // Try multiple possible locations for the profile photo
+        const profilePhotoPath =
+          parsedUserData?.personal_info?.profile_photo ||
+          parsedUserData?.originalResponse?.personal_info?.profile_photo ||
+          null;
+        const profilePhoto = profilePhotoPath || null;
 
         const normalizedStudentData = {
           ...parsedUserData,
@@ -219,6 +250,16 @@ export default function StudentScreen({ navigation }) {
           photo: profilePhoto,
         };
 
+        // Debug logging for photo data
+        console.log('📸 STUDENT SCREEN: Photo data processing:', {
+          directPersonalInfo: parsedUserData?.personal_info?.profile_photo,
+          originalResponsePersonalInfo:
+            parsedUserData?.originalResponse?.personal_info?.profile_photo,
+          profilePhotoPath,
+          finalProfilePhoto: profilePhoto,
+          normalizedPhoto: normalizedStudentData.photo,
+        });
+
         setStudentData(normalizedStudentData);
 
         // Update last login timestamp
@@ -228,7 +269,7 @@ export default function StudentScreen({ navigation }) {
         Alert.alert(t('error'), t('noStudentDataFound'), [
           {
             text: t('ok'),
-            onPress: () => navigation.replace('Login'),
+            onPress: () => navigation.replace('Home'),
           },
         ]);
       }
@@ -343,14 +384,81 @@ export default function StudentScreen({ navigation }) {
         style: 'destructive',
         onPress: async () => {
           try {
-            await AsyncStorage.multiRemove([
-              'userData',
-              'selectedStudent',
-              'calendarUserData',
-            ]);
-            navigation.replace('Login');
+            console.log('🚪 STUDENT: Starting logout process...');
+            console.log(
+              '🚪 STUDENT: Current student data:',
+              studentData?.username || 'No username'
+            );
+
+            // Use the comprehensive logout service
+            const logoutResult = await performLogout({
+              userType: 'student', // Specify that this is a student logout
+              clearDeviceToken: false, // Keep device token for future logins
+              clearAllData: false, // Student-specific data will be cleared based on userType
+            });
+
+            console.log('🚪 STUDENT: Logout result:', logoutResult);
+
+            if (logoutResult.success) {
+              console.log('✅ STUDENT: Logout completed successfully');
+
+              // Verify data is cleared by checking AsyncStorage
+              const remainingData = await AsyncStorage.multiGet([
+                'userData',
+                'studentUserData',
+                'studentAccounts',
+                'selectedStudent',
+              ]);
+              console.log(
+                '🔍 STUDENT: Remaining data after logout:',
+                remainingData
+              );
+
+              navigation.replace('Home');
+            } else {
+              console.error('❌ STUDENT: Logout failed:', logoutResult.error);
+              // Fallback to comprehensive student data cleanup
+              await AsyncStorage.multiRemove([
+                'userData',
+                'studentUserData',
+                'studentAccounts',
+                'selectedStudent',
+                'selectedStudentId',
+                'calendarUserData',
+                'studentGrades',
+                'attendanceData',
+                'homeworkData',
+                'libraryData',
+                'healthData',
+              ]);
+              navigation.replace('Home');
+            }
           } catch (error) {
-            console.error('Error during logout:', error);
+            console.error('❌ STUDENT: Error during logout:', error);
+            // Fallback to comprehensive student data cleanup
+            try {
+              await AsyncStorage.multiRemove([
+                'userData',
+                'studentUserData',
+                'studentAccounts',
+                'selectedStudent',
+                'selectedStudentId',
+                'calendarUserData',
+                'studentGrades',
+                'attendanceData',
+                'homeworkData',
+                'libraryData',
+                'healthData',
+              ]);
+              navigation.replace('Home');
+            } catch (fallbackError) {
+              console.error(
+                '❌ STUDENT: Fallback logout also failed:',
+                fallbackError
+              );
+              // Last resort - just navigate away
+              navigation.replace('Home');
+            }
           }
         },
       },
@@ -389,6 +497,12 @@ export default function StudentScreen({ navigation }) {
       <View style={styles.compactHeaderContainer}>
         {/* Navigation Header */}
         <View style={styles.navigationHeader}>
+          <TouchableOpacity
+            style={styles.headerActionButton}
+            onPress={() => navigation.goBack()}
+          >
+            <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
+          </TouchableOpacity>
           <Text
             style={[
               styles.headerTitle,
@@ -435,12 +549,7 @@ export default function StudentScreen({ navigation }) {
                   showAllStudents={false}
                 />
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.headerActionButton}
-                onPress={() => navigation.navigate('Settings')}
-              >
-                <FontAwesomeIcon icon={faGear} size={18} color='#fff' />
-              </TouchableOpacity>
+              
 
               <TouchableOpacity
                 style={styles.headerActionButton}
@@ -466,6 +575,15 @@ export default function StudentScreen({ navigation }) {
                 source={{ uri: studentData.photo }}
                 style={styles.studentPhoto}
                 resizeMode='cover'
+                onLoad={() =>
+                  console.log('📸 STUDENT SCREEN: Image loaded successfully')
+                }
+                onError={(error) =>
+                  console.log('❌ STUDENT SCREEN: Image load error:', error)
+                }
+                onLoadStart={() =>
+                  console.log('📸 STUDENT SCREEN: Image load started')
+                }
               />
             ) : (
               <View style={styles.studentIconContainer}>
@@ -628,7 +746,7 @@ const createStyles = (theme, fontSizes) =>
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.15,
       shadowRadius: 4,
-      overflow: 'hidden',
+      
       zIndex: 1,
     },
     navigationHeader: {
@@ -637,6 +755,8 @@ const createStyles = (theme, fontSizes) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
     },
     // Legacy header style (keeping for compatibility)
     header: {
@@ -684,6 +804,8 @@ const createStyles = (theme, fontSizes) =>
       alignItems: 'center',
       borderTopWidth: 1,
       borderTopColor: 'rgba(255, 255, 255, 0.1)',
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
     },
     studentPhoto: {
       width: 100,

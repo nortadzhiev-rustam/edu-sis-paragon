@@ -28,6 +28,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getUserData } from '../services/authService';
 import { performLogout } from '../services/logoutService';
 
 export default function TeacherProfile({ route, navigation }) {
@@ -47,13 +48,23 @@ export default function TeacherProfile({ route, navigation }) {
   const loadUserData = async () => {
     try {
       setRefreshing(true);
-      const storedUserData = await AsyncStorage.getItem('userData');
-      if (storedUserData) {
-        const parsedData = JSON.parse(storedUserData);
-        setUserData(parsedData);
+      console.log('🔍 TEACHER PROFILE: Loading teacher data...');
+
+      // First try to get teacher-specific data
+      const teacherData = await getUserData('teacher', AsyncStorage);
+
+      if (teacherData && teacherData.userType === 'teacher') {
+        console.log(
+          '✅ TEACHER PROFILE: Found teacher data:',
+          teacherData.name
+        );
+        setUserData(teacherData);
+      } else {
+        console.log('❌ TEACHER PROFILE: No valid teacher data found');
+        Alert.alert('Error', 'Failed to load profile data');
       }
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('❌ TEACHER PROFILE: Error loading user data:', error);
       Alert.alert('Error', 'Failed to load profile data');
     } finally {
       setLoading(false);
@@ -77,6 +88,7 @@ export default function TeacherProfile({ route, navigation }) {
 
             // Perform comprehensive logout cleanup
             const result = await performLogout({
+              userType: 'teacher', // Specify that this is a teacher logout
               clearDeviceToken: false, // Keep device token for future logins
               clearAllData: false, // Keep device-specific settings
             });

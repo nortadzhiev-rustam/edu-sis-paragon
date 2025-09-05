@@ -20,9 +20,16 @@ import {
   quickNetworkTest,
   formatDebugInfo,
 } from '../utils/loginDebugger';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { unifiedLogin, saveUserData } from '../services/authService';
+import {
+  unifiedLogin,
+  teacherLogin,
+  studentLogin,
+  saveUserData,
+} from '../services/authService';
 
 import { Config } from '../config/env';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
@@ -41,12 +48,16 @@ export default function LoginScreen({ route, navigation }) {
   const logoSource = useThemeLogo();
 
   // Get parameters from route
+  const routeLoginType = route.params?.loginType;
   const isAddingStudent = route.params?.isAddingStudent || false;
 
   // Form state
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Login type state (teacher or student)
+  const [loginType, setLoginType] = useState(routeLoginType || 'student');
   const [deviceToken, setDeviceToken] = useState('');
   const [debugInfo, setDebugInfo] = useState(null);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
@@ -129,19 +140,26 @@ export default function LoginScreen({ route, navigation }) {
     }
   };
 
-  // Handle unified login (supports both students and parents)
+  // Handle login based on selected type
   const handleUserLogin = async (username, password) => {
     setLoading(true);
 
     try {
-      // Use unified login endpoint that automatically detects user type
-      const userData = await unifiedLogin(
-        username,
-        password,
-        deviceToken,
-        Platform.OS === 'ios' ? 'ios' : 'android',
-        `${Platform.OS} Device`
-      );
+      let userData;
+
+      if (loginType === 'teacher') {
+        userData = await teacherLogin(username, password, deviceToken);
+      } else {
+        // For student/parent login, use unifiedLogin
+        userData = await unifiedLogin(
+          username,
+          password,
+          deviceToken,
+          Platform.OS === 'ios' ? 'ios' : 'android',
+          `${Platform.OS} Device`
+        );
+      }
+
       setLoading(false);
       return userData;
     } catch (error) {
@@ -362,7 +380,12 @@ export default function LoginScreen({ route, navigation }) {
         `🧭 LOGIN: Attempting to navigate based on user type: ${userType}...`
       );
       try {
-        if (userType === 'parent') {
+        if (userType === 'teacher') {
+          navigation.replace('TeacherScreen', { userData });
+          console.log(
+            '✅ LOGIN: Navigation to TeacherScreen initiated successfully'
+          );
+        } else if (userType === 'parent') {
           navigation.replace('ParentScreen');
           console.log(
             '✅ LOGIN: Navigation to ParentScreen initiated successfully'
@@ -397,6 +420,18 @@ export default function LoginScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      {/* Back Button */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+      >
+        <FontAwesomeIcon
+          icon={faArrowLeft}
+          size={20}
+          color={theme.colors.text}
+        />
+      </TouchableOpacity>
+
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Animated.Image
           source={logoSource}
@@ -409,8 +444,51 @@ export default function LoginScreen({ route, navigation }) {
           style={styles.formContainer}
         >
           <Text style={styles.title}>
-            {isAddingStudent ? t('addStudentAccount') : t('login')}
+            {isAddingStudent
+              ? t('addStudentAccount')
+              : loginType === 'teacher'
+              ? 'Teacher Login'
+              : 'Parent or Student Login'}
           </Text>
+
+          {/* Login Type Selector - only show if not adding student and no specific route type */}
+          {!isAddingStudent && !routeLoginType && (
+            <View style={styles.loginTypeContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.loginTypeButton,
+                  loginType === 'teacher' && styles.activeLoginType,
+                ]}
+                onPress={() => setLoginType('teacher')}
+              >
+                <Text
+                  style={[
+                    styles.loginTypeText,
+                    loginType === 'teacher' && styles.activeLoginTypeText,
+                  ]}
+                >
+                  {t('teacher')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.loginTypeButton,
+                  loginType === 'student' && styles.activeLoginType,
+                ]}
+                onPress={() => setLoginType('student')}
+              >
+                <Text
+                  style={[
+                    styles.loginTypeText,
+                    loginType === 'student' && styles.activeLoginTypeText,
+                  ]}
+                >
+                  {t('student')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <TextInput
             style={styles.input}
@@ -442,15 +520,17 @@ export default function LoginScreen({ route, navigation }) {
             )}
           </TouchableOpacity>
 
-          {/* Guardian Login Button */}
-          <TouchableOpacity
-            style={styles.guardianLoginButton}
-            onPress={() => navigation.navigate('GuardianLogin')}
-          >
-            <Text style={styles.guardianLoginButtonText}>
-              {t('guardianLogin')}
-            </Text>
-          </TouchableOpacity>
+          {/* Guardian Login Button - only show for student/parent login */}
+          {loginType !== 'teacher' && (
+            <TouchableOpacity
+              style={styles.guardianLoginButton}
+              onPress={() => navigation.navigate('GuardianLogin')}
+            >
+              <Text style={styles.guardianLoginButtonText}>
+                {t('guardianLogin')}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Debug Information for App Review */}
           {Config.DEV.ENABLE_DEBUG_MODE && (
@@ -512,16 +592,6 @@ export default function LoginScreen({ route, navigation }) {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* School Resources Section */}
-        <Animated.View
-          entering={FadeInDown.delay(600).springify()}
-          style={styles.schoolResourcesContainer}
-        >
-          <SchoolResourcesSection
-            navigation={navigation}
-            showCalendar={false}
-          />
-        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -532,10 +602,11 @@ const createStyles = (theme, fontSizes) =>
     scrollContainer: {
       flexGrow: 1,
       alignItems: 'center',
+      marginTop: 100,
     },
     backButton: {
       position: 'absolute',
-      top: 40,
+      top: 60,
       left: 20,
       zIndex: 10,
       width: 40,
@@ -565,7 +636,7 @@ const createStyles = (theme, fontSizes) =>
       marginTop: height * 0.05,
     },
     title: {
-      fontSize: fontSizes.title,
+      fontSize: fontSizes.headerTitle,
       fontWeight: '600',
       color: theme.colors.text,
       marginBottom: 30,
@@ -690,5 +761,31 @@ const createStyles = (theme, fontSizes) =>
       paddingHorizontal: 30,
       marginTop: 30,
       marginBottom: 20,
+    },
+    loginTypeContainer: {
+      flexDirection: 'row',
+      width: '100%',
+      marginBottom: 20,
+      borderRadius: 10,
+      overflow: 'hidden',
+      backgroundColor: theme.colors.cardBackground,
+    },
+    loginTypeButton: {
+      flex: 1,
+      paddingVertical: 12,
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+    },
+    activeLoginType: {
+      backgroundColor: theme.colors.primary,
+    },
+    loginTypeText: {
+      fontSize: fontSizes.medium,
+      color: theme.colors.text,
+      fontWeight: '500',
+    },
+    activeLoginTypeText: {
+      color: '#fff',
+      fontWeight: '600',
     },
   });

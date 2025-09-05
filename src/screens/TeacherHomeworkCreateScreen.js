@@ -126,15 +126,22 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('📚 Raw API response:', JSON.stringify(data, null, 2));
         if (data.success) {
           // Check if the response has the new branches structure
           if (data?.data.branches && Array.isArray(data.data.branches)) {
+            console.log('📚 Using new branches structure');
             setBranchData(data.data);
           } else if (data.branches && Array.isArray(data.branches)) {
             // Old branches format (direct branches array)
+            console.log('📚 Using old branches format');
             setBranchData(data);
           } else {
             // Legacy format - convert to branch structure
+            console.log(
+              '📚 Using legacy format, converting to branch structure'
+            );
+            console.log('📚 Classes data:', JSON.stringify(data.data, null, 2));
             setBranchData({
               success: true,
               branches: [
@@ -180,6 +187,12 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
       return;
     }
 
+    // Debug: Log the selected class structure to understand available fields
+    console.log(
+      '📚 Selected class for homework creation:',
+      JSON.stringify(selectedClass, null, 2)
+    );
+
     if (selectedStudents.length === 0) {
       Alert.alert(t('error'), t('pleaseSelectStudents'));
       return;
@@ -192,10 +205,22 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
 
     setCreating(true);
     try {
+      // Get subject_id from the selected class - this should be the teacher's subject
+      const subjectId = selectedClass.subject_id || selectedClass.subjectId;
+
+      if (!subjectId) {
+        Alert.alert(
+          t('error'),
+          'Selected class is missing subject information. Please contact administrator.'
+        );
+        return;
+      }
+
       console.log('📝 Creating homework assignment with data:', {
         title: title.trim(),
         description: description.trim(),
         gradeId: selectedClass.grade_id,
+        subjectId: subjectId,
         studentIds: selectedStudents,
         deadline: deadline.toISOString().split('T')[0],
       });
@@ -205,6 +230,7 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
         title.trim(),
         description.trim(),
         selectedClass.grade_id,
+        subjectId, // Use determined subject_id
         selectedStudents, // selectedStudents already contains student IDs
         deadline.toISOString().split('T')[0], // Format date as YYYY-MM-DD
         authCode
@@ -526,6 +552,10 @@ export default function TeacherHomeworkCreateScreen({ navigation, route }) {
                   styles.selectedClassOption,
               ]}
               onPress={() => {
+                console.log(
+                  '📚 Selected class data:',
+                  JSON.stringify(classItem, null, 2)
+                );
                 setSelectedClass(classItem);
                 setSelectedStudents([]); // Reset student selection
               }}

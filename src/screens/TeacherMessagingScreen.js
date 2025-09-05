@@ -366,12 +366,21 @@ const TeacherMessagingScreen = ({ navigation, route }) => {
 
             <TouchableOpacity
               style={styles.addButton}
-              onPress={() =>
-                navigation.navigate('CreateConversation', {
+              onPress={() => {
+                console.log(
+                  '✅ TEACHER MESSAGING: Navigating to CreateConversationScreen'
+                );
+                console.log('✅ TEACHER MESSAGING: Passing params:', {
                   authCode,
                   teacherName,
-                })
-              }
+                  userType: 'teacher',
+                });
+                navigation.navigate('CreateConversationScreen', {
+                  authCode,
+                  teacherName,
+                  userType: 'teacher',
+                });
+              }}
             >
               <FontAwesomeIcon icon={faPlus} size={18} color='#fff' />
             </TouchableOpacity>

@@ -10,20 +10,39 @@
 
 import { Config, buildApiUrl } from '../config/env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserData } from './authService';
 
 /**
- * Helper function to get auth code from storage
+ * Helper function to get auth code from storage (supports user-type-specific storage)
  */
 const getAuthCode = async () => {
   try {
+    // Try user-type-specific storage keys first
+    const userTypes = ['teacher', 'parent', 'student'];
+    for (const userType of userTypes) {
+      const userData = await getUserData(userType, AsyncStorage);
+      if (userData) {
+        const authCode = userData.authCode || userData.auth_code;
+        if (authCode) {
+          console.log(`📚 HOMEWORK SERVICE: Using ${userType} auth code`);
+          return authCode;
+        }
+      }
+    }
+
+    // Fallback to generic userData for backward compatibility
     const userData = await AsyncStorage.getItem('userData');
     if (userData) {
       const parsed = JSON.parse(userData);
-      return parsed.authCode;
+      const authCode = parsed.authCode || parsed.auth_code;
+      if (authCode) {
+        console.log('📚 HOMEWORK SERVICE: Using generic auth code');
+        return authCode;
+      }
     }
     return null;
   } catch (error) {
-    console.error('Error getting auth code:', error);
+    console.error('📚 HOMEWORK SERVICE: Error getting auth code:', error);
     return null;
   }
 };
@@ -1096,6 +1115,7 @@ export const submitHomeworkAssignment = async (
  * @param {string} title - Assignment title
  * @param {string} description - Assignment description
  * @param {string} gradeId - Grade ID
+ * @param {string} subjectId - Subject ID
  * @param {Array} studentIds - Array of student IDs
  * @param {string} deadline - Deadline date
  * @param {string} authCode - Optional auth code override
@@ -1105,6 +1125,7 @@ export const createHomeworkAssignment = async (
   title,
   description,
   gradeId,
+  subjectId,
   studentIds,
   deadline,
   authCode = null
@@ -1117,12 +1138,26 @@ export const createHomeworkAssignment = async (
 
     const url = buildApiUrl(Config.API_ENDPOINTS.CREATE_HOMEWORK_ASSIGNMENT);
 
+    console.log(
+      '📝 Creating homework assignment with correct data structure:',
+      {
+        title: title,
+        homework_data: description,
+        grade_id: gradeId,
+        subject_id: subjectId,
+        students: studentIds,
+        deadline: deadline,
+        auth_code: auth,
+      }
+    );
+
     return await makeHomeworkApiRequest(url, {
       method: 'POST',
       body: JSON.stringify({
         title: title,
-        homework_data: description, // Send description as homework_data as well
+        homework_data: description,
         grade_id: gradeId,
+        subject_id: subjectId, // Add subject_id to the request
         students: studentIds,
         deadline: deadline,
         auth_code: auth,

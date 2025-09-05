@@ -89,12 +89,26 @@ export const makeApiRequest = async (url, options = {}) => {
     // Parse response
     const responseText = await response.text();
     console.log('📥 API HELPERS: Raw response:', responseText);
+    console.log('📥 API HELPERS: Response text type:', typeof responseText);
 
     // Try to parse as JSON, fallback to text
     let responseData;
     try {
-      responseData = JSON.parse(responseText);
+      // Handle empty or undefined response text
+      if (!responseText || responseText.trim() === '') {
+        console.warn('⚠️ API HELPERS: Empty response text received');
+        responseData = {
+          success: false,
+          message: 'Empty response from server',
+        };
+      } else {
+        responseData = JSON.parse(responseText);
+      }
     } catch (parseError) {
+      console.log(
+        '📥 API HELPERS: JSON parse failed, trying text parsing:',
+        parseError.message
+      );
       // Handle non-JSON responses (like the pickup request API)
       responseData = parseApiTextResponse(responseText);
     }
@@ -114,7 +128,26 @@ export const makeApiRequest = async (url, options = {}) => {
  */
 export const parseApiTextResponse = (responseText) => {
   try {
+    // Handle undefined, null, or non-string input
+    if (!responseText || typeof responseText !== 'string') {
+      console.warn('⚠️ API HELPERS: Invalid response text:', responseText);
+      return {
+        success: false,
+        message: 'Invalid or empty response from server',
+        originalResponse: responseText,
+      };
+    }
+
     const text = responseText.trim();
+
+    // Handle empty string after trim
+    if (!text) {
+      console.warn('⚠️ API HELPERS: Empty response text after trim');
+      return {
+        success: false,
+        message: 'Empty response from server',
+      };
+    }
 
     // Handle success responses: "ok|Message"
     if (text.startsWith('ok|')) {
@@ -226,7 +259,10 @@ export const isSuccessResponse = (response) => {
 export const getErrorMessage = (response) => {
   if (response?.message) {
     // Handle "fail|Error message" format
-    if (response.message.startsWith('fail|')) {
+    if (
+      typeof response.message === 'string' &&
+      response.message.startsWith('fail|')
+    ) {
       return response.message.substring(5);
     }
     return response.message;

@@ -5,16 +5,44 @@
 
 import { Config, buildApiUrl } from '../config/env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserData } from './authService';
 
-// Helper function to get auth code from storage (supports both regular users and guardians)
+// Helper function to get auth code from storage (supports user-type-specific storage and guardians)
 const getAuthCode = async () => {
   try {
-    // First try to get from regular user data
+    console.log('🔑 NOTIFICATION SERVICE: Getting auth code...');
+
+    // First try user-type-specific storage keys
+    const teacherData = await getUserData('teacher', AsyncStorage);
+    if (teacherData && (teacherData.authCode || teacherData.auth_code)) {
+      const authCode = teacherData.authCode || teacherData.auth_code;
+      console.log('🔑 NOTIFICATION SERVICE: Using teacher auth code');
+      return authCode;
+    }
+
+    const parentData = await getUserData('parent', AsyncStorage);
+    if (parentData && (parentData.authCode || parentData.auth_code)) {
+      const authCode = parentData.authCode || parentData.auth_code;
+      console.log('🔑 NOTIFICATION SERVICE: Using parent auth code');
+      return authCode;
+    }
+
+    const studentData = await getUserData('student', AsyncStorage);
+    if (studentData && (studentData.authCode || studentData.auth_code)) {
+      const authCode = studentData.authCode || studentData.auth_code;
+      console.log('🔑 NOTIFICATION SERVICE: Using student auth code');
+      return authCode;
+    }
+
+    // Fallback to generic userData for backward compatibility
     const userData = await AsyncStorage.getItem('userData');
     if (userData) {
       const user = JSON.parse(userData);
       const authCode = user.authCode || user.auth_code;
       if (authCode) {
+        console.log(
+          '🔑 NOTIFICATION SERVICE: Using generic userData auth code'
+        );
         return authCode;
       }
     }
@@ -22,7 +50,7 @@ const getAuthCode = async () => {
     // If no regular auth code found, try guardian auth code
     const guardianAuthCode = await AsyncStorage.getItem('guardianAuthCode');
     if (guardianAuthCode) {
-      console.log('📱 NOTIFICATION SERVICE: Using guardian auth code');
+      console.log('🔑 NOTIFICATION SERVICE: Using guardian auth code');
       return guardianAuthCode;
     }
 

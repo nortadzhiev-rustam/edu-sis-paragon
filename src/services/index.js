@@ -25,36 +25,60 @@ export { default as InformationService } from './informationService';
 export {
   // Staff Authentication
   staffLogin,
-  
+
   // Staff Dashboard
   getStaffDashboard,
-  
+
   // Staff Timetable
   getStaffTimetable,
-  
+
   // Attendance Management
   storeClassAttendance,
   getTeacherClassesForAttendance,
-  
+
   // BPS Management
   storeBPSRecord,
   getBPSItems,
-  
+
   // Homework Management
   createHomeworkAssignment,
   getTeacherHomeworkClasses,
   gradeHomeworkSubmission,
-  
+
   // Homeroom Management
   getHomeroomClassrooms,
   getHomeroomStudents,
   getHomeroomAttendance,
   getHomeroomStudentProfile,
-  
+
   // Notifications
   sendNotificationToStudents,
   sendBroadcastNotification,
 } from './staffService';
+
+/**
+ * Parent service functions
+ */
+export {
+  // Parent Authentication & Children
+  getParentChildren,
+  getChildComprehensiveData,
+
+  // Parent Calendar Access
+  getParentCalendarData,
+  getParentCalendarUpcoming,
+  getParentCalendarPersonal,
+
+  // Parent Proxy Access
+  getChildTimetable,
+  getChildHomework,
+  getChildAttendance,
+  getChildGrades,
+  getChildAssessment,
+  getChildBpsProfile,
+  getChildHealthInfo,
+  getChildHealthRecords,
+} from './parentService';
 
 /**
  * Quick access to staff reports functions
@@ -76,27 +100,27 @@ export const ServiceConfig = {
   // API endpoint categories
   ENDPOINTS: {
     STAFF: 'staff',
-    HOMEROOM: 'homeroom', 
+    HOMEROOM: 'homeroom',
     HOMEWORK: 'homework',
     REPORTS: 'reports',
     NOTIFICATIONS: 'notifications',
   },
-  
+
   // Service status
   STATUS: {
     AVAILABLE: 'available',
     LEGACY: 'legacy',
     DEPRECATED: 'deprecated',
   },
-  
+
   // Service mapping for migration
   MIGRATION_MAP: {
     // Old function -> New function
-    'teacherLogin': 'staffLogin',
-    'GET_TEACHER_TIMETABLE': 'getStaffTimetable',
-    'TAKE_ATTENDANCE': 'storeClassAttendance',
-    'STORE_BPS': 'storeBPSRecord',
-    'CREATE_HOMEWORK_ASSIGNMENT': 'createHomeworkAssignment',
+    teacherLogin: 'staffLogin',
+    GET_TEACHER_TIMETABLE: 'getStaffTimetable',
+    TAKE_ATTENDANCE: 'storeClassAttendance',
+    STORE_BPS: 'storeBPSRecord',
+    CREATE_HOMEWORK_ASSIGNMENT: 'createHomeworkAssignment',
   },
 };
 
@@ -110,28 +134,27 @@ export const checkServiceHealth = async () => {
     notifications: false,
     reports: false,
   };
-  
+
   try {
     // Test staff service
     const { getStaffDashboard } = await import('./staffService');
     services.staff = typeof getStaffDashboard === 'function';
-    
-    // Test homework service  
+
+    // Test homework service
     const { createHomeworkAssignment } = await import('./staffService');
     services.homework = typeof createHomeworkAssignment === 'function';
-    
+
     // Test notification service
     const { sendNotificationToStudents } = await import('./staffService');
     services.notifications = typeof sendNotificationToStudents === 'function';
-    
+
     // Test reports service
     const { getClassAttendanceReport } = await import('./staffReportsService');
     services.reports = typeof getClassAttendanceReport === 'function';
-    
   } catch (error) {
     console.error('Service health check failed:', error);
   }
-  
+
   return services;
 };
 
@@ -141,10 +164,11 @@ export const checkServiceHealth = async () => {
 export const getServiceDocumentation = () => {
   return {
     staffService: {
-      description: 'New staff API endpoints for authentication, dashboard, timetable, attendance, BPS, homework, and homeroom management',
+      description:
+        'New staff API endpoints for authentication, dashboard, timetable, attendance, BPS, homework, and homeroom management',
       endpoints: [
         'staffLogin',
-        'getStaffDashboard', 
+        'getStaffDashboard',
         'getStaffTimetable',
         'storeClassAttendance',
         'storeBPSRecord',

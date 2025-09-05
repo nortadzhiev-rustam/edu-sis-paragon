@@ -49,8 +49,8 @@ const DEFAULT_SCHOOL_CONFIGS = {
     branding: {
       name: 'BFI International School',
       logo: {
-        light: require('../../assets/teacher_app_logo.png'),
-        dark: require('../../assets/teacher_app_logo_dark.png'),
+        light: require('../../assets/app_logo.png'),
+        dark: require('../../assets/app_logo_dark.png'),
       },
       colors: {
         primary: '#231F20', // Navy blue - primary color
@@ -115,8 +115,8 @@ const DEFAULT_SCHOOL_CONFIGS = {
     branding: {
       name: 'Demo School',
       logo: {
-        light: require('../../assets/teacher_app_logo.png'),
-        dark: require('../../assets/teacher_app_logo_dark.png'),
+        light: require('../../assets/app_logo.png'),
+        dark: require('../../assets/app_logo_dark.png'),
       },
       colors: {
         primary: '#231F20', // Navy blue - primary color

@@ -14,6 +14,7 @@ import React, {
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUnreadConversationsCount } from '../services/messagingService';
+import { getUserData } from '../services/authService';
 
 const MessagingContext = createContext();
 
@@ -31,15 +32,31 @@ export const MessagingProvider = ({ children }) => {
   const [isPolling, setIsPolling] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
 
-  // Get auth code from storage (supports both regular users and guardians)
+  // Get auth code from storage (supports all user types and guardians)
   const getAuthCode = useCallback(async () => {
     try {
-      // First try to get from regular user data
+      // Try user-type-specific storage keys first
+      const userTypes = ['teacher', 'parent', 'student'];
+      for (const userType of userTypes) {
+        const userData = await getUserData(userType, AsyncStorage);
+        if (userData) {
+          const authCode = userData.authCode || userData.auth_code;
+          if (authCode) {
+            console.log(
+              `📱 MESSAGING: Using ${userType} auth code for messaging`
+            );
+            return authCode;
+          }
+        }
+      }
+
+      // Fallback to generic userData for backward compatibility
       const userData = await AsyncStorage.getItem('userData');
       if (userData) {
         const user = JSON.parse(userData);
         const authCode = user.authCode || user.auth_code;
         if (authCode) {
+          console.log('📱 MESSAGING: Using generic auth code for messaging');
           return authCode;
         }
       }

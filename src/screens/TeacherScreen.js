@@ -44,6 +44,7 @@ import NotificationBadge from '../components/NotificationBadge';
 import MessageBadge from '../components/MessageBadge';
 import { QuickActionTile } from '../components';
 import { performLogout } from '../services/logoutService';
+import { getUserData } from '../services/authService';
 import DemoModeIndicator from '../components/DemoModeIndicator';
 import { isIPad, isTablet } from '../utils/deviceDetection';
 import { useFocusEffect } from '@react-navigation/native';
@@ -436,29 +437,37 @@ export default function TeacherScreen({ route, navigation }) {
 
   useEffect(() => {
     // If no userData from params, try to get from AsyncStorage
-    const getUserData = async () => {
+    const loadUserData = async () => {
       if (Object.keys(userData).length === 0) {
         try {
-          const storedUserData = await AsyncStorage.getItem('userData');
-          if (storedUserData) {
-            const parsedData = JSON.parse(storedUserData);
-            // Only set if it's a teacher account
-            if (parsedData.userType === 'teacher') {
-              setUserData(parsedData);
-            } else {
-              // If not a teacher account, redirect to login
-              navigation.replace('Login');
-            }
+          console.log(
+            '🔍 TEACHER SCREEN: Loading teacher data from storage...'
+          );
+
+          // First try to get teacher-specific data
+          const teacherData = await getUserData('teacher', AsyncStorage);
+
+          if (teacherData && teacherData.userType === 'teacher') {
+            console.log(
+              '✅ TEACHER SCREEN: Found teacher data:',
+              teacherData.name
+            );
+            setUserData(teacherData);
+          } else {
+            console.log(
+              '❌ TEACHER SCREEN: No valid teacher data found, redirecting to login'
+            );
+            navigation.replace('Login');
           }
         } catch (error) {
-          // Handle error silently
-          console.error('Error loading user data:', error);
+          console.error('❌ TEACHER SCREEN: Error loading user data:', error);
+          navigation.replace('Login');
         }
       }
       setLoading(false);
     };
 
-    getUserData();
+    loadUserData();
   }, [userData]);
 
   // Load teacher data when userData is available
@@ -588,6 +597,7 @@ export default function TeacherScreen({ route, navigation }) {
 
             // Perform comprehensive logout cleanup
             const result = await performLogout({
+              userType: 'teacher', // Specify that this is a teacher logout
               clearDeviceToken: false, // Keep device token for future logins
               clearAllData: false, // Keep device-specific settings
               messagingCleanup: cleanupMessaging, // Clean up messaging context
@@ -599,14 +609,14 @@ export default function TeacherScreen({ route, navigation }) {
               // Navigate back to login screen
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'Login' }],
+                routes: [{ name: 'Home' }],
               });
             } else {
               console.error('❌ TEACHER LOGOUT: Logout failed:', result.error);
               // Still navigate even if cleanup failed
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'Login' }],
+                routes: [{ name: 'Home' }],
               });
             }
           } catch (error) {
@@ -614,7 +624,7 @@ export default function TeacherScreen({ route, navigation }) {
             // Fallback: still navigate to login screen
             navigation.reset({
               index: 0,
-              routes: [{ name: 'Login' }],
+              routes: [{ name: 'Home' }],
             });
           }
         },
@@ -811,6 +821,12 @@ export default function TeacherScreen({ route, navigation }) {
       <View style={styles.compactHeaderContainer}>
         {/* Navigation Header */}
         <View style={styles.navigationHeader}>
+          <TouchableOpacity
+            style={styles.headerActionButton}
+            onPress={() => navigation.goBack()}
+          >
+            <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
+          </TouchableOpacity>
           <Text
             style={[
               styles.headerTitle,
@@ -1384,7 +1400,7 @@ const createStyles = (theme, fontSizes) =>
     teacherSection: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 16,
+      marginBottom: 5,
     },
     teacherAvatar: {
       width: 70,
@@ -1417,7 +1433,7 @@ const createStyles = (theme, fontSizes) =>
     },
     compactTeacherId: {
       marginTop: 2,
-      marginBottom: 20,
+      marginBottom: 10,
       fontSize: 12,
       color: theme.colors.textLight,
       fontWeight: '500',
@@ -1430,8 +1446,8 @@ const createStyles = (theme, fontSizes) =>
     branchSummarySection: {
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
-      paddingTop: 16,
-      marginTop: 10,
+      paddingTop: 10,
+      marginTop: 5,
     },
     branchSummaryHeader: {
       flexDirection: 'row',

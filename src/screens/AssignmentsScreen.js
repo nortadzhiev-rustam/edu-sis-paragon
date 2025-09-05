@@ -431,11 +431,20 @@ export default function AssignmentsScreen({ navigation, route }) {
           proxyOptions.studentId
         );
 
-        if (response.success && response.homework) {
+        if (response.success) {
           // Transform parent proxy response to match expected format
-          const homeworkData = Array.isArray(response.homework)
+          const homeworkData = Array.isArray(response.homework_assignments)
+            ? response.homework_assignments
+            : Array.isArray(response.homework)
             ? response.homework
             : [];
+
+          console.log(
+            '📚 HOMEWORK: Found homework data:',
+            homeworkData.length,
+            'assignments'
+          );
+
           const transformedData = homeworkData.map((assignment) => ({
             ...assignment,
             // Ensure compatibility with existing component expectations
@@ -745,6 +754,9 @@ export default function AssignmentsScreen({ navigation, route }) {
                     navigation.navigate('AssignmentDetail', {
                       assignment,
                       authCode,
+                      useParentProxy,
+                      studentId,
+                      parentData,
                     })
                   }
                   activeOpacity={0.7}
@@ -800,7 +812,7 @@ export default function AssignmentsScreen({ navigation, route }) {
                     </View>
 
                     <View style={styles.assignmentActions}>
-                      {!assignment.is_completed && (
+                      {!assignment.is_completed && !useParentProxy && (
                         <TouchableOpacity
                           style={styles.markDoneButton}
                           onPress={(e) => {

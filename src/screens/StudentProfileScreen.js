@@ -23,9 +23,20 @@ export default function StudentProfileScreen({ route, navigation }) {
 
   const styles = createStyles(theme, fontSizes);
 
+  // Debug logging for photo URI
+  console.log('📸 STUDENT PROFILE: Student data received:', {
+    hasStudent: !!student,
+    studentName: student.name,
+    hasPersonalInfo: !!student.personal_info,
+    personalInfoPhoto: student?.personal_info?.profile_photo,
+    normalizedPhoto: student.photo,
+  });
+
   const photoUri = student?.personal_info?.profile_photo
-    ? `https://sis.paragonisc.edu.kh${student.personal_info.profile_photo}`
+    ? student.personal_info.profile_photo
     : student.photo || null;
+
+  console.log('📸 STUDENT PROFILE: Final photo URI:', photoUri);
 
   // Format last login timestamp
   const formatLastLogin = (timestamp) => {
@@ -105,7 +116,19 @@ export default function StudentProfileScreen({ route, navigation }) {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerCard}>
           {photoUri ? (
-            <Image source={{ uri: photoUri }} style={styles.photo} />
+            <Image
+              source={{ uri: photoUri }}
+              style={styles.photo}
+              onLoad={() =>
+                console.log('📸 STUDENT PROFILE: Image loaded successfully')
+              }
+              onError={(error) =>
+                console.log('❌ STUDENT PROFILE: Image load error:', error)
+              }
+              onLoadStart={() =>
+                console.log('📸 STUDENT PROFILE: Image load started')
+              }
+            />
           ) : (
             <View style={[styles.photo, styles.photoPlaceholder]} />
           )}

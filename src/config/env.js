@@ -6,13 +6,14 @@ export const Config = {
   // Base API Configuration
   // For physical devices, use your computer's IP address instead of 127.0.0.1
   // Your Mac's IP address: 192.168.10.2
-  API_BASE_URL: 'http://192.168.10.2:8000/mobile-api',
-  API_DOMAIN: 'http://192.168.10.2:8000',
+  API_BASE_URL: 'https://sis.paragonisc.edu.kh/mobile-api',
+  API_DOMAIN: 'https://sis.paragonisc.edu.kh',
 
   // API Endpoints
   API_ENDPOINTS: {
     // Authentication Endpoints
     UNIFIED_LOGIN: '/login',
+    STAFF_LOGIN: '/auth/staff/login',
     CHECK_STAFF_CREDENTIALS: '/check-staff-credentials',
     CHECK_STUDENT_CREDENTIALS: '/check-student-credentials',
     CHECK_PARENT_CREDENTIALS: '/check-parent-credentials',
@@ -111,6 +112,11 @@ export const Config = {
     PARENT_GENERATE_QR: '/pickup/parent/generate-qr',
     GET_PENDING_PICKUP_REQUESTS: '/pickup/parent/pending-requests',
 
+    // Staff Pickup API Endpoints
+    STAFF_PICKUP_REQUESTS: '/staff/pickup/requests',
+    STAFF_PICKUP_SCAN_QR: '/staff/pickup/scan-qr',
+    STAFF_PICKUP_PROCESS: '/staff/pickup/process',
+
     // Parent Proxy API Endpoints (Parent-Student Access System)
     GET_PARENT_CHILDREN: '/parent/children/',
     PARENT_STUDENT_TIMETABLE: '/parent/student/timetable',
@@ -121,6 +127,11 @@ export const Config = {
     PARENT_STUDENT_BPS_PROFILE: '/parent/student/bps-profile',
     PARENT_STUDENT_HEALTH_INFO: '/parent/student/health-info',
     PARENT_STUDENT_HEALTH_RECORDS: '/parent/student/health-records',
+
+    // Parent Calendar API Endpoints
+    PARENT_CALENDAR_DATA: '/parent/calendar/data',
+    PARENT_CALENDAR_UPCOMING: '/parent/calendar/upcoming',
+    PARENT_CALENDAR_PERSONAL: '/parent/calendar/personal',
 
     // Calendar API Endpoints
     GET_CALENDAR_DATA: '/calendar/data',
@@ -215,6 +226,9 @@ export const Config = {
   // Storage Keys
   STORAGE_KEYS: {
     USER_DATA: 'userData',
+    TEACHER_USER_DATA: 'teacherUserData',
+    PARENT_USER_DATA: 'parentUserData',
+    STUDENT_USER_DATA: 'studentUserData',
     STUDENT_ACCOUNTS: 'studentAccounts',
     SELECTED_STUDENT: 'selectedStudent',
     CALENDAR_USER_DATA: 'calendarUserData',

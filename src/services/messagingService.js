@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Config, buildApiUrl } from '../config/env';
+import { getUserData } from './authService';
 
 // Temporary flag for testing with mock data
 const USE_MOCK_DATA = false; // Set to false when backend API is ready
@@ -325,15 +326,29 @@ const mockMessages = {
   ],
 };
 
-// Helper function to get auth code from storage (supports both regular users and guardians)
+// Helper function to get auth code from storage (supports all user types and guardians)
 const getAuthCode = async () => {
   try {
-    // First try to get from regular user data
+    // Try user-type-specific storage keys first
+    const userTypes = ['teacher', 'parent', 'student'];
+    for (const userType of userTypes) {
+      const userData = await getUserData(userType, AsyncStorage);
+      if (userData) {
+        const authCode = userData.authCode || userData.auth_code;
+        if (authCode) {
+          console.log(`📱 MESSAGING SERVICE: Using ${userType} auth code`);
+          return authCode;
+        }
+      }
+    }
+
+    // Fallback to generic userData for backward compatibility
     const userData = await AsyncStorage.getItem('userData');
     if (userData) {
       const user = JSON.parse(userData);
       const authCode = user.authCode || user.auth_code;
       if (authCode) {
+        console.log('📱 MESSAGING SERVICE: Using generic auth code');
         return authCode;
       }
     }
@@ -347,7 +362,7 @@ const getAuthCode = async () => {
 
     return null;
   } catch (error) {
-    console.error('Error getting auth code:', error);
+    console.error('📱 MESSAGING SERVICE: Error getting auth code:', error);
     return null;
   }
 };
@@ -1327,7 +1342,34 @@ export const getAvailableUsersForStaff = async (userType = null) => {
       Config.API_ENDPOINTS.GET_AVAILABLE_USERS_STAFF,
       params
     );
-    return await makeApiRequest(url);
+
+    console.log('🔍 STAFF API: Making request to:', url);
+    console.log('🔍 STAFF API: Request params:', params);
+
+    const response = await makeApiRequest(url);
+
+    console.log(
+      '🔍 STAFF API: Full response:',
+      JSON.stringify(response, null, 2)
+    );
+    console.log('🔍 STAFF API: Response data structure:', response?.data);
+    console.log('🔍 STAFF API: Grouped users:', response?.data?.grouped_users);
+
+    if (response?.data?.grouped_users) {
+      response.data.grouped_users.forEach((group, index) => {
+        console.log(`🔍 STAFF API: Group ${index}:`, {
+          type: group.type,
+          type_label: group.type_label,
+          role: group.role,
+          role_label: group.role_label,
+          count: group.count || group.users?.length,
+          userCount: group.users?.length,
+          sampleUser: group.users?.[0],
+        });
+      });
+    }
+
+    return response;
   } catch (error) {
     console.error('Error fetching available users for staff:', error);
     throw error;

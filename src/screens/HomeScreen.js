@@ -34,6 +34,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Platform } from 'expo-modules-core';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getUserData } from '../services/authService';
 import useThemeLogo, { useSchoolLogo } from '../hooks/useThemeLogo';
 import {
   isIPad,
@@ -54,6 +55,7 @@ import {
   logDiagnostics,
   clearAllUserData,
 } from '../utils/homescreenDiagnostics';
+import { cleanupStudentDataFromStorage } from '../services/logoutService';
 import {
   wrapWithTimeout,
   usePerformanceMonitoring,
@@ -66,7 +68,6 @@ export default function HomeScreen({ navigation }) {
   const { t, currentLanguage } = useLanguage();
   const fontSizes = getLanguageFontSizes(currentLanguage);
   const logoSource = useThemeLogo();
-  const schoolLogoSource = useSchoolLogo();
 
   // iOS fallback state to ensure content appears
   const [contentVisible, setContentVisible] = React.useState(
@@ -264,6 +265,28 @@ export default function HomeScreen({ navigation }) {
     validateData();
   }, []);
 
+  // Quick student cleanup function
+  const quickStudentCleanup = async () => {
+    try {
+      console.log('🧹 HOME: Quick student data cleanup...');
+      const result = await cleanupStudentDataFromStorage();
+      if (result.success) {
+        Alert.alert(
+          'Student Data Cleaned',
+          'Student data has been cleaned from storage. Please try the Student/Parent button again.'
+        );
+      } else {
+        Alert.alert(
+          'Cleanup Failed',
+          `Failed to clean student data: ${result.error}`
+        );
+      }
+    } catch (error) {
+      console.error('❌ HOME: Failed to clean student data:', error);
+      Alert.alert('Error', 'Failed to clean student data');
+    }
+  };
+
   // Diagnostic function for troubleshooting navigation issues
   const runDiagnostics = async () => {
     try {
@@ -275,6 +298,30 @@ export default function HomeScreen({ navigation }) {
 
       Alert.alert(t('navigationDiagnostics'), userMessage, [
         { text: t('ok'), style: 'default' },
+        {
+          text: 'Clean Student Data',
+          style: 'default',
+          onPress: async () => {
+            try {
+              console.log('🧹 HOME: Starting student data cleanup...');
+              const result = await cleanupStudentDataFromStorage();
+              if (result.success) {
+                Alert.alert(
+                  'Student Data Cleaned',
+                  'Student data has been cleaned from storage. Please try again.'
+                );
+              } else {
+                Alert.alert(
+                  'Cleanup Failed',
+                  `Failed to clean student data: ${result.error}`
+                );
+              }
+            } catch (error) {
+              console.error('❌ HOME: Failed to clean student data:', error);
+              Alert.alert('Error', 'Failed to clean student data');
+            }
+          },
+        },
         {
           text: t('clearDataRestart'),
           style: 'destructive',
@@ -313,9 +360,18 @@ export default function HomeScreen({ navigation }) {
     try {
       console.log('👨‍🏫 HOME: Teacher button pressed, starting navigation...');
 
-      // Use validated user data with timeout protection
+      // Check for teacher-specific data first
+      const getTeacherData = async () => {
+        const teacherData = await getUserData('teacher', AsyncStorage);
+        if (teacherData && teacherData.userType === 'teacher') {
+          return teacherData;
+        }
+        return null;
+      };
+
+      // Use teacher-specific data with timeout protection
       const userData = await wrapWithTimeout(
-        getValidatedUserData,
+        getTeacherData,
         10000, // 10 second timeout
         'Get Teacher Data'
       );
@@ -354,7 +410,7 @@ export default function HomeScreen({ navigation }) {
 
       // If not logged in or not a teacher, go to login screen
       console.log('🔄 HOME: No valid teacher data found, redirecting to login');
-      navigation.navigate('Login');
+      navigation.navigate('Login', { loginType: 'teacher' });
     } catch (error) {
       console.error('❌ HOME: Unexpected error in handleTeacherPress:', error);
       Alert.alert(t('navigationError'), t('unableToAccessTeacherScreen'), [
@@ -362,24 +418,120 @@ export default function HomeScreen({ navigation }) {
         { text: t('runDiagnostics'), onPress: () => runDiagnostics() },
         {
           text: t('goToLogin'),
-          onPress: () => navigation.navigate('Login'),
+          onPress: () => navigation.navigate('Login', { loginType: 'teacher' }),
         },
       ]);
     }
   };
 
-  const handleParentPress = async () => {
+  const handleStudentParentGuardianPress = async () => {
     try {
-      // Navigate to parent screen - no login check needed as parents can add students later
-      console.log('👨‍👩‍👧‍👦 HOME: Navigating to parent screen');
-      navigation.navigate('ParentScreen');
+      console.log('👨‍👩‍👧‍👦 HOME: Checking for parent/student data...');
+
+      // Check for parent-specific data first (must be actual parent/student data, not teacher data)
+      const parentData = await getUserData('parent', AsyncStorage);
+      const studentData = await getUserData('student', AsyncStorage);
+      const studentAccounts = await AsyncStorage.getItem('studentAccounts');
+      const selectedStudent = await AsyncStorage.getItem('selectedStudent');
+
+      // Validate that the data is actually for parent/student users, not teacher data
+      const validParentData =
+        parentData && parentData.userType === 'parent' ? parentData : null;
+      const validStudentData =
+        studentData && studentData.userType === 'student' ? studentData : null;
+
+      console.log('👨‍👩‍👧‍👦 HOME: Data check results:', {
+        hasParentData: !!parentData,
+        hasStudentData: !!studentData,
+        hasValidParentData: !!validParentData,
+        hasValidStudentData: !!validStudentData,
+        hasStudentAccounts: !!studentAccounts,
+        hasSelectedStudent: !!selectedStudent,
+        parentDataUserType: parentData?.userType,
+        studentDataUserType: studentData?.userType,
+      });
+
+      // Only navigate to ParentScreen if we have valid parent or student authentication data
+      // studentAccounts and selectedStudent are only valid if we have corresponding auth data
+      const hasValidParentStudentData =
+        validParentData ||
+        validStudentData ||
+        (studentAccounts && (validParentData || validStudentData)) ||
+        (selectedStudent && (validParentData || validStudentData));
+
+      console.log('👨‍👩‍👧‍👦 HOME: Validation results:', {
+        hasValidParentStudentData,
+        hasValidParentAuth: !!validParentData,
+        hasValidStudentAuth: !!validStudentData,
+        hasStudentAccountsButNoAuth:
+          !!studentAccounts && !validParentData && !validStudentData,
+        hasSelectedStudentButNoAuth:
+          !!selectedStudent && !validParentData && !validStudentData,
+      });
+
+      if (hasValidParentStudentData) {
+        // Determine which screen to navigate to based on the type of valid data
+        if (validStudentData && !validParentData) {
+          // Only student data is valid - navigate to StudentScreen
+          console.log(
+            '✅ HOME: Valid student data found, navigating to student screen'
+          );
+          navigation.navigate('StudentScreen');
+        } else {
+          // Parent data is valid (or both parent and student data are valid)
+          // Navigate to ParentScreen as it can handle both scenarios
+          console.log(
+            '✅ HOME: Valid parent data found, navigating to parent screen'
+          );
+          navigation.navigate('ParentScreen');
+        }
+      } else {
+        console.log(
+          '❌ HOME: No valid parent/student authentication data found, navigating to login screen'
+        );
+
+        // Clean up stale student data if no valid authentication is available
+        if (
+          (studentAccounts || selectedStudent) &&
+          !validParentData &&
+          !validStudentData
+        ) {
+          console.log(
+            '🧹 HOME: Cleaning up stale student data without authentication...'
+          );
+          try {
+            if (studentAccounts) {
+              await AsyncStorage.removeItem('studentAccounts');
+              console.log('🧹 HOME: Removed stale studentAccounts');
+            }
+            if (selectedStudent) {
+              await AsyncStorage.removeItem('selectedStudent');
+              console.log('🧹 HOME: Removed stale selectedStudent');
+            }
+          } catch (cleanupError) {
+            console.warn(
+              '⚠️ HOME: Error cleaning up stale data:',
+              cleanupError
+            );
+          }
+        }
+
+        navigation.navigate('Login', { loginType: 'student' });
+      }
     } catch (error) {
-      console.error('❌ HOME: Error navigating to parent screen:', error);
-      Alert.alert(t('navigationError'), t('unableToAccessParentScreen'), [
-        { text: t('tryAgain'), onPress: () => handleParentPress() },
-        { text: t('runDiagnostics'), onPress: () => runDiagnostics() },
-        { text: t('cancel'), style: 'cancel' },
-      ]);
+      console.error('❌ HOME: Error checking user data:', error);
+      Alert.alert(
+        t('navigationError'),
+        'Unable to access student/parent features',
+        [
+          {
+            text: t('tryAgain'),
+            onPress: () => handleStudentParentGuardianPress(),
+          },
+          { text: t('runDiagnostics'), onPress: () => runDiagnostics() },
+          { text: t('cancel'), style: 'cancel' },
+        ]
+      );
     }
   };
 
@@ -610,21 +762,43 @@ export default function HomeScreen({ navigation }) {
         <FontAwesomeIcon icon={faCog} size={20} color={theme.colors.text} />
       </TouchableOpacity>
 
+      {/* Hidden Diagnostics Button - Long press top-right */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          top: 50,
+          right: 50,
+          width: 50,
+          height: 50,
+          backgroundColor: 'transparent',
+        }}
+        onLongPress={runDiagnostics}
+        delayLongPress={2000}
+      >
+        {/* Hidden diagnostics trigger - long press for 2 seconds */}
+      </TouchableOpacity>
+
+      {/* Hidden Student Cleanup Button - Long press top-left */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          top: 50,
+          left: 50,
+          width: 50,
+          height: 50,
+          backgroundColor: 'transparent',
+        }}
+        onLongPress={quickStudentCleanup}
+        delayLongPress={2000}
+      >
+        {/* Hidden student cleanup trigger - long press for 2 seconds */}
+      </TouchableOpacity>
+
       <View style={styles.content}>
+        <Text style={styles.title}>{t('welcomeTo')}</Text>
         <Image source={logoSource} style={styles.logo} resizeMode='contain' />
 
-        <Text style={styles.title}>{t('welcomeTo')}</Text>
-        <Image
-          source={schoolLogoSource}
-          style={styles.secondaryLogo}
-          resizeMode='contain'
-        />
         <Text style={styles.subtitle}>{t('chooseYourRole')}</Text>
-
-        {/* Debug info for iOS devices (only in development) */}
-        {__DEV__ && Platform.OS === 'ios' && (
-          <Text style={styles.debugText}>Debug: {deviceState.debugInfo}</Text>
-        )}
 
         <Animated.View
           key={
@@ -668,7 +842,7 @@ export default function HomeScreen({ navigation }) {
 
             <TouchableOpacity
               style={[styles.roleButton, styles.roleButtonHorizontal]}
-              onPress={handleParentPress}
+              onPress={handleStudentParentGuardianPress}
             >
               <View style={[styles.iconContainer, styles.parentIconContainer]}>
                 <FontAwesomeIcon
@@ -677,9 +851,9 @@ export default function HomeScreen({ navigation }) {
                   color='#FF9500'
                 />
               </View>
-              <Text style={styles.roleText}>{t('parent')}</Text>
+              <Text style={styles.roleText}>Student, Parent</Text>
               <Text style={styles.roleDescription} numberOfLines={2}>
-                {t('parentDescription')}
+                Access student grades, attendance, and parent features
               </Text>
             </TouchableOpacity>
           </View>

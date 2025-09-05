@@ -23,16 +23,18 @@ import { useTheme } from '../contexts/ThemeContext';
 import {
   getAvailableUsersForStudent,
   getAvailableUsersForParent,
+  getAvailableUsersForStaff,
   createConversation,
 } from '../services/messagingService';
 
 const CreateConversationScreen = ({ navigation, route }) => {
   console.log(
-    '🚀 GENERIC CreateConversationScreen loaded - this should handle both parent and student'
+    '🚀 GENERIC CreateConversationScreen loaded - handles parent, teacher, and student users'
   );
 
   const { theme, fontSizes } = useTheme();
-  const { authCode, studentName, parentName, userType } = route.params;
+  const { authCode, studentName, parentName, teacherName, userType } =
+    route.params;
 
   const [topic, setTopic] = useState('');
   const [groupedUsers, setGroupedUsers] = useState([]);
@@ -57,6 +59,7 @@ const CreateConversationScreen = ({ navigation, route }) => {
 
       console.log('🔍 CreateConversationScreen - userType:', userType);
       console.log('🔍 CreateConversationScreen - parentName:', parentName);
+      console.log('🔍 CreateConversationScreen - teacherName:', teacherName);
       console.log('🔍 CreateConversationScreen - studentName:', studentName);
 
       // Use the appropriate service based on user type
@@ -70,6 +73,13 @@ const CreateConversationScreen = ({ navigation, route }) => {
         );
         console.log('📞 Function reference:', getAvailableUsersForParent.name);
         response = await getAvailableUsersForParent(null, authCode);
+      } else if (userType === 'teacher' || userType === 'staff') {
+        console.log(
+          '📞 Calling getAvailableUsersForStaff with userType:',
+          userType
+        );
+        console.log('📞 Function reference:', getAvailableUsersForStaff.name);
+        response = await getAvailableUsersForStaff(null);
       } else {
         console.log(
           '📞 Calling getAvailableUsersForStudent with userType:',
@@ -107,6 +117,35 @@ const CreateConversationScreen = ({ navigation, route }) => {
           '🔍 CREATE CONVERSATION - grouped_users length:',
           responseData.grouped_users?.length
         );
+
+        // Detailed logging of each group structure
+        if (responseData.grouped_users) {
+          responseData.grouped_users.forEach((group, index) => {
+            console.log(`🔍 CREATE CONVERSATION - Group ${index} structure:`, {
+              type: group.type,
+              type_label: group.type_label,
+              role: group.role,
+              role_label: group.role_label,
+              count: group.count,
+              usersLength: group.users?.length,
+              firstUser: group.users?.[0]
+                ? {
+                    id: group.users[0].id,
+                    name: group.users[0].name,
+                    role: group.users[0].role,
+                    user_type: group.users[0].user_type,
+                    position: group.users[0].position,
+                    department: group.users[0].department,
+                    title: group.users[0].title,
+                    job_title: group.users[0].job_title,
+                    staff_role: group.users[0].staff_role,
+                    // Log all available fields to see what the API provides
+                    allFields: Object.keys(group.users[0]),
+                  }
+                : null,
+            });
+          });
+        }
 
         const groupedUsers = responseData.grouped_users || [];
         console.log(
@@ -177,6 +216,7 @@ const CreateConversationScreen = ({ navigation, route }) => {
                 authCode,
                 studentName,
                 parentName,
+                teacherName,
                 userType: userType || 'student',
               });
             },
@@ -212,11 +252,17 @@ const CreateConversationScreen = ({ navigation, route }) => {
     .filter((group) => group.users.length > 0);
 
   // Create sections for SectionList
-  const sections = filteredGroupedUsers.map((group) => ({
-    title: group.role_label,
-    data: group.users,
-    _sectionKey: group.role,
-  }));
+  const sections = filteredGroupedUsers.map((group) => {
+    const title = group.type_label || group.role_label || group.type || 'Users';
+    console.log(
+      `🏷️ CREATE CONVERSATION - Group label: "${title}" (from type_label: "${group.type_label}", role_label: "${group.role_label}", type: "${group.type}")`
+    );
+    return {
+      title,
+      data: group.users,
+      _sectionKey: group.type || group.role,
+    };
+  });
 
   console.log('🔍 CREATE CONVERSATION - groupedUsers state:', groupedUsers);
   console.log(
