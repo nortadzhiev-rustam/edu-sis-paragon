@@ -66,6 +66,7 @@ Thumbs.db
 # Build artifacts
 dist/
 build/
+release/
 
 # Test files
 __tests__/
