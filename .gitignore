@@ -186,6 +186,8 @@ src/**/*.pfx
 src/**/*credentials*
 src/**/*-credentials*
 src/**/*_credentials*
+# Exception for demo component
+!src/components/DemoCredentialsCard.js
 src/**/*auth-config*
 src/**/*auth_config*
 src/**/*firebase-config*
