@@ -269,12 +269,12 @@ export const validatePickupLocation = (
         }
       : null,
     message: isValid
-      ? `You are ${distance}m from ${
+      ? `You are ${formatDistance(distance)} from ${
           schoolLocation?.branch_name || 'campus'
         } - within pickup range`
-      : `You are ${distance}m from ${
+      : `You are ${formatDistance(distance)} from ${
           schoolLocation?.branch_name || 'campus'
-        } - please get closer (within ${threshold}m)`,
+        } - please get closer (within ${formatDistance(threshold)})`,
   };
 };
 

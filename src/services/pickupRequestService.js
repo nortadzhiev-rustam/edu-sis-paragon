@@ -9,6 +9,7 @@ import {
   getCurrentLocation,
   validatePickupLocation,
   getSchoolLocation,
+  formatDistance,
 } from './locationService';
 
 // Mock data flag - set to false when connecting to real API
@@ -41,7 +42,9 @@ export const createMultipleParentPickupRequests = async (
     const locationValidation = validatePickupLocation(currentLocation);
     if (!locationValidation.isValid) {
       throw new Error(
-        `You are too far from campus. Please make request when you are at least 150 meters close to campus! [${locationValidation.distance}m]`
+        `You are too far from campus. Please make request when you are at least 150 meters close to campus! [${formatDistance(
+          locationValidation.distance
+        )}]`
       );
     }
 
@@ -56,7 +59,7 @@ export const createMultipleParentPickupRequests = async (
         success: true,
         message: 'Pickup request created successfully',
         request_id: Date.now() + index,
-        distance: `${locationValidation.distance}m`,
+        distance: formatDistance(locationValidation.distance),
       }));
 
       return {
@@ -126,7 +129,9 @@ export const createParentPickupRequest = async (authCode, studentId = null) => {
     const locationValidation = validatePickupLocation(currentLocation);
     if (!locationValidation.isValid) {
       throw new Error(
-        `You are too far from campus. Please make request when you are at least 150 meters close to campus! [${locationValidation.distance}m]`
+        `You are too far from campus. Please make request when you are at least 150 meters close to campus! [${formatDistance(
+          locationValidation.distance
+        )}]`
       );
     }
 
@@ -195,7 +200,9 @@ export const createGuardianPickupRequest = async (authCode) => {
     const locationValidation = validatePickupLocation(currentLocation);
     if (!locationValidation.isValid) {
       throw new Error(
-        `You are too far from campus. Please make request when you are at least 150 meters close to campus! [${locationValidation.distance}m]`
+        `You are too far from campus. Please make request when you are at least 150 meters close to campus! [${formatDistance(
+          locationValidation.distance
+        )}]`
       );
     }
 
@@ -314,7 +321,7 @@ export const validatePickupRequest = async (authCode) => {
         canRequest: false,
         reason: 'too_far_from_campus',
         message: locationValidation.message,
-        distance: locationValidation.distance,
+        distance: formatDistance(locationValidation.distance),
         threshold: locationValidation.threshold,
         schoolLocation,
       };
@@ -340,7 +347,7 @@ export const validatePickupRequest = async (authCode) => {
       canRequest: true,
       reason: 'eligible',
       message: 'You are eligible to make a pickup request',
-      distance: locationValidation.distance,
+      distance: formatDistance(locationValidation.distance),
       location: currentLocation,
       schoolLocation,
     };
@@ -545,6 +552,235 @@ export const getPendingPickupRequests = async (authCode) => {
 };
 
 /**
+ * Get parent pickup history
+ * @param {string} authCode - Parent authentication code
+ * @param {Object} options - Query options
+ * @param {string} options.start_date - Start date (Y-m-d format)
+ * @param {string} options.end_date - End date (Y-m-d format)
+ * @param {number} options.student_id - Filter by specific child
+ * @param {number} options.limit - Number of records to return (default: 50, max: 200)
+ * @param {number} options.page - Page number for pagination (default: 1)
+ * @returns {Promise<Object>} - API response with pickup history
+ */
+export const getParentPickupHistory = async (authCode, options = {}) => {
+  try {
+    console.log('📚 PARENT PICKUP HISTORY: Loading pickup history...');
+    console.log('🔑 PARENT PICKUP HISTORY: Auth code:', authCode);
+    console.log('⚙️ PARENT PICKUP HISTORY: Options:', options);
+
+    if (!authCode) {
+      throw new Error('Authentication code is required');
+    }
+
+    if (USE_MOCK_DATA) {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Mock successful response
+      return {
+        success: true,
+        parent_info: {
+          name: 'John Doe',
+          phone: '+855123456789',
+        },
+        date_range: {
+          start_date: options.start_date || '2024-01-01',
+          end_date: options.end_date || new Date().toISOString().split('T')[0],
+        },
+        summary: {
+          total_pickups: 15,
+          parent_pickups: 10,
+          guardian_pickups: 5,
+          children_count: 2,
+        },
+        pagination: {
+          current_page: options.page || 1,
+          total_pages: 1,
+          total_records: 15,
+          per_page: options.limit || 50,
+          has_next_page: false,
+          has_previous_page: false,
+        },
+        pickup_history: [
+          {
+            log_id: 123,
+            student: {
+              id: 456,
+              name: 'Jane Doe',
+              photo: '/path/to/photo.jpg',
+              branch_id: 1,
+            },
+            pickup_person: {
+              name: 'Parent',
+              relation: 'Parent',
+              type: 'parent',
+            },
+            processed_by: {
+              staff_id: 789,
+              staff_name: 'Teacher Smith',
+            },
+            pickup_date: '2024-01-15',
+            pickup_time: '15:30:00',
+            pickup_datetime: '2024-01-15 15:30:00',
+            formatted_date: 'Jan 15, 2024',
+            formatted_time: '3:30 PM',
+          },
+          {
+            log_id: 124,
+            student: {
+              id: 457,
+              name: 'John Doe Jr.',
+              photo: '/path/to/photo2.jpg',
+              branch_id: 1,
+            },
+            pickup_person: {
+              name: 'Mary Johnson',
+              relation: 'Grandmother',
+              type: 'guardian',
+            },
+            processed_by: {
+              staff_id: 790,
+              staff_name: 'Teacher Brown',
+            },
+            pickup_date: '2024-01-14',
+            pickup_time: '16:00:00',
+            pickup_datetime: '2024-01-14 16:00:00',
+            formatted_date: 'Jan 14, 2024',
+            formatted_time: '4:00 PM',
+          },
+        ],
+      };
+    }
+
+    // Real API call
+    const url = buildApiUrl(Config.API_ENDPOINTS.PARENT_PICKUP_HISTORY, {
+      authCode,
+      ...options,
+    });
+
+    console.log('🌐 PARENT PICKUP HISTORY: API URL:', url);
+
+    const response = await makeApiRequest(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    console.log('✅ PARENT PICKUP HISTORY: API response:', response);
+    return response;
+  } catch (error) {
+    console.error('❌ PARENT PICKUP HISTORY: Error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get guardian pickup history
+ * @param {string} authCode - Guardian authentication code
+ * @param {Object} options - Query options
+ * @param {string} options.start_date - Start date (Y-m-d format)
+ * @param {string} options.end_date - End date (Y-m-d format)
+ * @param {number} options.limit - Number of records to return (default: 50, max: 200)
+ * @param {number} options.page - Page number for pagination (default: 1)
+ * @returns {Promise<Object>} - API response with pickup history
+ */
+export const getGuardianPickupHistory = async (authCode, options = {}) => {
+  try {
+    console.log('📚 GUARDIAN PICKUP HISTORY: Loading pickup history...');
+    console.log('🔑 GUARDIAN PICKUP HISTORY: Auth code:', authCode);
+    console.log('⚙️ GUARDIAN PICKUP HISTORY: Options:', options);
+
+    if (!authCode) {
+      throw new Error('Authentication code is required');
+    }
+
+    if (USE_MOCK_DATA) {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Mock successful response
+      return {
+        success: true,
+        guardian_info: {
+          name: 'Mary Johnson',
+          relation: 'Grandmother',
+          phone: '+855987654321',
+          email: 'mary@example.com',
+        },
+        student_info: {
+          id: 456,
+          name: 'Jane Doe',
+          photo: '/path/to/photo.jpg',
+        },
+        date_range: {
+          start_date: options.start_date || '2024-01-01',
+          end_date: options.end_date || new Date().toISOString().split('T')[0],
+        },
+        summary: {
+          total_pickups: 8,
+          guardian_name: 'Mary Johnson',
+        },
+        pagination: {
+          current_page: options.page || 1,
+          total_pages: 1,
+          total_records: 8,
+          per_page: options.limit || 50,
+          has_next_page: false,
+          has_previous_page: false,
+        },
+        pickup_history: [
+          {
+            log_id: 124,
+            student: {
+              id: 456,
+              name: 'Jane Doe',
+              photo: '/path/to/photo.jpg',
+              branch_id: 1,
+            },
+            pickup_person: {
+              name: 'Mary Johnson',
+              relation: 'Grandmother',
+              type: 'guardian',
+            },
+            processed_by: {
+              staff_id: 789,
+              staff_name: 'Teacher Smith',
+            },
+            pickup_date: '2024-01-14',
+            pickup_time: '16:00:00',
+            pickup_datetime: '2024-01-14 16:00:00',
+            formatted_date: 'Jan 14, 2024',
+            formatted_time: '4:00 PM',
+          },
+        ],
+      };
+    }
+
+    // Real API call
+    const url = buildApiUrl(Config.API_ENDPOINTS.GUARDIAN_PICKUP_HISTORY, {
+      authCode,
+      ...options,
+    });
+
+    console.log('🌐 GUARDIAN PICKUP HISTORY: API URL:', url);
+
+    const response = await makeApiRequest(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    console.log('✅ GUARDIAN PICKUP HISTORY: API response:', response);
+    return response;
+  } catch (error) {
+    console.error('❌ GUARDIAN PICKUP HISTORY: Error:', error);
+    throw error;
+  }
+};
+
+/**
  * Pickup Request Service Export
  */
 export default {
@@ -555,6 +791,8 @@ export default {
   validatePickupRequest,
   generateParentPickupQR,
   getPendingPickupRequests,
+  getParentPickupHistory,
+  getGuardianPickupHistory,
   extractStudentNameFromResponse,
   formatPickupRequestResponse,
 };

@@ -37,7 +37,6 @@ import {
   faSignOutAlt,
   faGear,
   faUserShield,
-  faCar,
   faArrowLeft,
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
@@ -161,22 +160,12 @@ const getMenuItems = (t) => [
   //   comingSoon: false,
   // },
   {
-    id: 'guardians',
-    title: t('guardianManagement'),
+    id: 'guardian-pickup',
+    title: 'Guardian & Pickup',
     icon: faUserShield,
     backgroundColor: '#8B5CF6',
     iconColor: '#fff',
-    action: 'guardians',
-    disabled: false,
-    comingSoon: false,
-  },
-  {
-    id: 'pickup',
-    title: 'Pickup Request',
-    icon: faCar,
-    backgroundColor: '#FF6B35',
-    iconColor: '#fff',
-    action: 'pickup',
+    action: 'guardian-pickup',
     disabled: false,
     comingSoon: false,
   },
@@ -511,36 +500,21 @@ export default function ParentScreen({ navigation }) {
           },
         });
         break;
-      case 'guardians':
-        // Use parent's auth code for guardian management
-        const guardianAuthCode =
+      case 'guardian-pickup':
+        // Navigate to unified guardian & pickup management screen
+        const guardianPickupAuthCode =
           currentUserData?.auth_code || currentUserData?.authCode;
 
-        if (guardianAuthCode) {
-          navigation.navigate('GuardianManagement', {
-            authCode: guardianAuthCode,
+        if (guardianPickupAuthCode) {
+          navigation.navigate('GuardianPickupManagement', {
+            authCode: guardianPickupAuthCode,
             children: students,
             selectedChildId: selectedStudent?.id,
           });
         } else {
-          Alert.alert(t('error'), t('unableToAccessGuardianManagement'));
-        }
-        break;
-      case 'pickup':
-        // Navigate to parent pickup request screen
-        const pickupAuthCode =
-          currentUserData?.auth_code || currentUserData?.authCode;
-
-        if (pickupAuthCode) {
-          navigation.navigate('ParentPickupRequest', {
-            authCode: pickupAuthCode,
-            children: students,
-            selectedChild: selectedStudent,
-          });
-        } else {
           Alert.alert(
             t('error'),
-            'Unable to access pickup request. Please try logging in again.'
+            'Unable to access guardian & pickup management. Please try logging in again.'
           );
         }
         break;
@@ -1568,7 +1542,7 @@ const createStyles = (theme, fontSizes) =>
       flexWrap: 'wrap',
       justifyContent: 'flex-start', // Changed from space-between to support flex expansion
       paddingBottom: 50, // Add padding for scrollable content
-      paddingHorizontal: 5, // Add padding for scrollable content
+      paddingHorizontal: 3, // Add padding for scrollable content
     },
     // iPad-specific grid layout - 4 tiles per row, wraps to next row for additional tiles
     iPadActionTilesGrid: {

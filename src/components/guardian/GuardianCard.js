@@ -5,6 +5,12 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import {
+  faCar,
+  faQrcode,
+  faRotateRight,
+} from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -13,6 +19,8 @@ const GuardianCard = ({
   onPress,
   onRotateQR,
   showActions = true,
+  showPickupAction = false,
+  onPickupRequest,
 }) => {
   const { theme } = useTheme();
   const { t } = useLanguage();
@@ -70,14 +78,21 @@ const GuardianCard = ({
               styles.statusIndicator,
               {
                 backgroundColor:
-                  guardian.status === 1 ? theme.colors.success : theme.colors.error,
+                  guardian.status === 1
+                    ? theme.colors.success
+                    : theme.colors.error,
               },
             ]}
           />
           <Text
             style={[
               styles.statusText,
-              { color: guardian.status === 1 ? theme.colors.success : theme.colors.error },
+              {
+                color:
+                  guardian.status === 1
+                    ? theme.colors.success
+                    : theme.colors.error,
+              },
             ]}
           >
             {guardian.status === 1
@@ -120,14 +135,26 @@ const GuardianCard = ({
             style={[styles.actionButton, styles.viewButton]}
             onPress={() => onPress && onPress(guardian)}
           >
+            <FontAwesomeIcon icon={faQrcode} size={12} color='#fff' />
             <Text style={styles.actionButtonText}>{t('viewQr')}</Text>
           </TouchableOpacity>
+
+          {showPickupAction && onPickupRequest && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.pickupButton]}
+              onPress={onPickupRequest}
+            >
+              <FontAwesomeIcon icon={faCar} size={12} color='#fff' />
+              <Text style={styles.actionButtonText}>Pickup</Text>
+            </TouchableOpacity>
+          )}
 
           {onRotateQR && (
             <TouchableOpacity
               style={[styles.actionButton, styles.rotateButton]}
               onPress={handleRotateQR}
             >
+              <FontAwesomeIcon icon={faRotateRight} size={12} color='#fff' />
               <Text style={styles.actionButtonText}>{t('rotateQr')}</Text>
             </TouchableOpacity>
           )}
@@ -243,16 +270,22 @@ const createStyles = (theme) =>
       paddingHorizontal: 12,
       borderRadius: 6,
       alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 4,
     },
     viewButton: {
       backgroundColor: theme.colors.primary,
+    },
+    pickupButton: {
+      backgroundColor: theme.colors.success,
     },
     rotateButton: {
       backgroundColor: theme.colors.warning,
     },
     actionButtonText: {
       color: theme.colors.headerText,
-      fontSize: 14,
+      fontSize: 12,
       fontWeight: '600',
     },
   });

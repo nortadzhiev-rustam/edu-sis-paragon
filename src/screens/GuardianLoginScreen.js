@@ -142,24 +142,7 @@ const GuardianLoginScreen = ({ navigation }) => {
           <Text style={styles.manualButtonText}>{t('enterManually')}</Text>
         </TouchableOpacity>
 
-        {/* Instructions */}
-        <View style={styles.instructionsSection}>
-          <Text style={styles.instructionsTitle}>{t('howToGetStarted')}:</Text>
-          <Text style={styles.instructionStep}>
-            1. {t('receiveQrFromParent')}
-          </Text>
-          <Text style={styles.instructionStep}>2. {t('tapScanQrButton')}</Text>
-          <Text style={styles.instructionStep}>3. {t('pointCameraAtQr')}</Text>
-          <Text style={styles.instructionStep}>
-            4. {t('completeProfileIfNeeded')}
-          </Text>
-        </View>
-
-        {/* Help Section */}
-        <View style={styles.helpSection}>
-          <Text style={styles.helpTitle}>{t('needHelp')}?</Text>
-          <Text style={styles.helpText}>{t('guardianHelpMessage')}</Text>
-        </View>
+        
       </View>
     </SafeAreaView>
   );
@@ -246,7 +229,7 @@ const createStyles = (theme) =>
       textAlign: 'center',
     },
     welcomeSection: {
-      marginBottom: 32,
+      marginBottom: 16,
     },
     welcomeTitle: {
       fontSize: 28,
@@ -265,7 +248,7 @@ const createStyles = (theme) =>
       backgroundColor: theme.colors.card,
       borderRadius: 12,
       padding: 20,
-      marginBottom: 32,
+      marginBottom: 16,
     },
     featureItem: {
       flexDirection: 'row',
@@ -286,7 +269,7 @@ const createStyles = (theme) =>
       paddingVertical: 18,
       paddingHorizontal: 24,
       borderRadius: 12,
-      marginBottom: 32,
+      marginBottom: 16,
       shadowColor: theme.colors.shadow,
       shadowOffset: {
         width: 0,

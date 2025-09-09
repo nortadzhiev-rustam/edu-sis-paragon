@@ -56,8 +56,10 @@ import GuardianDashboardScreen from './src/screens/GuardianDashboardScreen';
 import GuardianDetailScreen from './src/screens/GuardianDetailScreen';
 import GuardianLoginScreen from './src/screens/GuardianLoginScreen';
 import GuardianManagementScreen from './src/screens/GuardianManagementScreen';
+import GuardianPickupManagementScreen from './src/screens/GuardianPickupManagementScreen';
 import GuardianPickupRequestScreen from './src/screens/GuardianPickupRequestScreen';
 import GuardianProfileCompletionScreen from './src/screens/GuardianProfileCompletionScreen';
+import PickupHistoryScreen from './src/screens/PickupHistoryScreen';
 import GuardianProfileEditScreen from './src/screens/GuardianProfileEditScreen';
 import GuardianQRScannerFallbackScreen from './src/screens/GuardianQRScannerFallbackScreen';
 import GuardianQRScannerScreen from './src/screens/GuardianQRScannerScreen';
@@ -386,7 +388,7 @@ export default function App() {
                       component={HomeroomStudentProfile}
                     />
                     <Stack.Screen
-                      name='HomeroomDisciplineScreen'
+                      name='HomeroomDiscipline'
                       component={HomeroomDisciplineScreen}
                     />
                     <Stack.Screen
@@ -458,7 +460,7 @@ export default function App() {
 
                     {/* Guardian Screens */}
                     <Stack.Screen
-                      name='AddGuardianScreen'
+                      name='AddGuardian'
                       component={AddGuardianScreen}
                     />
                     <Stack.Screen
@@ -482,6 +484,10 @@ export default function App() {
                       component={GuardianManagementScreen}
                     />
                     <Stack.Screen
+                      name='GuardianPickupManagement'
+                      component={GuardianPickupManagementScreen}
+                    />
+                    <Stack.Screen
                       name='GuardianPickupRequest'
                       component={GuardianPickupRequestScreen}
                     />
@@ -492,6 +498,10 @@ export default function App() {
                     <Stack.Screen
                       name='GuardianProfileEdit'
                       component={GuardianProfileEditScreen}
+                    />
+                    <Stack.Screen
+                      name='PickupHistory'
+                      component={PickupHistoryScreen}
                     />
                     <Stack.Screen
                       name='GuardianQRScannerFallback'
@@ -536,9 +546,15 @@ export default function App() {
                       name='LibraryScreen'
                       component={LibraryScreen}
                     />
-                    <Stack.Screen name='AboutUs' component={AboutUsScreen} />
-                    <Stack.Screen name='Contacts' component={ContactsScreen} />
-                    <Stack.Screen name='FAQ' component={FAQScreen} />
+                    <Stack.Screen
+                      name='AboutUsScreen'
+                      component={AboutUsScreen}
+                    />
+                    <Stack.Screen
+                      name='ContactsScreen'
+                      component={ContactsScreen}
+                    />
+                    <Stack.Screen name='FAQScreen' component={FAQScreen} />
                     <Stack.Screen
                       name='WorkspaceScreen'
                       component={WorkspaceScreen}

@@ -154,6 +154,13 @@ const GuardianPickupRequestScreen = () => {
     setShowMap(!showMap);
   };
 
+  const handleViewHistory = () => {
+    navigation.navigate('PickupHistory', {
+      authCode,
+      userType: 'guardian',
+    });
+  };
+
   const handleCreatePickupRequest = async () => {
     if (!canMakeRequest) {
       Alert.alert(
@@ -332,6 +339,16 @@ const GuardianPickupRequestScreen = () => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Pickup Request</Text>
         <View style={styles.headerButtons}>
+          <TouchableOpacity
+            onPress={handleViewHistory}
+            style={styles.headerButton}
+          >
+            <FontAwesome5
+              name='history'
+              size={18}
+              color={theme.colors.headerText}
+            />
+          </TouchableOpacity>
           <TouchableOpacity onPress={toggleMapView} style={styles.headerButton}>
             <FontAwesome5
               name={showMap ? 'list' : 'map'}

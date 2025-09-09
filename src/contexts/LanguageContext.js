@@ -813,7 +813,6 @@ const translations = {
     serverError: 'Server Error',
     incorrectCredentials: 'Incorrect username or password!',
 
-
     // Home Screen Navigation & Diagnostics
     dataClearedMessage:
       'All user data has been cleared. Please restart the app and log in again.',
@@ -1042,11 +1041,6 @@ const translations = {
     secondaryContact: 'Secondary Contact',
     secondaryPhone: 'Secondary Phone',
 
-
-
-
-
-
     // Teacher Profile - New keys
     staffInformation: 'Staff Information',
     staffCategory: 'Staff Category',
@@ -1057,15 +1051,26 @@ const translations = {
     // Home Screen Navigation & Diagnostics
     loginAsStudent: 'Login as Student',
 
-
-
-
     // Pickup Management
     pickupManagement: 'Pickup Management',
     scanAndProcess: 'Scan & Process',
     scanFailed: 'Scan Failed',
     processing: 'Processing...',
-     
+    pickup: 'Pickup',
+    requestPickup: 'Request Pickup',
+    emergency: 'Emergency',
+    emergencyPickup: 'Emergency Pickup',
+    for: 'for',
+    eligibleForPickup: 'Eligible for Pickup',
+    notEligible: 'Not Eligible',
+    requestTime: 'Request Time',
+    distance: 'Distance',
+    generateQR: 'Generate QR',
+    authorizedGuardians: 'Authorized Guardians',
+    noGuardiansAdded: 'No Guardians Added',
+    addGuardiansMessage: 'Add authorized guardians who can pick up your child',
+    managingFor: 'Managing for',
+    manageAllChildren: 'Manage guardians for all children',
   },
   my: {
     // Common
@@ -1835,9 +1840,6 @@ const translations = {
     myPickupQrCode: 'ကျွန်ုပ်၏ ကလေးခေါ်သွားရန် QR ကုဒ်',
     qrCodeNotAvailable: 'ဤအုပ်ထိန်းသူအတွက် QR ကုဒ်မရရှိနိုင်ပါ',
 
-
-
-
     // Teacher Profile - New keys
     staffInformation: 'ဝန်ထမ်းအချက်အလက်',
     staffCategory: 'ဝန်ထမ်းအမျိုးအစား',
@@ -1845,13 +1847,9 @@ const translations = {
     categoryId: 'အမျိုးအစား ID',
     accessibleBranches: 'ဝင်ရောက်နိုင်သောဌာနခွဲများ',
 
-
     // Home Screen Navigation & Diagnostics
     loginAsTeacher: 'ဆရာအဖြစ်လော့ဂ်အင်ဝင်ရန်',
     loginAsStudent: 'ကျောင်းသားအဖြစ်လော့ဂ်အင်ဝင်ရန်',
-
-
-
 
     // Pickup Management
     pickupManagement: 'ကလေးခေါ်ယူမှုစီမံခန့်ခွဲမှု',
@@ -1860,6 +1858,21 @@ const translations = {
     scanFailed: 'စကင်လုပ်မှုမအောင်မြင်ပါ',
     invalidQrCode: 'မမှန်ကန်သော QR ကုဒ်',
     enterQrToken: 'QR တိုကင်ရိုက်ထည့်ပါ',
+    pickup: 'ကလေးခေါ်ယူမှု',
+    requestPickup: 'ကလေးခေါ်ယူရန်တောင်းဆိုမှု',
+    emergency: 'အရေးပေါ်',
+    emergencyPickup: 'အရေးပေါ်ကလေးခေါ်ယူမှု',
+    for: 'အတွက်',
+    eligibleForPickup: 'ကလေးခေါ်ယူရန်အရည်အချင်းပြည့်မီသည်',
+    notEligible: 'အရည်အချင်းမပြည့်မီပါ',
+    requestTime: 'တောင်းဆိုချိန်',
+    distance: 'အကွာအဝေး',
+    generateQR: 'QR ကုဒ်ထုတ်လုပ်ရန်',
+    authorizedGuardians: 'ခွင့်ပြုထားသောအုပ်ထိန်းသူများ',
+    noGuardiansAdded: 'အုပ်ထိန်းသူများမထည့်ရသေးပါ',
+    addGuardiansMessage: 'သင့်ကလေးကိုခေါ်ယူနိုင်သောအုပ်ထိန်းသူများကိုထည့်ပါ',
+    managingFor: 'စီမံခန့်ခွဲနေသည်',
+    manageAllChildren: 'ကလေးအားလုံးအတွက်အုပ်ထိန်းသူများကိုစီမံခန့်ခွဲပါ',
     enterQrTokenManually: 'QR တိုကင်ကို လက်ဖြင့်ရိုက်ထည့်ပါ',
     manual: 'လက်ဖြင့်',
     flash: 'မီးလုံး',
@@ -2355,7 +2368,6 @@ const translations = {
     serverError: '服务器错误',
     incorrectCredentials: '用户名或密码错误！',
 
-
     // Home Screen Navigation & Diagnostics
     dataClearedMessage: '所有用户数据已清除。请重启应用并重新登录。',
     failedToClearData: '清除数据失败。请手动重启应用。',
@@ -2582,25 +2594,6 @@ const translations = {
     myPickupQrCode: '我的接送二维码',
     qrCodeNotAvailable: '此监护人的二维码不可用',
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     // Teacher Profile - New keys
     staffInformation: '教职工信息',
     staffCategory: '教职工类别',
@@ -2608,39 +2601,9 @@ const translations = {
     categoryId: '类别ID',
     accessibleBranches: '可访问的分支',
 
-
-
-
-
-
-
-
-
-
     // Home Screen Navigation & Diagnostics
     loginAsTeacher: '以教师身份登录',
     loginAsStudent: '以学生身份登录',
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     // Pickup Management
     pickupManagement: '接送管理',
@@ -2649,6 +2612,21 @@ const translations = {
     scanFailed: '扫描失败',
     invalidQrCode: '无效的二维码',
     tryAgain: '重试',
+    pickup: '接送',
+    requestPickup: '请求接送',
+    emergency: '紧急',
+    emergencyPickup: '紧急接送',
+    for: '为',
+    eligibleForPickup: '符合接送条件',
+    notEligible: '不符合条件',
+    requestTime: '请求时间',
+    distance: '距离',
+    generateQR: '生成二维码',
+    authorizedGuardians: '授权监护人',
+    noGuardiansAdded: '未添加监护人',
+    addGuardiansMessage: '添加可以接送您孩子的授权监护人',
+    managingFor: '管理对象',
+    manageAllChildren: '管理所有孩子的监护人',
     enterQrToken: '输入二维码令牌',
     enterQrTokenManually: '手动输入二维码令牌',
     manual: '手动',
@@ -2985,7 +2963,6 @@ const translations = {
     selectClass: 'เลือกห้องเรียน',
     summary: 'สรุป',
     visualization: 'การแสดงผลด้วยภาพ',
-
 
     // Report Types - Student
     grades: 'เกรด',
@@ -3398,18 +3375,6 @@ const translations = {
     myPickupQrCode: 'QR Code รับส่งของฉัน',
     qrCodeNotAvailable: 'QR Code ไม่พร้อมใช้งานสำหรับผู้ปกครองนี้',
 
-
-
-
-
-
-
-      
-
-
-
-
-
     // Teacher Profile - New keys
     staffInformation: 'ข้อมูลบุคลากร',
     staffCategory: 'ประเภทบุคลากร',
@@ -3417,27 +3382,9 @@ const translations = {
     categoryId: 'รหัสประเภท',
     accessibleBranches: 'สาขาที่เข้าถึงได้',
 
-
-
-
-
-
-
-
-
-
-
-
     // Home Screen Navigation & Diagnostics
     loginAsTeacher: 'เข้าสู่ระบบในฐานะครู',
     loginAsStudent: 'เข้าสู่ระบบในฐานะนักเรียน',
-
-
-
-
-
-
-
 
     // Pickup Management
     pickupManagement: 'การจัดการรับส่งนักเรียน',
@@ -3446,6 +3393,21 @@ const translations = {
     scanFailed: 'การสแกนล้มเหลว',
     invalidQrCode: 'QR Code ไม่ถูกต้อง',
     tryAgain: 'ลองใหม่',
+    pickup: 'รับส่ง',
+    requestPickup: 'ขอรับส่ง',
+    emergency: 'ฉุกเฉิน',
+    emergencyPickup: 'รับส่งฉุกเฉิน',
+    for: 'สำหรับ',
+    eligibleForPickup: 'มีสิทธิ์รับส่ง',
+    notEligible: 'ไม่มีสิทธิ์',
+    requestTime: 'เวลาขอ',
+    distance: 'ระยะทาง',
+    generateQR: 'สร้าง QR Code',
+    authorizedGuardians: 'ผู้ปกครองที่ได้รับอนุญาต',
+    noGuardiansAdded: 'ยังไม่ได้เพิ่มผู้ปกครอง',
+    addGuardiansMessage: 'เพิ่มผู้ปกครองที่ได้รับอนุญาตให้รับส่งลูกของคุณ',
+    managingFor: 'จัดการสำหรับ',
+    manageAllChildren: 'จัดการผู้ปกครองสำหรับเด็กทุกคน',
     enterQrToken: 'ใส่ QR Token',
     enterQrTokenManually: 'ใส่ QR Token ด้วยตนเอง',
     manual: 'ด้วยตนเอง',
@@ -3791,14 +3753,12 @@ const translations = {
     myPickupQrCode: 'QR Code ទទួលកុមាររបស់ខ្ញុំ',
     qrCodeNotAvailable: 'QR Code មិនអាចប្រើបានសម្រាប់អាណាព្យាបាលនេះ',
 
-
     // Teacher Profile - New keys
     staffInformation: 'ព័ត៌មានបុគ្គលិក',
     staffCategory: 'ប្រភេទបុគ្គលិក',
     professionPosition: 'តំណែង',
     categoryId: 'លេខសម្គាល់ប្រភេទ',
     accessibleBranches: 'សាខាដែលអាចចូលដំណើរការ',
-
 
     // Pickup Management
     pickupManagement: 'ការគ្រប់គ្រងការទទួលកុមារ',
@@ -3807,6 +3767,21 @@ const translations = {
     scanFailed: 'ការស្កេនបរាជ័យ',
     invalidQrCode: 'QR កូដមិនត្រឹមត្រូវ',
     tryAgain: 'ព្យាយាមម្តងទៀត',
+    pickup: 'ការទទួលកុមារ',
+    requestPickup: 'ស្នើសុំទទួលកុមារ',
+    emergency: 'បន្ទាន់',
+    emergencyPickup: 'ការទទួលកុមារបន្ទាន់',
+    for: 'សម្រាប់',
+    eligibleForPickup: 'មានសិទ្ធិទទួលកុមារ',
+    notEligible: 'មិនមានសិទ្ធិ',
+    requestTime: 'ពេលវេលាស្នើសុំ',
+    distance: 'ចម្ងាយ',
+    generateQR: 'បង្កើត QR កូដ',
+    authorizedGuardians: 'អាណាព្យាបាលដែលបានអនុញ្ញាត',
+    noGuardiansAdded: 'មិនទាន់បានបន្ថែមអាណាព្យាបាល',
+    addGuardiansMessage: 'បន្ថែមអាណាព្យាបាលដែលបានអនុញ្ញាតឱ្យទទួលកុមាររបស់អ្នក',
+    managingFor: 'គ្រប់គ្រងសម្រាប់',
+    manageAllChildren: 'គ្រប់គ្រងអាណាព្យាបាលសម្រាប់កុមារទាំងអស់',
     enterQrToken: 'បញ្ចូល QR តូខិន',
     enterQrTokenManually: 'បញ្ចូល QR តូខិនដោយដៃ',
     manual: 'ដោយដៃ',

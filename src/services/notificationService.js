@@ -16,21 +16,32 @@ const getAuthCode = async () => {
     const teacherData = await getUserData('teacher', AsyncStorage);
     if (teacherData && (teacherData.authCode || teacherData.auth_code)) {
       const authCode = teacherData.authCode || teacherData.auth_code;
-      console.log('🔑 NOTIFICATION SERVICE: Using teacher auth code');
+      console.log(
+        '🔑 NOTIFICATION SERVICE: Using teacher auth code:',
+        authCode?.substring(0, 8) + '...'
+      );
       return authCode;
     }
 
     const parentData = await getUserData('parent', AsyncStorage);
     if (parentData && (parentData.authCode || parentData.auth_code)) {
       const authCode = parentData.authCode || parentData.auth_code;
-      console.log('🔑 NOTIFICATION SERVICE: Using parent auth code');
+      console.log(
+        '🔑 NOTIFICATION SERVICE: Using parent auth code:',
+        authCode?.substring(0, 8) + '...',
+        'Parent name:',
+        parentData.name || parentData.user_name
+      );
       return authCode;
     }
 
     const studentData = await getUserData('student', AsyncStorage);
     if (studentData && (studentData.authCode || studentData.auth_code)) {
       const authCode = studentData.authCode || studentData.auth_code;
-      console.log('🔑 NOTIFICATION SERVICE: Using student auth code');
+      console.log(
+        '🔑 NOTIFICATION SERVICE: Using student auth code:',
+        authCode?.substring(0, 8) + '...'
+      );
       return authCode;
     }
 

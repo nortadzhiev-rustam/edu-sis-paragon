@@ -112,6 +112,10 @@ export const Config = {
     PARENT_GENERATE_QR: '/pickup/parent/generate-qr',
     GET_PENDING_PICKUP_REQUESTS: '/pickup/parent/pending-requests',
 
+    // Pickup History API Endpoints
+    PARENT_PICKUP_HISTORY: '/pickup/parent/history',
+    GUARDIAN_PICKUP_HISTORY: '/guardian/pickup-history',
+
     // Staff Pickup API Endpoints
     STAFF_PICKUP_REQUESTS: '/staff/pickup/requests',
     STAFF_PICKUP_SCAN_QR: '/staff/pickup/scan-qr',

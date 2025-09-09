@@ -208,7 +208,7 @@ export const PickupRequestButton = ({
         {
           backgroundColor: !disabled 
             ? theme.colors.primary 
-            : theme.colors.surfaceVariant,
+            : theme.colors.textSacondary,
         }
       ]}
       onPress={onPress}

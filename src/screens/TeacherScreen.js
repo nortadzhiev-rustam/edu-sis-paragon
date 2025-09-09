@@ -797,20 +797,30 @@ export default function TeacherScreen({ route, navigation }) {
           }),
       });
     }
-    // Staff Pickup Management
-    actions.splice(4, 0, {
-      id: 'pickup',
-      title: t('pickupManagement') || 'Pickup',
-      subtitle: t('scanAndProcess') || 'Scan & process',
-      icon: faQrcode,
-      backgroundColor: '#f39c12',
-      iconColor: '#fff',
-      disabled: false,
-      onPress: () =>
-        navigation.navigate('TeacherPickupScreen', {
-          authCode: userData.authCode,
-        }),
-    });
+
+    // Staff Pickup Management - Check permissions
+    const hasPickupAccess =
+      userData.permissions?.pickup?.has_pickup_access ||
+      userData.permissions?.pickup?.can_view_requests ||
+      userData.permissions?.pickup?.can_process_pickup ||
+      userData.permissions?.pickup?.can_scan_qr;
+
+    if (hasPickupAccess) {
+      actions.splice(4, 0, {
+        id: 'pickup',
+        title: t('pickupManagement') || 'Pickup Management',
+        subtitle: t('scanAndProcess') || 'Scan & process requests',
+        icon: faQrcode,
+        backgroundColor: '#f39c12',
+        iconColor: '#fff',
+        disabled: false,
+        onPress: () =>
+          navigation.navigate('TeacherPickupScreen', {
+            authCode: userData.authCode,
+            permissions: userData.permissions?.pickup,
+          }),
+      });
+    }
 
     return actions;
   };
@@ -941,7 +951,8 @@ export default function TeacherScreen({ route, navigation }) {
                       })(),
                     ]}
                   >
-                    {formatUserRoles(userData)}
+                    {formatUserRoles(userData)} {/* Demo Mode Indicator */}
+                    <DemoModeIndicator userData={userData} />
                   </Text>
                   <Text style={styles.compactTeacherId}>
                     {t('id')}: {userData.id || t('notAvailable')}
@@ -949,9 +960,6 @@ export default function TeacherScreen({ route, navigation }) {
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
-
-            {/* Demo Mode Indicator */}
-            <DemoModeIndicator userData={userData} />
           </View>
 
           {/* Branch Summary Section */}

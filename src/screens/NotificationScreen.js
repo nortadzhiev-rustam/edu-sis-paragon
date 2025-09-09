@@ -71,9 +71,21 @@ const NotificationScreen = ({ navigation, route }) => {
             // Load notifications for this specific student if not already loaded
             if (!studentNotifications[studentAuthCode]) {
               console.log(
-                '📱 NOTIFICATION: Loading notifications for student...'
+                '📱 NOTIFICATION: Loading notifications for student with authCode:',
+                studentAuthCode
               );
-              await loadStudentNotifications(studentAuthCode);
+              const result = await loadStudentNotifications(studentAuthCode);
+              console.log(
+                '📱 NOTIFICATION: Student notifications loaded:',
+                result
+              );
+            } else {
+              console.log(
+                '📱 NOTIFICATION: Student notifications already loaded for:',
+                studentAuthCode,
+                'Count:',
+                studentNotifications[studentAuthCode]?.length || 0
+              );
             }
           }
           // If this is a student accessing directly (not through parent),
@@ -207,19 +219,48 @@ const NotificationScreen = ({ navigation, route }) => {
 
   // Determine which notifications to show based on user type and context
   const getActiveNotifications = () => {
+    console.log('📱 NOTIFICATION: getActiveNotifications called with:', {
+      userType,
+      currentStudentAuthCode,
+      routeAuthCode: route?.params?.authCode,
+      studentNotificationsKeys: Object.keys(studentNotifications),
+      notificationsCount: notifications.length,
+    });
+
     // If we're in parent context (viewing student notifications), show student notifications
     if (userType === 'parent' && currentStudentAuthCode) {
-      return getCurrentStudentNotifications();
+      const studentNotifs = getCurrentStudentNotifications();
+      console.log(
+        '📱 NOTIFICATION: Returning student notifications for parent, count:',
+        studentNotifs.length
+      );
+      return studentNotifs;
+    }
+    // If we're in parent context but no student selected, show empty array
+    // Parents should never see their own notifications in the notification screen
+    if (userType === 'parent') {
+      console.log(
+        '📱 NOTIFICATION: Parent context but no student selected, showing empty notifications'
+      );
+      return [];
     }
     // If we're a student with authCode passed from route params, check if we have student-specific notifications
     if (userType === 'student' && route?.params?.authCode) {
       const studentAuthCode = route.params.authCode;
       const studentNotifs = studentNotifications[studentAuthCode];
       if (studentNotifs && studentNotifs.length > 0) {
+        console.log(
+          '📱 NOTIFICATION: Returning student-specific notifications, count:',
+          studentNotifs.length
+        );
         return studentNotifs;
       }
     }
     // For teachers and students (fallback), show their own notifications
+    console.log(
+      '📱 NOTIFICATION: Returning fallback notifications, count:',
+      notifications.length
+    );
     return notifications;
   };
 
@@ -228,6 +269,11 @@ const NotificationScreen = ({ navigation, route }) => {
     // If we're in parent context (viewing student notifications), show student unread count
     if (userType === 'parent' && currentStudentAuthCode) {
       return getCurrentStudentUnreadCount();
+    }
+    // If we're in parent context but no student selected, show 0
+    // Parents should never see their own unread count in the notification screen
+    if (userType === 'parent') {
+      return 0;
     }
     // If we're a student with authCode passed from route params, check student-specific unread count
     if (userType === 'student' && route?.params?.authCode) {

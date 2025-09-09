@@ -940,8 +940,8 @@ const createStyles = (theme, fontSizes) =>
     },
 
     actionTile: {
-      width: (screenWidth - 30) / 3 - 8, // 3 tiles per row: screen width - padding (24*2) - margins (8*3) / 3
-      minWidth: (screenWidth - 30) / 3 - 8, // Minimum width for flex expansion
+      width: (screenWidth - 30) / 3 - 9, // 3 tiles per row: screen width - padding (24*2) - margins (8*3) / 3
+      minWidth: (screenWidth - 30) / 3 - 9, // Minimum width for flex expansion
       aspectRatio: 1, // Square tiles
       borderRadius: 20, // Slightly smaller border radius for smaller tiles
       padding: 14, // Reduced padding for smaller tiles

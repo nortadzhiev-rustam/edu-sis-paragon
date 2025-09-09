@@ -63,12 +63,18 @@
       },
       "infoPlist": {
         "UIBackgroundModes": [
+          "remote-notification",
           "remote-notification"
         ],
         "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait",
           "UIInterfaceOrientationPortrait"
         ],
         "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight",
           "UIInterfaceOrientationPortrait",
           "UIInterfaceOrientationPortraitUpsideDown",
           "UIInterfaceOrientationLandscapeLeft",
@@ -102,6 +108,9 @@
         "projectId": "d2f3ca2f-ca7f-422a-ad4e-6f62e3fbc81e"
       }
     },
-    "owner": "rustam-nortadzhiev"
+    "owner": "rustam-nortadzhiev",
+    "updates": {
+      "url": "https://u.expo.dev/d2f3ca2f-ca7f-422a-ad4e-6f62e3fbc81e"
+    }
   }
 }

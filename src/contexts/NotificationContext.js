@@ -100,7 +100,17 @@ export const NotificationProvider = ({ children }) => {
 
       // Try to fetch from API first
       try {
+        console.log(
+          '🔔 NOTIFICATION CONTEXT: Loading notifications from API...'
+        );
         const apiResponse = await getAPINotifications({ page: 1, limit: 50 });
+        console.log('🔔 NOTIFICATION CONTEXT: API response:', {
+          success: apiResponse?.success,
+          dataCount: apiResponse?.data?.length || 0,
+          notificationsCount: apiResponse?.notifications?.length || 0,
+          firstNotification:
+            apiResponse?.data?.[0] || apiResponse?.notifications?.[0],
+        });
 
         if (
           apiResponse?.success &&
@@ -127,6 +137,12 @@ export const NotificationProvider = ({ children }) => {
             // Keep original API data for reference
             _apiData: notification,
           }));
+
+          console.log('🔔 NOTIFICATION CONTEXT: Processed notifications:', {
+            count: apiNotifications.length,
+            types: [...new Set(apiNotifications.map((n) => n.type))],
+            titles: apiNotifications.slice(0, 3).map((n) => n.title),
+          });
 
           setNotifications(apiNotifications);
           setUnreadCount(apiNotifications.filter((n) => !n.read).length);
