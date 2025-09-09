@@ -11,7 +11,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  RefreshControl,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,6 +26,7 @@ import {
   createParentPickupRequest,
   getPendingPickupRequests,
   validatePickupRequest,
+  generateParentPickupQR,
 } from '../services/pickupRequestService';
 import {
   requestLocationPermission,
@@ -42,6 +42,7 @@ import {
   GuardianEmptyState,
 } from '../components/guardian/GuardianPickupComponents';
 import PickupRequestMap from '../components/PickupRequestMap';
+import PickupQRCodeModal from '../components/PickupQRCodeModal';
 import { createMediumShadow } from '../utils/commonStyles';
 
 const GuardianPickupManagementScreen = ({ navigation, route }) => {
@@ -55,13 +56,14 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
   const [guardians, setGuardians] = useState([]);
   const [pendingPickups, setPendingPickups] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [selectedChild, setSelectedChild] = useState(null);
   const [locationStatus, setLocationStatus] = useState(null);
   const [canMakeRequest, setCanMakeRequest] = useState(false);
   const [activeTab, setActiveTab] = useState('guardians'); // 'guardians' or 'pickup'
   const [currentLocation, setCurrentLocation] = useState(null);
   const [showChildDropdown, setShowChildDropdown] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrData, setQrData] = useState(null);
 
   const styles = createStyles(theme);
 
@@ -105,22 +107,26 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
   };
 
   const fetchGuardians = async () => {
+    return await fetchGuardiansForChild(selectedChild);
+  };
+
+  const fetchGuardiansForChild = async (child) => {
     try {
       console.log('🔍 GUARDIAN-PICKUP: Fetching guardians...');
-      console.log('🔍 GUARDIAN-PICKUP: Selected child:', selectedChild);
+      console.log(
+        '🔍 GUARDIAN-PICKUP: Target child:',
+        child?.name || 'All Children'
+      );
 
       let response;
 
-      if (selectedChild) {
+      if (child) {
         // Fetch guardians for specific child
         console.log(
           '🔍 GUARDIAN-PICKUP: Fetching guardians for specific child:',
-          selectedChild.id
+          child.id
         );
-        response = await guardianService.listGuardians(
-          authCode,
-          selectedChild.id
-        );
+        response = await guardianService.listGuardians(authCode, child.id);
       } else {
         // Fetch all guardians (no student filter)
         console.log('🔍 GUARDIAN-PICKUP: Fetching all guardians');
@@ -209,12 +215,6 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
       console.error('Error validating pickup eligibility:', error);
       setCanMakeRequest(false);
     }
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadAllData();
-    setRefreshing(false);
   };
 
   const handleAddGuardian = () => {
@@ -322,14 +322,22 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
                 ? selectedChild.name
                 : t('allChildren') || 'All Children'}
             </Text>
-            <Text
-              style={[
-                styles.childSelectorArrow,
-                showChildDropdown && styles.childSelectorArrowUp,
-              ]}
-            >
-              ▼
-            </Text>
+            {loading ? (
+              <ActivityIndicator
+                size='small'
+                color={theme.colors.primary}
+                style={styles.childSelectorLoader}
+              />
+            ) : (
+              <Text
+                style={[
+                  styles.childSelectorArrow,
+                  showChildDropdown && styles.childSelectorArrowUp,
+                ]}
+              >
+                ▼
+              </Text>
+            )}
           </TouchableOpacity>
 
           {/* Dropdown positioned below selector */}
@@ -398,22 +406,78 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleChildSelection = (child) => {
+  const handleChildSelection = async (child) => {
     console.log(
       '👶 GUARDIAN-PICKUP: Child selected:',
       child?.name || 'All Children'
     );
     console.log('👶 GUARDIAN-PICKUP: Child data:', child);
+
     setSelectedChild(child);
     setShowChildDropdown(false);
 
-    // Reload data for the selected child
-    loadAllData();
+    // Show loading state and reload data with the new child selection
+    setLoading(true);
+
+    try {
+      console.log('👶 GUARDIAN-PICKUP: Reloading data for child selection...');
+      await Promise.all([
+        fetchGuardiansForChild(child),
+        fetchPendingPickups(),
+        validatePickupEligibility(),
+      ]);
+    } catch (error) {
+      console.error('👶 GUARDIAN-PICKUP: Error reloading data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleChildDropdown = () => {
     if (!children || children.length <= 1) return;
     setShowChildDropdown(!showChildDropdown);
+  };
+
+  const handleGenerateQR = async () => {
+    // If QR data already exists, just show the modal
+    if (qrData && qrData.success) {
+      console.log('📱 GUARDIAN PICKUP: Using cached QR data');
+      setShowQRModal(true);
+      return;
+    }
+
+    // Generate new QR code if not cached
+    await generateNewQR();
+  };
+
+  const generateNewQR = async () => {
+    try {
+      setLoading(true);
+      console.log('📱 GUARDIAN PICKUP: Generating new QR code...');
+      const response = await generateParentPickupQR(authCode);
+
+      if (response.success) {
+        setQrData(response);
+        setShowQRModal(true);
+        console.log('✅ GUARDIAN PICKUP: QR code generated and cached');
+      } else {
+        throw new Error(response.message || 'Failed to generate QR code');
+      }
+    } catch (error) {
+      console.error('❌ GUARDIAN PICKUP: Error generating QR:', error);
+      Alert.alert(
+        'QR Generation Failed',
+        error.message || 'Failed to generate QR code. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefreshQR = async () => {
+    console.log('🔄 GUARDIAN PICKUP: Refreshing QR code...');
+    setQrData(null); // Clear cached data
+    await generateNewQR();
   };
 
   const renderChildDropdown = () => {
@@ -579,14 +643,7 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
   );
 
   const renderPickupTab = () => (
-    <ScrollView
-      style={styles.tabContent}
-      contentContainerStyle={styles.scrollContent}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={styles.tabContent}>
       {/* Pickup Request Map */}
       {currentLocation && locationStatus?.schoolLocation ? (
         <View style={styles.mapContainer}>
@@ -694,21 +751,27 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
           >
             Active Pickup Requests
           </Text>
-          {pendingPickups.map((pickup) => (
-            <PickupStatusCard
-              key={pickup.request_id}
-              pickup={pickup}
-              onPress={(pickup) => {
-                Alert.alert(
-                  'Pickup Request',
-                  `Request for ${pickup.student_name}\nStatus: ${pickup.status}`
-                );
-              }}
-              onGenerateQR={() => {
-                Alert.alert('Generate QR', 'QR code generation coming soon');
-              }}
-            />
-          ))}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalScrollContent}
+            style={styles.horizontalScroll}
+          >
+            {pendingPickups.map((pickup) => (
+              <View key={pickup.request_id} style={styles.pickupCardContainer}>
+                <PickupStatusCard
+                  pickup={pickup}
+                  onPress={(pickup) => {
+                    Alert.alert(
+                      'Pickup Request',
+                      `Request for ${pickup.student_name}\nStatus: ${pickup.status}`
+                    );
+                  }}
+                  onGenerateQR={handleGenerateQR}
+                />
+              </View>
+            ))}
+          </ScrollView>
         </View>
       ) : (
         <View style={styles.emptyPickupContainer}>
@@ -730,7 +793,7 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
           </Text>
         </View>
       )}
-    </ScrollView>
+    </View>
   );
 
   if (loading && guardians.length === 0 && pendingPickups.length === 0) {
@@ -758,6 +821,14 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
       >
         {activeTab === 'guardians' ? renderGuardiansTab() : renderPickupTab()}
       </View>
+
+      {/* QR Code Modal */}
+      <PickupQRCodeModal
+        visible={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        qrData={qrData}
+        onRefresh={handleRefreshQR}
+      />
     </SafeAreaView>
   );
 };
@@ -822,6 +893,9 @@ const createStyles = (theme) =>
     childSelectorArrowUp: {
       transform: [{ rotate: '180deg' }],
     },
+    childSelectorLoader: {
+      marginLeft: 8,
+    },
     childSelectorContainer: {
       position: 'relative',
       zIndex: 9999,
@@ -861,9 +935,6 @@ const createStyles = (theme) =>
     scrollContainer: {
       flex: 1,
     },
-    scrollContent: {
-      padding: 16,
-    },
     loadingContainer: {
       flex: 1,
       justifyContent: 'center',
@@ -875,7 +946,19 @@ const createStyles = (theme) =>
       color: theme.colors.textSecondary,
     },
     section: {
+      marginTop: 12,
       marginBottom: 24,
+    },
+    horizontalScroll: {
+      marginTop: 12,
+    },
+    horizontalScrollContent: {
+      paddingHorizontal: 16,
+      paddingTop: 8,
+    },
+    pickupCardContainer: {
+      width: 345,
+      marginRight: 16,
     },
     sectionHeader: {
       flexDirection: 'row',

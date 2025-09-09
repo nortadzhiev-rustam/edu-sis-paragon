@@ -26,6 +26,7 @@ const PickupQRCodeModal = ({
   qrData,
   parentInfo,
   childrenData = [],
+  onRefresh,
 }) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
@@ -178,6 +179,16 @@ const PickupQRCodeModal = ({
 
         {/* Footer */}
         <View style={styles.footer}>
+          {onRefresh && (
+            <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
+              <FontAwesome5
+                name='sync-alt'
+                size={16}
+                color={theme.colors.primary}
+              />
+              <Text style={styles.refreshButtonText}>Refresh QR</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.doneButton} onPress={onClose}>
             <Text style={styles.doneButtonText}>Done</Text>
           </TouchableOpacity>
@@ -343,6 +354,26 @@ const createStyles = (theme) =>
       paddingVertical: 16,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
+      flexDirection: 'row',
+      gap: 12,
+    },
+    refreshButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+      gap: 8,
+      flex: 1,
+      maxWidth: '48%'
+    },
+    refreshButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.primary,
     },
     doneButton: {
       backgroundColor: theme.colors.primary,
@@ -350,6 +381,7 @@ const createStyles = (theme) =>
       paddingVertical: 16,
       alignItems: 'center',
       ...theme.shadows.small,
+      flex: 1,
     },
     doneButtonText: {
       fontSize: 16,

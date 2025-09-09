@@ -168,7 +168,7 @@ export default function SettingsScreen({ navigation }) {
     <Modal
       visible={showLanguageModal}
       transparent={true}
-      animationType='fade'
+      animationType='slide'
       onRequestClose={() => setShowLanguageModal(false)}
       statusBarTranslucent={false}
     >
@@ -358,6 +358,42 @@ export default function SettingsScreen({ navigation }) {
               }
             />
           </View>
+        </View>
+
+        {/* Language Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('language')}</Text>
+
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => setShowLanguageModal(true)}
+          >
+            <View style={styles.settingLeft}>
+              <View
+                style={[
+                  styles.settingIcon,
+                  { backgroundColor: theme.colors.info + '15' },
+                ]}
+              >
+                <FontAwesomeIcon
+                  icon={faLanguage}
+                  size={20}
+                  color={theme.colors.info}
+                />
+              </View>
+              <View style={styles.settingText}>
+                <Text style={styles.settingTitle}>{t('language')}</Text>
+                <Text style={styles.settingSubtitle}>
+                  {languages[currentLanguage]?.nativeName}
+                </Text>
+              </View>
+            </View>
+            <FontAwesomeIcon
+              icon={faChevronRight}
+              size={16}
+              color={theme.colors.textLight}
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Notifications Section */}
@@ -688,41 +724,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
         )}
 
-        {/* Language Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('language')}</Text>
-
-          <TouchableOpacity
-            style={styles.settingItem}
-            onPress={() => setShowLanguageModal(true)}
-          >
-            <View style={styles.settingLeft}>
-              <View
-                style={[
-                  styles.settingIcon,
-                  { backgroundColor: theme.colors.info + '15' },
-                ]}
-              >
-                <FontAwesomeIcon
-                  icon={faLanguage}
-                  size={20}
-                  color={theme.colors.info}
-                />
-              </View>
-              <View style={styles.settingText}>
-                <Text style={styles.settingTitle}>{t('language')}</Text>
-                <Text style={styles.settingSubtitle}>
-                  {languages[currentLanguage]?.nativeName}
-                </Text>
-              </View>
-            </View>
-            <FontAwesomeIcon
-              icon={faChevronRight}
-              size={16}
-              color={theme.colors.textLight}
-            />
-          </TouchableOpacity>
-        </View>
+        
 
         {/* App Information Section */}
         <View style={styles.section}>

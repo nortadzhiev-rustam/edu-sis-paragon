@@ -84,6 +84,7 @@ ios/Index/
 android/app/build/
 android/build/
 android/.gradle/
+android/realese
 # Note: Keep gradle wrapper files for builds
 # android/gradle/ - DO NOT IGNORE: needed for gradle wrapper
 android/app/src/main/assets/app.manifest

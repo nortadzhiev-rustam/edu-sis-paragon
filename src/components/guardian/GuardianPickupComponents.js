@@ -205,7 +205,7 @@ export const PickupStatusCard = ({ pickup, onPress, onGenerateQR }) => {
             color={theme.colors.primary}
           />
           <Text style={[styles.qrButtonText, { color: theme.colors.primary }]}>
-            {t('generateQR') || 'QR Code'}
+            {t('showQR') || 'Show QR'}
           </Text>
         </TouchableOpacity>
       )}
