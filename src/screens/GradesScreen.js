@@ -2461,7 +2461,7 @@ const createStyles = (theme) =>
       flex: 1,
       backgroundColor: theme.colors.background,
       borderRadius: 12,
-      padding: 16,
+      padding: 5,
       marginHorizontal: 4,
       alignItems: 'center',
       ...createSmallShadow(theme),
@@ -2469,11 +2469,11 @@ const createStyles = (theme) =>
     },
     statisticsCardTitle: {
       fontSize: 10,
-      fontWeight: '700',
+      fontWeight: '500',
       color: theme.colors.textSecondary,
       marginBottom: 8,
       textTransform: 'uppercase',
-      letterSpacing: 0.8,
+      letterSpacing: 0.6,
     },
     statisticsMainValue: {
       fontSize: 18,
