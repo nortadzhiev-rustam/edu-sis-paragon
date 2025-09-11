@@ -932,7 +932,7 @@ const translations = {
       'No Life Skills grades available for {subject}',
     noLifeSkillsGrades: 'No Life Skills grades available',
     summative: 'Summative',
-    lifeSkills: 'Life Skills',
+    formative: 'Formative',
     notGraded: 'Not Graded',
 
     // Library Screen
@@ -1706,7 +1706,7 @@ const translations = {
       '{subject} အတွက် ဘဝကျွမ်းကျင်မှုအမှတ်များ မရှိပါ',
     noLifeSkillsGrades: 'ဘဝကျွမ်းကျင်မှုအမှတ်များ မရှိပါ',
     summative: 'အပေါင်းအမှတ်',
-    lifeSkills: 'ဘဝကျွမ်းကျင်မှု',
+    formative: 'အသွင်အပြင်',
     notGraded: 'အမှတ်မပေးရသေး',
 
     // Library Screen
@@ -2482,7 +2482,7 @@ const translations = {
     noLifeSkillsGradesForSubject: '{subject}没有生活技能成绩',
     noLifeSkillsGrades: '没有生活技能成绩',
     summative: '总结性评价',
-    lifeSkills: '生活技能',
+    formative: '形成性',
     notGraded: '未评分',
 
     // Library Screen
@@ -3260,7 +3260,7 @@ const translations = {
     noLifeSkillsGradesForSubject: 'ไม่มีคะแนนทักษะชีวิตสำหรับ {subject}',
     noLifeSkillsGrades: 'ไม่มีคะแนนทักษะชีวิต',
     summative: 'การประเมินรวม',
-    lifeSkills: 'ทักษะชีวิต',
+    formative: 'การสร้างสรรค์',
     notGraded: 'ยังไม่ได้ให้คะแนน',
 
     // Library Screen
@@ -3520,6 +3520,14 @@ const translations = {
     noStudents: 'គ្មានសិស្ស',
     pleaseAddStudent: 'សូមបន្ថែមគណនីសិស្សម្នាក់ជាមុនដើម្បីមើលការជូនដំណឹង។',
     duplicateStudent: 'សិស្សស្ទួន',
+
+    // Grades Screen
+    loadingFormativeGrades: 'កំពុងផ្ទុកពិន្ទុសិក្សាអាល់ខ្លួន...',
+    noLifeSkillsGradesForSubject: 'មិនមានពិន្ទុសិក្សាអាល់ខ្លួនសម្រាប់ {subject}',
+    noLifeSkillsGrades: 'មិនមានពិន្ទុសិក្សាអាល់ខ្លួន',
+    summative: 'ទម្រង់',
+    notGraded: 'មិនបានដាក់ពិន្ទុ',
+    formative: "ទម្រង់",
 
     // Login Screen
     teacherId: 'លេខសម្គាល់គ្រូ',

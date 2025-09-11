@@ -23,6 +23,11 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import NotificationItem from '../components/NotificationItem';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  getAllLoggedInUsers,
+  getMostRecentUser,
+  getUserData,
+} from '../services/authService';
 
 const NotificationScreen = ({ navigation, route }) => {
   const { theme } = useTheme();
@@ -37,17 +42,132 @@ const NotificationScreen = ({ navigation, route }) => {
     markAllAPINotificationsAsRead,
     markAllStudentNotificationsAsRead,
     currentStudentAuthCode,
-    getCurrentStudentNotifications,
-    getCurrentStudentUnreadCount,
     studentNotifications,
     studentUnreadCounts,
-    loadStudentNotifications,
     setCurrentStudent,
   } = useNotifications();
 
   const [filter, setFilter] = useState('all'); // 'all', 'unread', 'behavior', 'attendance', 'grade', 'homework', 'announcement', 'messaging'
   const [refreshing, setRefreshing] = useState(false);
   const [userType, setUserType] = useState(null);
+  const [contextNotifications, setContextNotifications] = useState([]);
+  const [contextUnreadCount, setContextUnreadCount] = useState(0);
+  const [contextLoading, setContextLoading] = useState(true);
+
+  // Load notifications for specific user type
+  const loadNotificationsForUserType = async (userType) => {
+    try {
+      setContextLoading(true);
+      console.log(
+        '📱 NOTIFICATION: Loading notifications for user type:',
+        userType
+      );
+
+      // Get the auth code for the specific user type
+      let authCode = null;
+      if (userType === 'teacher') {
+        console.log('📱 NOTIFICATION: Fetching teacher data...');
+        const teacherData = await getUserData('teacher', AsyncStorage);
+        console.log(
+          '📱 NOTIFICATION: Teacher data retrieved:',
+          teacherData ? 'success' : 'null'
+        );
+        authCode = teacherData?.authCode || teacherData?.auth_code;
+        console.log(
+          '📱 NOTIFICATION: Using teacher auth code:',
+          authCode?.substring(0, 8) + '...'
+        );
+      } else if (userType === 'parent') {
+        const parentData = await getUserData('parent', AsyncStorage);
+        authCode = parentData?.authCode || parentData?.auth_code;
+        console.log(
+          '📱 NOTIFICATION: Using parent auth code:',
+          authCode?.substring(0, 8) + '...'
+        );
+      } else if (userType === 'student') {
+        const studentData = await getUserData('student', AsyncStorage);
+        authCode = studentData?.authCode || studentData?.auth_code;
+        console.log(
+          '📱 NOTIFICATION: Using student auth code:',
+          authCode?.substring(0, 8) + '...'
+        );
+      }
+
+      if (authCode) {
+        // Make direct API call with specific auth code
+        console.log('📱 NOTIFICATION: Step 1 - Starting API call setup');
+        const baseUrl = 'https://sis.paragonisc.edu.kh/mobile-api';
+        const endpoint = '/notifications/list';
+        console.log('📱 NOTIFICATION: Step 2 - URL components ready');
+
+        const queryParams = new URLSearchParams({
+          authCode,
+          page: '1',
+          limit: '20',
+        });
+        console.log('📱 NOTIFICATION: Step 3 - Query params created');
+
+        const url = `${baseUrl}${endpoint}?${queryParams.toString()}`;
+        console.log(
+          '📱 NOTIFICATION: Step 4 - Making API call to:',
+          url.replace(authCode, authCode.substring(0, 8) + '...')
+        );
+
+        const response = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        console.log('📱 NOTIFICATION: Step 5 - Fetch completed');
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.success) {
+            setContextNotifications(data.notifications || []);
+            setContextUnreadCount(data.unread_count || 0);
+            console.log(
+              '📱 NOTIFICATION: Loaded',
+              data.notifications?.length || 0,
+              'notifications for',
+              userType
+            );
+          } else {
+            console.warn(
+              '📱 NOTIFICATION: API returned success=false for',
+              userType
+            );
+            setContextNotifications([]);
+            setContextUnreadCount(0);
+          }
+        } else {
+          console.warn(
+            '📱 NOTIFICATION: API request failed with status:',
+            response.status,
+            'for',
+            userType
+          );
+          setContextNotifications([]);
+          setContextUnreadCount(0);
+        }
+      } else {
+        console.warn('📱 NOTIFICATION: No auth code found for', userType);
+        setContextNotifications([]);
+        setContextUnreadCount(0);
+      }
+    } catch (error) {
+      console.error(
+        '📱 NOTIFICATION: Error loading notifications for',
+        userType,
+        ':',
+        error.message || error
+      );
+      console.error('📱 NOTIFICATION: Full error details:', error);
+      setContextNotifications([]);
+      setContextUnreadCount(0);
+    } finally {
+      setContextLoading(false);
+    }
+  };
 
   // Get user type from route params or AsyncStorage
   useEffect(() => {
@@ -55,7 +175,22 @@ const NotificationScreen = ({ navigation, route }) => {
       try {
         // First check route params (if passed from parent screen)
         if (route?.params?.userType) {
+          console.log(
+            '📱 NOTIFICATION: User type from route params:',
+            route.params.userType
+          );
           setUserType(route.params.userType);
+
+          // Load notifications for the specific user type
+          console.log(
+            '📱 NOTIFICATION: About to load notifications for user type:',
+            route.params.userType
+          );
+          await loadNotificationsForUserType(route.params.userType);
+          console.log(
+            '📱 NOTIFICATION: Finished loading notifications for user type:',
+            route.params.userType
+          );
 
           // If this is a parent viewing student notifications
           if (route.params.userType === 'parent' && route?.params?.authCode) {
@@ -68,51 +203,33 @@ const NotificationScreen = ({ navigation, route }) => {
             // Set the current student context for parent view
             setCurrentStudent(studentAuthCode);
 
-            // Load notifications for this specific student if not already loaded
-            if (!studentNotifications[studentAuthCode]) {
-              console.log(
-                '📱 NOTIFICATION: Loading notifications for student with authCode:',
-                studentAuthCode
-              );
-              const result = await loadStudentNotifications(studentAuthCode);
-              console.log(
-                '📱 NOTIFICATION: Student notifications loaded:',
-                result
-              );
-            } else {
-              console.log(
-                '📱 NOTIFICATION: Student notifications already loaded for:',
-                studentAuthCode,
-                'Count:',
-                studentNotifications[studentAuthCode]?.length || 0
-              );
-            }
+            // In parent proxy system, all notifications come through parent's authCode
+            console.log(
+              '📱 NOTIFICATION: Parent proxy system - using parent notifications for student:',
+              studentAuthCode
+            );
           }
           // If this is a student accessing directly (not through parent),
-          // we need to ensure their notifications are loaded
+          // notifications are handled by the main notification context
           else if (route.params.userType === 'student') {
-            // Check if we have student authCode from route params
-            const studentAuthCode = route?.params?.authCode;
-            if (studentAuthCode && !studentNotifications[studentAuthCode]) {
-              // Load notifications for this specific student
-              await loadStudentNotifications(studentAuthCode);
-            }
+            console.log(
+              '📱 NOTIFICATION: Direct student access - using main notification context'
+            );
           }
           return;
         }
 
-        // Otherwise get from AsyncStorage
-        const userData = await AsyncStorage.getItem('userData');
-        if (userData) {
-          const user = JSON.parse(userData);
-          // Use the actual user type from userData
-          const actualUserType = user.userType || user.user_type || user.type;
-          setUserType(actualUserType);
-          console.log(
-            '📱 NOTIFICATION: Detected user type from userData:',
-            actualUserType
-          );
-        } else {
+        // Otherwise determine user type from available user data
+        // Check which user types are logged in and determine the active one
+        const allUsers = await getAllLoggedInUsers(AsyncStorage);
+        const loggedInUserTypes = Object.keys(allUsers);
+
+        console.log(
+          '📱 NOTIFICATION: Available user types:',
+          loggedInUserTypes
+        );
+
+        if (loggedInUserTypes.length === 0) {
           // No user data found - user is not logged in
           console.warn(
             '⚠️ NOTIFICATION: No user data found, user not logged in'
@@ -120,6 +237,61 @@ const NotificationScreen = ({ navigation, route }) => {
           console.log('🔄 NOTIFICATION: Redirecting to home screen...');
 
           // Navigate back to home screen since no user is logged in
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+          });
+          return;
+        }
+
+        // Determine the active user type based on navigation context
+        // If we have multiple users logged in, we need to determine which one is currently active
+        // This should be based on which screen the user came from, not just service priority
+        let activeUserType = null;
+
+        // Check if we can determine from navigation state or current screen context
+        // For now, we'll use a simple heuristic: if only one user type is logged in, use that
+        if (loggedInUserTypes.length === 1) {
+          activeUserType = loggedInUserTypes[0];
+        } else {
+          // Multiple users logged in - we need to make an educated guess
+          // Since the user navigated to NotificationScreen without explicit userType,
+          // we'll check the most recent user data to see which screen they likely came from
+          const mostRecentUser = await getMostRecentUser(AsyncStorage);
+          if (mostRecentUser && allUsers[mostRecentUser.userType]) {
+            activeUserType = mostRecentUser.userType;
+          } else {
+            // Fallback to service priority: parent -> teacher -> student
+            if (allUsers.parent) {
+              activeUserType = 'parent';
+            } else if (allUsers.teacher) {
+              activeUserType = 'teacher';
+            } else if (allUsers.student) {
+              activeUserType = 'student';
+            }
+          }
+        }
+
+        if (activeUserType) {
+          setUserType(activeUserType);
+          console.log(
+            '📱 NOTIFICATION: Determined active user type:',
+            activeUserType,
+            'from available types:',
+            loggedInUserTypes
+          );
+          // Load notifications for the determined user type
+          console.log(
+            '📱 NOTIFICATION: About to load notifications for user type:',
+            activeUserType
+          );
+          await loadNotificationsForUserType(activeUserType);
+          console.log(
+            '📱 NOTIFICATION: Finished loading notifications for user type:',
+            activeUserType
+          );
+        } else {
+          console.warn('⚠️ NOTIFICATION: Could not determine active user type');
           navigation.reset({
             index: 0,
             routes: [{ name: 'Home' }],
@@ -157,7 +329,11 @@ const NotificationScreen = ({ navigation, route }) => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    // Refresh both global notifications and context-specific notifications
     await refreshNotifications();
+    if (userType) {
+      await loadNotificationsForUserType(userType);
+    }
     setRefreshing(false);
   };
 
@@ -224,26 +400,31 @@ const NotificationScreen = ({ navigation, route }) => {
       currentStudentAuthCode,
       routeAuthCode: route?.params?.authCode,
       studentNotificationsKeys: Object.keys(studentNotifications),
-      notificationsCount: notifications.length,
+      contextNotificationsCount: contextNotifications.length,
+      globalNotificationsCount: notifications.length,
     });
 
-    // If we're in parent context (viewing student notifications), show student notifications
-    if (userType === 'parent' && currentStudentAuthCode) {
-      const studentNotifs = getCurrentStudentNotifications();
+    // Use context-specific notifications if available (loaded for the specific user type)
+    if (contextNotifications.length > 0) {
       console.log(
-        '📱 NOTIFICATION: Returning student notifications for parent, count:',
-        studentNotifs.length
+        '📱 NOTIFICATION: Using context-specific notifications for',
+        userType,
+        ', count:',
+        contextNotifications.length
       );
-      return studentNotifs;
+      return contextNotifications;
     }
-    // If we're in parent context but no student selected, show empty array
-    // Parents should never see their own notifications in the notification screen
+
+    // Fallback to global notifications if context notifications are not loaded yet
+    // This handles the case where the context notifications are still loading
     if (userType === 'parent') {
       console.log(
-        '📱 NOTIFICATION: Parent context but no student selected, showing empty notifications'
+        '📱 NOTIFICATION: Parent context, using global notifications, count:',
+        notifications.length
       );
-      return [];
+      return notifications;
     }
+
     // If we're a student with authCode passed from route params, check if we have student-specific notifications
     if (userType === 'student' && route?.params?.authCode) {
       const studentAuthCode = route.params.authCode;
@@ -256,9 +437,10 @@ const NotificationScreen = ({ navigation, route }) => {
         return studentNotifs;
       }
     }
+
     // For teachers and students (fallback), show their own notifications
     console.log(
-      '📱 NOTIFICATION: Returning fallback notifications, count:',
+      '📱 NOTIFICATION: Returning global fallback notifications, count:',
       notifications.length
     );
     return notifications;
@@ -266,14 +448,20 @@ const NotificationScreen = ({ navigation, route }) => {
 
   // Get active unread count
   const getActiveUnreadCount = () => {
-    // If we're in parent context (viewing student notifications), show student unread count
-    if (userType === 'parent' && currentStudentAuthCode) {
-      return getCurrentStudentUnreadCount();
+    // Use context-specific unread count if available
+    if (contextUnreadCount > 0) {
+      console.log(
+        '📱 NOTIFICATION: Using context-specific unread count for',
+        userType,
+        ':',
+        contextUnreadCount
+      );
+      return contextUnreadCount;
     }
-    // If we're in parent context but no student selected, show 0
-    // Parents should never see their own unread count in the notification screen
+
+    // Fallback to global unread counts
     if (userType === 'parent') {
-      return 0;
+      return unreadCount;
     }
     // If we're a student with authCode passed from route params, check student-specific unread count
     if (userType === 'student' && route?.params?.authCode) {

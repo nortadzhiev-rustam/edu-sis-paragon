@@ -8,6 +8,7 @@ import {
   ScrollView,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -138,8 +139,15 @@ export default function GradesScreen({ navigation, route }) {
 
         const response = await getChildGrades(authCode, proxyOptions.studentId);
 
-        if (response.success && response.grades) {
-          setGrades(response.grades);
+        if (response.success && (response.summative || response.formative)) {
+          // The API returns summative and formative directly in the response, not nested under 'grades'
+          setGrades({
+            summative: response.summative || [],
+            formative: response.formative || [],
+            statistics: response.statistics,
+            academic_year_id: response.academic_year_id,
+            student_id: response.student_id,
+          });
         } else {
           console.warn('⚠️ GRADES: No grades data in parent proxy response');
           setGrades(null);
@@ -162,6 +170,7 @@ export default function GradesScreen({ navigation, route }) {
 
         if (response.ok) {
           const data = await response.json();
+
           setGrades(data);
         } else {
           // Handle error silently
@@ -450,31 +459,32 @@ export default function GradesScreen({ navigation, route }) {
     return colors[colorIndex];
   };
 
-  // Helper function to calculate average grade for a subject
+  // Helper function to calculate average grade for a subject using enhanced data
   const getSubjectAverage = (subject) => {
     if (!grades) return null;
 
     const subjectGrades = [];
+
+    // Use enhanced calculated_grade field for summative assessments
     if (grades.summative) {
       grades.summative.forEach((grade) => {
-        if (
-          grade.subject_name === subject &&
-          (grade.score_percentage || grade.percentage)
-        ) {
-          subjectGrades.push(grade.score_percentage || grade.percentage);
+        if (grade.subject_name === subject && grade.is_graded === 1) {
+          // Prefer calculated_grade from enhanced API, fallback to score_percentage
+          const gradeValue =
+            grade.calculated_grade !== null &&
+            grade.calculated_grade !== undefined
+              ? grade.calculated_grade
+              : grade.score_percentage || grade.percentage;
+
+          if (gradeValue !== null && gradeValue !== undefined) {
+            subjectGrades.push(gradeValue);
+          }
         }
       });
     }
-    if (grades.formative) {
-      grades.formative.forEach((grade) => {
-        if (
-          grade.subject_name === subject &&
-          (grade.score_percentage || grade.percentage)
-        ) {
-          subjectGrades.push(grade.score_percentage || grade.percentage);
-        }
-      });
-    }
+
+    // For formative assessments, we don't include them in percentage average
+    // as they use a different scale (tt1-tt4 with 1-4 ratings)
 
     if (subjectGrades.length === 0) return null;
     return Math.round(
@@ -488,14 +498,35 @@ export default function GradesScreen({ navigation, route }) {
       const subjectIcon = getSubjectIcon(subject);
       const average = getSubjectAverage(subject);
 
-      // Calculate grade counts
-      const summativeCount =
-        grades?.summative?.filter((g) => g.subject_name === subject)?.length ||
-        0;
-      const formativeCount =
-        grades?.formative?.filter((g) => g.subject_name === subject)?.length ||
-        0;
+      // Calculate enhanced grade counts and statistics
+      const subjectSummative =
+        grades?.summative?.filter((g) => g.subject_name === subject) || [];
+      const subjectFormative =
+        grades?.formative?.filter((g) => g.subject_name === subject) || [];
+
+      const summativeCount = subjectSummative.length;
+      const formativeCount = subjectFormative.length;
       const totalGrades = summativeCount + formativeCount;
+
+      // Enhanced statistics for this subject
+      const templatedAssessments = subjectSummative.filter(
+        (g) => g.template_info && g.grading_context?.has_template
+      ).length;
+      const weightedAssessments = subjectSummative.filter(
+        (g) => g.grading_context?.is_weighted
+      ).length;
+      const gradedSummative = subjectSummative.filter(
+        (g) => g.is_graded === 1
+      ).length;
+      const gradedFormative = subjectFormative.filter(
+        (g) => g.is_graded === 1
+      ).length;
+      const completionRate =
+        totalGrades > 0
+          ? Math.round(
+              ((gradedSummative + gradedFormative) / totalGrades) * 100
+            )
+          : 0;
 
       // Get grade letter based on average
       const getGradeLetter = (avg) => {
@@ -533,7 +564,7 @@ export default function GradesScreen({ navigation, route }) {
           <View style={styles.cardHeader}>
             <View style={styles.headerLeft}>
               <View style={[styles.subjectIconContainer, iconContainerStyle]}>
-                <FontAwesomeIcon icon={subjectIcon} size={22} color='#fff' />
+                <FontAwesomeIcon icon={subjectIcon} size={14} color='#fff' />
               </View>
               <View style={styles.titleContainer}>
                 <Text style={styles.modernSubjectTitle} numberOfLines={2}>
@@ -542,7 +573,7 @@ export default function GradesScreen({ navigation, route }) {
                     : subject}
                 </Text>
                 <View style={styles.assessmentInfo}>
-                  <FontAwesomeIcon icon={faBook} size={10} color='#666' />
+                  <FontAwesomeIcon icon={faBook} size={8} color='#666' />
                   <Text style={styles.assessmentCount}>
                     {totalGrades} assessments
                   </Text>
@@ -602,7 +633,7 @@ export default function GradesScreen({ navigation, route }) {
             </View>
           )}
 
-          {/* Bottom Info */}
+          {/* Enhanced Bottom Info */}
           <View style={styles.bottomInfo}>
             <View style={styles.typeBreakdown}>
               {summativeCount > 0 && (
@@ -617,16 +648,51 @@ export default function GradesScreen({ navigation, route }) {
                 <View style={styles.typeItem}>
                   <View style={[styles.typeDot, typeDotFadedStyle]} />
                   <Text style={styles.typeText}>
-                    {formativeCount} Life Skills
+                    {formativeCount} Formative
                   </Text>
                 </View>
               )}
+            </View>
+
+            {/* Enhanced Statistics Row */}
+            <View style={styles.enhancedStatsRow}>
+              {templatedAssessments > 0 && (
+                <View style={styles.enhancedStatItem}>
+                  <Text style={styles.enhancedStatText}>
+                    📋 {templatedAssessments}
+                  </Text>
+                </View>
+              )}
+              {weightedAssessments > 0 && (
+                <View style={styles.enhancedStatItem}>
+                  <Text style={styles.enhancedStatText}>
+                    ⚖️ {weightedAssessments}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.enhancedStatItem}>
+                <Text
+                  style={[
+                    styles.enhancedStatText,
+                    {
+                      color:
+                        completionRate >= 80
+                          ? '#34C759'
+                          : completionRate >= 60
+                          ? '#FF9500'
+                          : '#FF3B30',
+                    },
+                  ]}
+                >
+                  ✅ {completionRate}%
+                </Text>
+              </View>
             </View>
           </View>
 
           {/* Floating Badge */}
           <View style={[styles.floatingBadge, iconContainerStyle]}>
-            <FontAwesomeIcon icon={faTrophy} size={10} color='#fff' />
+            <FontAwesomeIcon icon={faTrophy} size={8} color='#fff' />
           </View>
         </TouchableOpacity>
       );
@@ -690,15 +756,41 @@ export default function GradesScreen({ navigation, route }) {
         ]
       : [styles.gradeCard, index % 2 === 0 && styles.evenGradeCard];
 
-    // For formative grades, use the new assessment criteria layout
+    // For formative grades, use enhanced assessment criteria layout
     if (isFormative) {
-      // Get assessment criteria from the item - only show criteria that have values
+      // Enhanced assessment criteria with better labels and values
       const assessmentCriteria = [
-        { label: 'EE', value: item.tt1 || '', color: '#34C759' }, // Green for Exceeding Expectations
-        { label: 'ME', value: item.tt2 || '', color: '#FF9500' }, // Orange for Meeting Expectations
-        { label: 'AE', value: item.tt3 || '', color: '#007AFF' }, // Blue for Approaching Expectations
-        { label: 'BE', value: item.tt4 || '', color: '#FF3B30' }, // Red for Below Expectations
-      ].filter((criteria) => criteria.value.trim() !== ''); // Only show criteria with values
+        {
+          label: 'T&R',
+          fullLabel: 'Thinking & Reasoning',
+          value: item.tt1 || '',
+          color: '#34C759',
+        },
+        {
+          label: 'COM',
+          fullLabel: 'Communication',
+          value: item.tt2 || '',
+          color: '#FF9500',
+        },
+        {
+          label: 'APP',
+          fullLabel: 'Application',
+          value: item.tt3 || '',
+          color: '#007AFF',
+        },
+        {
+          label: 'COL',
+          fullLabel: 'Collaboration',
+          value: item.tt4 || '',
+          color: '#FF3B30',
+        },
+      ].filter(
+        (criteria) => criteria.value && criteria.value.toString().trim() !== ''
+      ); // Only show criteria with values
+
+      const isGraded = item.is_graded === 1;
+      const gradingStatus =
+        item.grading_status || (isGraded ? 'Graded' : 'Not Graded');
 
       return (
         <View style={cardStyle}>
@@ -713,7 +805,13 @@ export default function GradesScreen({ navigation, route }) {
               >
                 {item.title}
               </Text>
-              <Text style={styles.gradeDate}>{item.date}</Text>
+              <Text style={styles.gradeDate}>Date: {item.date}</Text>
+              {item.strand_name && (
+                <Text style={styles.gradeDate}>Strand: {item.strand_name}</Text>
+              )}
+              {item.skill_name && (
+                <Text style={styles.gradeDate}>Skill: {item.skill_name}</Text>
+              )}
             </View>
             <View style={styles.gradeCardRight}>
               <View style={styles.assessmentCriteriaContainer}>
@@ -726,6 +824,7 @@ export default function GradesScreen({ navigation, route }) {
                     ]}
                   >
                     <Text style={styles.criteriaLabel}>{criteria.label}</Text>
+                    <Text style={styles.criteriaValue}>{criteria.value}</Text>
                   </View>
                 ))}
               </View>
@@ -750,16 +849,52 @@ export default function GradesScreen({ navigation, route }) {
                   {item.teacher}
                 </Text>
               </View>
+              <View style={styles.gradeDetailItem}>
+                <FontAwesomeIcon
+                  icon={faGraduationCap}
+                  size={isLandscape ? 12 : 14}
+                  color={isGraded ? '#34C759' : '#FF9500'}
+                />
+                <Text
+                  style={[
+                    styles.gradeDetailText,
+                    isLandscape && styles.landscapeDetailText,
+                    { color: isGraded ? '#34C759' : '#FF9500' },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {gradingStatus}
+                </Text>
+              </View>
             </View>
+
+            {/* Criteria Legend */}
+            {assessmentCriteria.length > 0 && (
+              <View style={styles.criteriaLegend}>
+                <Text style={styles.criteriaLegendTitle}>
+                  Assessment Criteria (1-4 scale):
+                </Text>
+                {assessmentCriteria.map((criteria) => (
+                  <Text key={criteria.label} style={styles.criteriaLegendItem}>
+                    • {criteria.label}: {criteria.fullLabel} ({criteria.value})
+                  </Text>
+                ))}
+              </View>
+            )}
           </View>
         </View>
       );
     }
 
-    // For summative grades, use the existing logic
-    const percentage = parseFloat(item.percentage?.replace('%', '')) || 0;
-    const gradeColor = getGradeColor(percentage);
-    const gradeLabel = getGradeLabel(percentage);
+    // For summative grades, use enhanced data
+    const calculatedGrade =
+      item.calculated_grade ||
+      parseFloat(item.percentage?.replace('%', '')) ||
+      0;
+    const letterGrade = item.letter_grade || getGradeLabel(calculatedGrade);
+    const gradeColor = getGradeColor(calculatedGrade);
+    const hasTemplate =
+      item.template_info && item.grading_context?.has_template;
 
     return (
       <View style={cardStyle}>
@@ -774,8 +909,15 @@ export default function GradesScreen({ navigation, route }) {
             >
               {item.title}
             </Text>
-            <Text style={styles.gradeDate}>Strand: {item.strand}</Text>
+            {item.strand && item.strand !== 'N/A' && (
+              <Text style={styles.gradeDate}>Strand: {item.strand}</Text>
+            )}
             <Text style={styles.gradeDate}>Date: {item.date}</Text>
+            {hasTemplate && (
+              <Text style={styles.templateInfo}>
+                📋 {item.template_info.template_name}
+              </Text>
+            )}
           </View>
           <View style={styles.gradeCardRight}>
             <View
@@ -803,6 +945,17 @@ export default function GradesScreen({ navigation, route }) {
               >
                 {item.percentage}
               </Text>
+              {letterGrade && (
+                <Text
+                  style={[
+                    styles.letterGrade,
+                    { color: gradeColor },
+                    isLandscape && styles.landscapeLetterGrade,
+                  ]}
+                >
+                  {letterGrade}
+                </Text>
+              )}
             </View>
           </View>
         </View>
@@ -839,9 +992,19 @@ export default function GradesScreen({ navigation, route }) {
                 numberOfLines={1}
               >
                 {item.type}
+                {item.type_percentage && ` (${item.type_percentage}%)`}
               </Text>
             </View>
           </View>
+
+          {/* Enhanced comment display */}
+          {item.comment && (
+            <View style={styles.commentSection}>
+              <Text style={styles.commentText} numberOfLines={2}>
+                💬 {item.comment}
+              </Text>
+            </View>
+          )}
 
           <View style={styles.gradePerformanceContainer}>
             <View
@@ -857,9 +1020,14 @@ export default function GradesScreen({ navigation, route }) {
                   isLandscape && styles.landscapePerformanceText,
                 ]}
               >
-                {gradeLabel}
+                {letterGrade}
               </Text>
             </View>
+            {hasTemplate && item.grading_context?.is_weighted && (
+              <View style={styles.weightedBadge}>
+                <Text style={styles.weightedText}>⚖️ Weighted</Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -934,45 +1102,59 @@ export default function GradesScreen({ navigation, route }) {
     let summativeData = [];
 
     if (grades?.summative && Array.isArray(grades.summative)) {
-      // Transform API data to match our table format
+      // Transform enhanced API data to match our table format
       summativeData = grades.summative.map((item, index) => {
-        // Handle different possible field names for score data
-        // API uses: score, score_percentage (not obtained_marks, percentage)
-        const obtainedMarks =
-          item.score ||
-          item.obtained_marks ||
-          item.marks_obtained ||
-          item.student_marks;
-        const maxMarks =
-          item.max_score ||
-          item.total_marks ||
-          item.maximum_marks ||
-          item.full_marks ||
-          100;
-        const percentage =
-          item.score_percentage || item.percentage || item.percent;
+        // Enhanced API provides: calculated_grade, letter_grade, display_score, template_info
+        const isGraded = item.is_graded === 1;
 
-        // Create score display - check for null/undefined, not falsy values (0 is valid)
-        // If score is null/undefined, show "Not Graded" instead of "N/A"
-        const scoreDisplay =
-          obtainedMarks !== null && obtainedMarks !== undefined && maxMarks
-            ? `${obtainedMarks}/${maxMarks}`
-            : t('notGraded');
+        // Use enhanced fields for better display
+        const calculatedGrade = item.calculated_grade;
+        const letterGrade = item.letter_grade;
+        const rawScore = item.raw_score;
+        const maxScore = item.max_score || 100;
+        const scorePercentage = item.score_percentage;
+
+        // Create score display using enhanced data
+        let scoreDisplay;
+        if (!isGraded) {
+          scoreDisplay = t('notGraded');
+        } else if (item.display_score) {
+          // Use pre-formatted display_score from enhanced API
+          scoreDisplay = item.display_score;
+        } else if (rawScore !== null && rawScore !== undefined) {
+          // Fallback to raw score display
+          scoreDisplay = `${rawScore}/${maxScore}`;
+        } else {
+          scoreDisplay = t('notGraded');
+        }
+
+        // Use calculated_grade for percentage display if available
         const percentageDisplay =
-          percentage !== null && percentage !== undefined
-            ? `${percentage}%`
+          isGraded && calculatedGrade !== null && calculatedGrade !== undefined
+            ? `${calculatedGrade}%`
+            : scorePercentage !== null && scorePercentage !== undefined
+            ? `${scorePercentage}%`
             : t('notGraded');
 
         return {
-          id: item.id || index + 1,
+          id: item.assessment_id || item.id || index + 1,
           date: item.date || 'N/A',
           subject: item.subject_name || 'N/A',
-          strand: item.strand_name || item.category || 'N/A', // Use category as fallback for strand
+          strand: item.strand_name || 'N/A',
           title: item.assessment_name || 'N/A',
           score: scoreDisplay,
           percentage: percentageDisplay,
-          type: item.type_title || item.category || 'N/A', // Use category as fallback for type
-          teacher: item.teacher_name || item.teacher || 'N/A', // Use teacher as fallback
+          type: item.type_title || 'N/A',
+          teacher: item.teacher_name || 'N/A',
+          // Enhanced fields for better UI
+          calculated_grade: calculatedGrade,
+          letter_grade: letterGrade,
+          comment: item.comment,
+          template_info: item.template_info,
+          grading_context: item.grading_context,
+          raw_score: rawScore,
+          max_score: maxScore,
+          type_percentage: item.type_percentage,
         };
       });
     } else {
@@ -1154,6 +1336,19 @@ export default function GradesScreen({ navigation, route }) {
       );
     }
 
+    // Check if we have any summative data to display
+    if (summativeData.length === 0) {
+      return (
+        <View style={styles.comingSoon}>
+          <Text style={styles.comingSoonText}>
+            {selectedSubject
+              ? `No summative grades available for ${selectedSubject} yet.`
+              : 'No summative grades available yet.'}
+          </Text>
+        </View>
+      );
+    }
+
     // Safety check: ensure currentPage doesn't exceed totalPages
     const totalPages = getTotalPages(summativeData);
     if (currentPage > totalPages && totalPages > 0) {
@@ -1186,28 +1381,149 @@ export default function GradesScreen({ navigation, route }) {
     );
   };
 
+  // Render enhanced statistics display
+  const renderStatisticsOverview = () => {
+    if (!grades?.statistics) return null;
+
+    const { summative, formative, overall } = grades.statistics;
+    const hasEnhancedFeatures = grades?.enhanced_features;
+
+    // Only show statistics if there's actual data
+    const hasData =
+      overall?.total_assessments > 0 ||
+      summative?.total_assessments > 0 ||
+      formative?.total_assessments > 0;
+
+    if (!hasData) return null;
+
+    // Helper function to format percentage values
+    const formatPercentage = (value) => {
+      if (value === null || value === undefined || isNaN(value)) return '--';
+      return value.toFixed(1);
+    };
+
+    // Helper function to format count values
+    const formatCount = (value) => {
+      if (value === null || value === undefined) return '0';
+      return value.toString();
+    };
+
+    return (
+      <View style={styles.statisticsContainer}>
+        <Text style={styles.statisticsTitle}>📊 Performance Overview</Text>
+
+        <View style={styles.statisticsGrid}>
+          {/* Overall Statistics */}
+          <View style={styles.statisticsCard}>
+            <Text style={styles.statisticsCardTitle}>OVERALL</Text>
+            <View style={styles.statisticsMainValueContainer}>
+              <Text style={styles.statisticsMainValue}>
+                {formatPercentage(overall.average_performance)}
+              </Text>
+              <Text style={styles.statisticsUnit}>%</Text>
+            </View>
+
+            <Text style={styles.statisticsLabel}>Average Performance</Text>
+            <View style={styles.statisticsDetails}>
+              <Text style={styles.statisticsDetailText}>
+                📝 {formatCount(overall.total_assessments)} Total
+              </Text>
+              <Text style={styles.statisticsDetailText}>
+                ✅ {formatPercentage(overall.completion_rate)}% Complete
+              </Text>
+            </View>
+          </View>
+
+          {/* Summative Statistics */}
+          <View style={styles.statisticsCard}>
+            <Text style={styles.statisticsCardTitle}>SUMMATIVE</Text>
+            <View style={styles.statisticsMainValueContainer}>
+              <Text style={styles.statisticsMainValue}>
+                {formatPercentage(summative.average_grade)}
+              </Text>
+              <Text style={styles.statisticsUnit}>%</Text>
+            </View>
+
+            <Text style={styles.statisticsLabel}>Average Grade</Text>
+            <View style={styles.statisticsDetails}>
+              <Text style={styles.statisticsDetailText}>
+                📈 High: {formatPercentage(summative.highest_grade)}%
+              </Text>
+              <Text style={styles.statisticsDetailText}>
+                📉 Low: {formatPercentage(summative.lowest_grade)}%
+              </Text>
+              {hasEnhancedFeatures?.template_support && (
+                <Text style={styles.statisticsDetailText}>
+                  📋 {formatCount(summative.with_templates)} Templates
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {/* Formative Statistics */}
+          <View style={styles.statisticsCard}>
+            <Text style={styles.statisticsCardTitle}>FORMATIVE</Text>
+            <View style={styles.statisticsMainValueContainer}>
+              <Text style={styles.statisticsMainValue}>
+                {formatCount(formative.graded_assessments)}
+              </Text>
+              <Text style={styles.statisticsUnit}></Text>
+            </View>
+            <Text style={styles.statisticsLabel}>Graded Assessments</Text>
+            <View style={styles.statisticsDetails}>
+              <Text style={styles.statisticsDetailText}>
+                📊 {formatCount(formative.total_assessments)} Total
+              </Text>
+              <Text style={styles.statisticsDetailText}>
+                ⏳ {formatCount(formative.ungraded_assessments)} Pending
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Enhanced Features Indicator */}
+        {hasEnhancedFeatures && (
+          <View style={styles.enhancedFeaturesIndicator}>
+            <Text style={styles.enhancedFeaturesText}>
+              🚀 Enhanced Grading v{grades.api_version || '2.0'} •
+              {hasEnhancedFeatures.weighted_calculations && ' ⚖️ Weighted'}
+              {hasEnhancedFeatures.letter_grades && ' 🔤 Letter Grades'}
+              {hasEnhancedFeatures.grade_analytics && ' 📈 Analytics'}
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   const renderFormativeContent = () => {
     // Use real API data if available, otherwise show message
     let formativeData = [];
 
     if (grades?.formative && Array.isArray(grades.formative)) {
-      // Transform API data to match our formative card format
+      // Transform enhanced formative API data
       formativeData = grades.formative.map((item, index) => {
         return {
-          id: item.id || index + 1,
+          id: item.assessment_id || item.id || index + 1,
           date: item.date || 'N/A',
           subject: item.subject_name || 'N/A',
           title: item.assessment_name || 'N/A',
-          teacher: item.teacher_name || item.teacher || 'N/A',
-          grade: item.grade || 'N/A',
-          percentage: item.percentage || 0,
-          feedback: item.feedback || '',
-          category: item.category || 'N/A',
-          // Assessment criteria fields
-          tt1: item.tt1 || '', // EE
-          tt2: item.tt2 || '', // ME
-          tt3: item.tt3 || '', // AE
-          tt4: item.tt4 || '', // BE
+          teacher: item.teacher_name || 'N/A',
+          // Enhanced formative assessment criteria (1-4 scale)
+          tt1: item.tt1 || '', // Thinking & Reasoning
+          tt2: item.tt2 || '', // Communication
+          tt3: item.tt3 || '', // Application
+          tt4: item.tt4 || '', // Collaboration
+          // Enhanced fields
+          strand_id: item.strand_id,
+          strand_name: item.strand_name,
+          skill_id: item.skill_id,
+          skill_name: item.skill_name,
+          max_score: item.max_score,
+          is_graded: item.is_graded,
+          grading_status:
+            item.grading_status ||
+            (item.is_graded === 1 ? 'Graded' : 'Not Graded'),
         };
       });
     }
@@ -1223,14 +1539,9 @@ export default function GradesScreen({ navigation, route }) {
       return (
         <View style={styles.comingSoon}>
           <Text style={styles.comingSoonText}>
-            {loading
-              ? t('loadingFormativeGrades')
-              : selectedSubject
-              ? t('noLifeSkillsGradesForSubject').replace(
-                  '{subject}',
-                  selectedSubject
-                )
-              : t('noLifeSkillsGrades')}
+            {selectedSubject
+              ? `No life skills grades available for ${selectedSubject} yet.`
+              : 'No life skills grades available yet.'}
           </Text>
         </View>
       );
@@ -1293,7 +1604,7 @@ export default function GradesScreen({ navigation, route }) {
                 ? `${t('assessments')}`
                 : isLandscape
                 ? `${selectedSubject} - ${
-                    activeTab === 'summative' ? t('summative') : t('lifeSkills')
+                    activeTab === 'summative' ? t('summative') : t('formative')
                   }`
                 : selectedSubject.substring(0, 16) || t('grades')}
             </Text>
@@ -1322,29 +1633,25 @@ export default function GradesScreen({ navigation, route }) {
           <View style={styles.subHeader}>
             <View style={styles.tabContainer}>
               {renderTabButton('summative', t('summative'))}
-              {renderTabButton('formative', t('lifeSkills'))}
+              {renderTabButton('formative', t('formative'))}
             </View>
           </View>
         )}
       </View>
 
       <View style={[styles.content, isLandscape && styles.landscapeContent]}>
-        {showSubjectList ? (
+        {loading ? (
+          // Show loading indicator
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size='large' color={theme.colors.primary} />
+            <Text style={styles.loadingText}>Loading grades...</Text>
+          </View>
+        ) : showSubjectList ? (
           // Show subject selection screen
           <View style={styles.subjectListContainer}>
-            <View style={styles.headerSection}>
-              <View style={styles.headerIconContainer}>
-                <FontAwesomeIcon
-                  icon={faGraduationCap}
-                  size={32}
-                  color='#FF9500'
-                />
-              </View>
-              <Text style={styles.subjectListTitle}>Select a Subject</Text>
-              <Text style={styles.subjectListSubtitle}>
-                Choose a subject to view your grades and performance
-              </Text>
-            </View>
+            {/* Enhanced Statistics Overview */}
+            {renderStatisticsOverview()}
+
             <ScrollView
               style={styles.fullWidth}
               contentContainerStyle={styles.subjectGrid}
@@ -1423,6 +1730,7 @@ const createStyles = (theme) =>
       alignItems: 'center',
       flex: 1,
       justifyContent: 'center',
+      alignSelf: 'center',
     },
     headerTitle: {
       color: '#fff',
@@ -1529,13 +1837,13 @@ const createStyles = (theme) =>
       width: '100%',
     },
 
-    // Modern Subject Card Styles - Dashboard Design
+    // Modern Subject Card Styles - Ultra Compact Design
     modernSubjectCard: {
       backgroundColor: theme.colors.card,
       width: '100%',
-      marginVertical: 10,
-      borderRadius: 24,
-      padding: 20,
+      marginVertical: 3,
+      borderRadius: 12,
+      padding: 10,
       // Removed overflow: 'hidden' to prevent shadow clipping on Android
       // Only show border on iOS - Android elevation provides sufficient visual separation
       ...(Platform.OS === 'ios' && {
@@ -1551,12 +1859,12 @@ const createStyles = (theme) =>
       justifyContent: 'space-between',
     },
     subjectIconContainer: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: 12,
+      marginRight: 8,
       // Enhanced shadow using platform-specific utilities
       ...createMediumShadow(theme),
     },
@@ -1564,11 +1872,11 @@ const createStyles = (theme) =>
       flex: 1,
     },
     modernSubjectTitle: {
-      fontSize: 18,
+      fontSize: 14,
       fontWeight: '700',
       color: theme.colors.text,
-      marginBottom: 4,
-      letterSpacing: 0.2,
+      marginBottom: 1,
+      letterSpacing: 0.1,
     },
     subjectGradeCount: {
       fontSize: 14,
@@ -1596,7 +1904,7 @@ const createStyles = (theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 16,
+      marginBottom: 6,
     },
     headerLeft: {
       flexDirection: 'row',
@@ -1611,10 +1919,10 @@ const createStyles = (theme) =>
       alignItems: 'center',
     },
     assessmentCount: {
-      fontSize: 12,
+      fontSize: 9,
       color: theme.colors.textSecondary,
       fontWeight: '500',
-      marginLeft: 4,
+      marginLeft: 3,
     },
     expandButton: {
       width: 32,
@@ -1630,32 +1938,32 @@ const createStyles = (theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-around',
-      marginBottom: 16,
-      paddingVertical: 8,
+      marginBottom: 8,
+      paddingVertical: 4,
     },
     gradeSection: {
       alignItems: 'center',
       flex: 1,
     },
     gradeCircle: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      borderWidth: 2,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      borderWidth: 1.5,
       backgroundColor: theme.colors.card,
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 6,
+      marginBottom: 2,
       // Enhanced shadow using platform-specific utilities
       ...createSmallShadow(theme),
     },
     gradeLetterText: {
-      fontSize: 16,
+      fontSize: 12,
       fontWeight: '800',
-      letterSpacing: 0.5,
+      letterSpacing: 0.3,
     },
     gradeLabel: {
-      fontSize: 11,
+      fontSize: 8,
       color: theme.colors.textSecondary,
       fontWeight: '500',
       textAlign: 'center',
@@ -1670,17 +1978,17 @@ const createStyles = (theme) =>
       marginBottom: 6,
     },
     percentageNumber: {
-      fontSize: 24,
+      fontSize: 16,
       fontWeight: '800',
-      letterSpacing: -0.5,
+      letterSpacing: -0.3,
     },
     percentageSymbol: {
-      fontSize: 16,
+      fontSize: 11,
       fontWeight: '600',
-      marginLeft: 2,
+      marginLeft: 1,
     },
     percentageLabel: {
-      fontSize: 11,
+      fontSize: 8,
       color: theme.colors.textSecondary,
       fontWeight: '500',
       textAlign: 'center',
@@ -1711,21 +2019,21 @@ const createStyles = (theme) =>
 
     // Progress Section
     progressSection: {
-      marginBottom: 16,
+      marginBottom: 8,
     },
     progressInfo: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 8,
+      marginBottom: 4,
     },
     progressLabel: {
-      fontSize: 12,
+      fontSize: 9,
       color: theme.colors.textSecondary,
       fontWeight: '500',
     },
     progressValue: {
-      fontSize: 12,
+      fontSize: 9,
       fontWeight: '600',
       color: theme.colors.text,
     },
@@ -1746,26 +2054,26 @@ const createStyles = (theme) =>
 
     // Bottom Info Section
     bottomInfo: {
-      marginTop: 4,
+      marginTop: 2,
     },
     typeBreakdown: {
       flexDirection: 'row',
       alignItems: 'center',
       flexWrap: 'wrap',
-      gap: 12,
+      gap: 8,
     },
     typeItem: {
       flexDirection: 'row',
       alignItems: 'center',
     },
     typeDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      marginRight: 6,
+      width: 5,
+      height: 5,
+      borderRadius: 2.5,
+      marginRight: 5,
     },
     typeText: {
-      fontSize: 11,
+      fontSize: 10,
       color: theme.colors.textSecondary,
       fontWeight: '500',
     },
@@ -2059,5 +2367,193 @@ const createStyles = (theme) =>
       fontSize: 12,
       color: theme.colors.textSecondary,
       marginTop: 2,
+    },
+
+    // Enhanced Grade Card Styles
+    templateInfo: {
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+      fontStyle: 'italic',
+      marginTop: 2,
+    },
+    letterGrade: {
+      fontSize: 12,
+      fontWeight: 'bold',
+      marginTop: 2,
+    },
+    landscapeLetterGrade: {
+      fontSize: 10,
+    },
+    commentSection: {
+      marginTop: 8,
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+    },
+    commentText: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      fontStyle: 'italic',
+      lineHeight: 16,
+    },
+    weightedBadge: {
+      backgroundColor: theme.colors.warning + '20',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+      marginLeft: 8,
+    },
+    weightedText: {
+      fontSize: 10,
+      color: theme.colors.warning,
+      fontWeight: '600',
+    },
+
+    // Enhanced Formative Assessment Styles
+    criteriaValue: {
+      fontSize: 14,
+      fontWeight: 'bold',
+      color: '#fff',
+      textAlign: 'center',
+      marginTop: 2,
+    },
+    criteriaLegend: {
+      marginTop: 12,
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+    },
+    criteriaLegendTitle: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 4,
+    },
+    criteriaLegendItem: {
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+      lineHeight: 16,
+      marginBottom: 2,
+    },
+
+    // Enhanced Statistics Display Styles
+    statisticsContainer: {
+      backgroundColor: theme.colors.card,
+      width: '95%',
+      marginVertical: 8,
+      borderRadius: 16,
+      padding: 16,
+      ...createCardShadow(theme),
+    },
+    statisticsTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 12,
+      textAlign: 'center',
+    },
+    statisticsGrid: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    statisticsCard: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      borderRadius: 12,
+      padding: 16,
+      marginHorizontal: 4,
+      alignItems: 'center',
+      ...createSmallShadow(theme),
+      minHeight: 140,
+    },
+    statisticsCardTitle: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.colors.textSecondary,
+      marginBottom: 8,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+    statisticsMainValue: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: theme.colors.primary,
+      lineHeight: 32,
+    },
+    statisticsUnit: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.colors.primary,
+      marginLeft: 2,
+    },
+    statisticsLabel: {
+      fontSize: 10,
+      color: theme.colors.textSecondary,
+      marginBottom: 12,
+      textAlign: 'center',
+      fontWeight: '500',
+    },
+    statisticsDetails: {
+      alignItems: 'center',
+      width: '100%',
+    },
+    statisticsDetailText: {
+      fontSize: 9,
+      color: theme.colors.textSecondary,
+      marginBottom: 3,
+      textAlign: 'center',
+      fontWeight: '500',
+      lineHeight: 12,
+    },
+    enhancedFeaturesIndicator: {
+      backgroundColor: theme.colors.primary + '10',
+      borderRadius: 8,
+      padding: 8,
+      marginTop: 8,
+    },
+    enhancedFeaturesText: {
+      fontSize: 11,
+      color: theme.colors.primary,
+      textAlign: 'center',
+      fontWeight: '500',
+    },
+
+    statisticsMainValueContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    // Enhanced Subject Card Statistics Styles
+    enhancedStatsRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 4,
+      paddingTop: 4,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border + '40',
+    },
+    enhancedStatItem: {
+      marginHorizontal: 4,
+    },
+    enhancedStatText: {
+      fontSize: 8,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+
+    // Loading Container Styles
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: theme.colors.background,
+      paddingVertical: 40,
+    },
+    loadingText: {
+      fontSize: 16,
+      color: theme.colors.textSecondary,
+      marginTop: 16,
+      fontWeight: '500',
     },
   });

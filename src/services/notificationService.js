@@ -12,17 +12,7 @@ const getAuthCode = async () => {
   try {
     console.log('🔑 NOTIFICATION SERVICE: Getting auth code...');
 
-    // First try user-type-specific storage keys
-    const teacherData = await getUserData('teacher', AsyncStorage);
-    if (teacherData && (teacherData.authCode || teacherData.auth_code)) {
-      const authCode = teacherData.authCode || teacherData.auth_code;
-      console.log(
-        '🔑 NOTIFICATION SERVICE: Using teacher auth code:',
-        authCode?.substring(0, 8) + '...'
-      );
-      return authCode;
-    }
-
+    // First try parent-specific storage keys (parents should have priority for their notifications)
     const parentData = await getUserData('parent', AsyncStorage);
     if (parentData && (parentData.authCode || parentData.auth_code)) {
       const authCode = parentData.authCode || parentData.auth_code;
@@ -35,6 +25,18 @@ const getAuthCode = async () => {
       return authCode;
     }
 
+    // Then try teacher data
+    const teacherData = await getUserData('teacher', AsyncStorage);
+    if (teacherData && (teacherData.authCode || teacherData.auth_code)) {
+      const authCode = teacherData.authCode || teacherData.auth_code;
+      console.log(
+        '🔑 NOTIFICATION SERVICE: Using teacher auth code:',
+        authCode?.substring(0, 8) + '...'
+      );
+      return authCode;
+    }
+
+    // Then try student data
     const studentData = await getUserData('student', AsyncStorage);
     if (studentData && (studentData.authCode || studentData.auth_code)) {
       const authCode = studentData.authCode || studentData.auth_code;

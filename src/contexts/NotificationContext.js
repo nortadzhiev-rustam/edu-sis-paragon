@@ -407,8 +407,8 @@ export const NotificationProvider = ({ children }) => {
     try {
       const response = await markAllAPINotificationsRead(studentAuthCode);
       if (response?.success) {
-        // Update local state for this student
-        await loadStudentNotifications(studentAuthCode);
+        // In parent proxy system, refresh main notifications instead
+        await refreshNotifications();
       }
       return response;
     } catch (error) {
@@ -528,15 +528,11 @@ export const NotificationProvider = ({ children }) => {
   };
 
   // Set current student for notification context
-  const setCurrentStudent = React.useCallback(
-    (studentAuthCode) => {
-      setCurrentStudentAuthCode(studentAuthCode);
-      if (studentAuthCode && !studentNotifications[studentAuthCode]) {
-        loadStudentNotifications(studentAuthCode);
-      }
-    },
-    [studentNotifications, loadStudentNotifications]
-  );
+  const setCurrentStudent = React.useCallback((studentAuthCode) => {
+    setCurrentStudentAuthCode(studentAuthCode);
+    // In parent proxy system, we don't load individual student notifications
+    // All notifications come through the main parent context
+  }, []);
 
   // Get current student's unread count
   const getCurrentStudentUnreadCount = () => {

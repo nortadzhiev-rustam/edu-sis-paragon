@@ -311,50 +311,162 @@ export const getChildGrades = async (authCode, studentId) => {
 
       return {
         success: true,
-        grades: {
-          subjects: [
-            {
-              subject: 'Mathematics',
-              formative_average: 85.5,
-              summative_average: 88.2,
-              overall_grade: 'A-',
-              assessments: [
+        student_id: studentId,
+        academic_year_id: 2024,
+        branch_id: 1,
+
+        summative: [
+          {
+            assessment_id: 101,
+            date: '2025-08-25',
+            subject_name: 'Mathematics',
+            assessment_name: 'Midterm Exam',
+            type_title: 'Written Test',
+            type_percentage: 60,
+            raw_score: 88,
+            calculated_grade: 88.0,
+            letter_grade: 'B+',
+            max_score: 100,
+            score_percentage: 88.0,
+            comment: 'Good understanding of concepts',
+            teacher_name: 'Sarah Johnson',
+            is_graded: 1,
+            display_score: '88.0 (B+)',
+
+            template_info: {
+              template_id: 5,
+              template_name: 'Standard Math Template',
+              assessment_types: [
                 {
-                  type: 'formative',
-                  title: 'Quiz 1',
-                  score: 85,
-                  max_score: 100,
-                  date: '2025-08-20',
+                  type_id: 1,
+                  title: 'Written Test',
+                  percentage: 60,
+                  description: 'Main exam',
                 },
                 {
-                  type: 'summative',
-                  title: 'Midterm Exam',
-                  score: 88,
-                  max_score: 100,
-                  date: '2025-08-25',
+                  type_id: 2,
+                  title: 'Homework',
+                  percentage: 25,
+                  description: 'Daily assignments',
+                },
+                {
+                  type_id: 3,
+                  title: 'Participation',
+                  percentage: 15,
+                  description: 'Class participation',
                 },
               ],
             },
-            {
-              subject: 'English',
-              formative_average: 92.0,
-              summative_average: 89.5,
-              overall_grade: 'A',
-              assessments: [
+
+            grading_context: {
+              has_template: true,
+              is_weighted: true,
+              total_possible_percentage: 100,
+            },
+          },
+          {
+            assessment_id: 102,
+            date: '2025-08-22',
+            subject_name: 'English',
+            assessment_name: 'Essay Analysis',
+            type_title: 'Essay',
+            type_percentage: 50,
+            raw_score: 92,
+            calculated_grade: 92.0,
+            letter_grade: 'A',
+            max_score: 100,
+            score_percentage: 92.0,
+            comment: 'Excellent analytical skills',
+            teacher_name: 'John Smith',
+            is_graded: 1,
+            display_score: '92.0 (A)',
+
+            template_info: {
+              template_id: 7,
+              template_name: 'Literature Assessment Template',
+              assessment_types: [
                 {
-                  type: 'formative',
-                  title: 'Essay 1',
-                  score: 92,
-                  max_score: 100,
-                  date: '2025-08-22',
+                  type_id: 1,
+                  title: 'Essay',
+                  percentage: 50,
+                  description: 'Written analysis',
+                },
+                {
+                  type_id: 2,
+                  title: 'Reading Comprehension',
+                  percentage: 30,
+                  description: 'Text understanding',
+                },
+                {
+                  type_id: 3,
+                  title: 'Discussion',
+                  percentage: 20,
+                  description: 'Class participation',
                 },
               ],
             },
-          ],
-          overall_gpa: 3.8,
-          class_rank: 5,
-          total_students: 30,
+
+            grading_context: {
+              has_template: true,
+              is_weighted: true,
+              total_possible_percentage: 100,
+            },
+          },
+        ],
+
+        formative: [
+          {
+            assessment_id: 201,
+            tt1: 4,
+            tt2: 3,
+            tt3: 4,
+            tt4: 3,
+            teacher_name: 'Sarah Johnson',
+            subject_name: 'Mathematics',
+            assessment_name: 'Quiz 1',
+            strand_id: null,
+            strand_name: null,
+            skill_id: null,
+            skill_name: null,
+            date: '2025-08-20',
+            max_score: null,
+            is_graded: 1,
+            grading_status: 'Graded',
+          },
+        ],
+
+        statistics: {
+          summative: {
+            total_assessments: 2,
+            graded_assessments: 2,
+            ungraded_assessments: 0,
+            average_grade: 90.0,
+            highest_grade: 92.0,
+            lowest_grade: 88.0,
+            with_templates: 2,
+          },
+          formative: {
+            total_assessments: 1,
+            graded_assessments: 1,
+            ungraded_assessments: 0,
+          },
+          overall: {
+            total_assessments: 3,
+            total_graded: 3,
+            total_ungraded: 0,
+            completion_rate: 100.0,
+            average_performance: 90.0,
+          },
         },
+
+        enhanced_features: {
+          weighted_calculations: true,
+          letter_grades: true,
+          template_support: true,
+          grade_analytics: true,
+        },
+
+        api_version: '2.0',
       };
     }
 

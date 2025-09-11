@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useParentNotifications } from '../hooks/useParentNotifications';
+import { useNotifications } from '../contexts/NotificationContext';
 import { useTheme } from '../contexts/ThemeContext';
 
 const ParentNotificationBadge = ({
@@ -10,18 +10,14 @@ const ParentNotificationBadge = ({
   selectedStudent = null,
   showAllStudents = false,
 }) => {
-  const { getTotalUnreadCount, getStudentUnreadCount } =
-    useParentNotifications();
+  const { unreadCount } = useNotifications();
   const { theme } = useTheme();
 
-  // If selectedStudent is provided, show only that student's count
-  // Otherwise, show total count across all students (default behavior)
-  const unreadCount =
-    selectedStudent && !showAllStudents
-      ? getStudentUnreadCount(selectedStudent.authCode) || 0
-      : getTotalUnreadCount();
+  // In parent proxy system, all notifications come through main context
+  // so we use the main unread count
+  const displayCount = unreadCount || 0;
 
-  if (!showZero && unreadCount === 0) {
+  if (!showZero && displayCount === 0) {
     return null;
   }
 
@@ -30,7 +26,7 @@ const ParentNotificationBadge = ({
   return (
     <View style={[styles.badge, style]}>
       <Text style={[styles.badgeText, textStyle]}>
-        {unreadCount > 99 ? '99+' : unreadCount.toString()}
+        {displayCount > 99 ? '99+' : displayCount.toString()}
       </Text>
     </View>
   );

@@ -69,10 +69,19 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
 
   // Initialize selected child
   useEffect(() => {
+    console.log('🔄 GUARDIAN-PICKUP: Initializing selected child...');
+    console.log('🔄 GUARDIAN-PICKUP: selectedChildId:', selectedChildId);
+    console.log('🔄 GUARDIAN-PICKUP: children:', children);
+
     if (selectedChildId && children) {
       const child = children.find((c) => c.id === selectedChildId);
+      console.log('🔄 GUARDIAN-PICKUP: Found child by ID:', child);
       setSelectedChild(child || children[0]);
     } else if (children && children.length > 0) {
+      console.log(
+        '🔄 GUARDIAN-PICKUP: Setting first child as default:',
+        children[0]
+      );
       setSelectedChild(children[0]);
     }
   }, [selectedChildId, children]);
@@ -236,18 +245,83 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
     }
 
     if (!selectedChild) {
+      console.log('❌ PICKUP REQUEST: No child selected');
       Alert.alert('No Child Selected', 'Please select a child for pickup.');
       return;
     }
 
+    // Validate selectedChild has required fields
+    if (!selectedChild.student_id) {
+      console.log(
+        '❌ PICKUP REQUEST: Selected child missing student_id:',
+        selectedChild
+      );
+      Alert.alert(
+        'Invalid Child Data',
+        'Selected child data is incomplete. Please try selecting the child again.'
+      );
+      return;
+    }
+
+    // Debug logging
+    console.log('🚗 PICKUP REQUEST: Creating pickup request...');
+    console.log('🚗 PICKUP REQUEST: Selected child:', selectedChild);
+    console.log('🚗 PICKUP REQUEST: Selected child ID:', selectedChild.id);
+    console.log(
+      '🚗 PICKUP REQUEST: Selected child student_id:',
+      selectedChild.student_id
+    );
+    console.log('🚗 PICKUP REQUEST: Selected child name:', selectedChild.name);
+
     try {
       setLoading(true);
+
+      // Final verification before API call
+      console.log('🔍 PICKUP REQUEST: Final verification before API call...');
+      console.log('🔍 PICKUP REQUEST: authCode:', authCode);
+      console.log(
+        '🔍 PICKUP REQUEST: selectedChild.student_id:',
+        selectedChild.student_id
+      );
+      console.log(
+        '🔍 PICKUP REQUEST: About to call createParentPickupRequest with student_id:',
+        selectedChild.student_id
+      );
+
       const response = await createParentPickupRequest(
         authCode,
         selectedChild.student_id
       );
 
+      console.log('🔍 PICKUP REQUEST: Server response:', response);
+
       if (response.success) {
+        // Check if the server created the request for the correct student
+        const requestMessage = response.message || '';
+        const selectedStudentName = selectedChild.name;
+
+        console.log(
+          '🔍 PICKUP REQUEST: Expected student:',
+          selectedStudentName
+        );
+        console.log(
+          '🔍 PICKUP REQUEST: Server response message:',
+          requestMessage
+        );
+
+        // Check if the response message contains the expected student name
+        if (requestMessage.includes(selectedStudentName)) {
+          console.log(
+            '✅ PICKUP REQUEST: Server created request for correct student'
+          );
+        } else {
+          console.log(
+            '⚠️ PICKUP REQUEST: Server may have created request for wrong student'
+          );
+          console.log('⚠️ PICKUP REQUEST: Expected:', selectedStudentName);
+          console.log('⚠️ PICKUP REQUEST: Server message:', requestMessage);
+        }
+
         Alert.alert('Pickup Request Created', response.message, [
           {
             text: 'OK',
@@ -412,9 +486,22 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
       child?.name || 'All Children'
     );
     console.log('👶 GUARDIAN-PICKUP: Child data:', child);
+    console.log('👶 GUARDIAN-PICKUP: Child ID:', child?.id);
+    console.log('👶 GUARDIAN-PICKUP: Child student_id:', child?.student_id);
+    console.log('👶 GUARDIAN-PICKUP: Previous selectedChild:', selectedChild);
 
     setSelectedChild(child);
     setShowChildDropdown(false);
+
+    console.log('👶 GUARDIAN-PICKUP: Updated selectedChild to:', child);
+
+    // Add a timeout to check if state was actually updated
+    setTimeout(() => {
+      console.log(
+        '👶 GUARDIAN-PICKUP: selectedChild state after timeout:',
+        selectedChild
+      );
+    }, 100);
 
     // Show loading state and reload data with the new child selection
     setLoading(true);

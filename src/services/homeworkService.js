@@ -1142,11 +1142,11 @@ export const createHomeworkAssignment = async (
       '📝 Creating homework assignment with correct data structure:',
       {
         title: title,
-        homework_data: description,
+        description: description,
         grade_id: gradeId,
         subject_id: subjectId,
         students: studentIds,
-        deadline: deadline,
+        due_date: deadline,
         auth_code: auth,
       }
     );
@@ -1155,11 +1155,11 @@ export const createHomeworkAssignment = async (
       method: 'POST',
       body: JSON.stringify({
         title: title,
-        homework_data: description,
+        description: description,
         grade_id: gradeId,
         subject_id: subjectId, // Add subject_id to the request
         students: studentIds,
-        deadline: deadline,
+        due_date: deadline,
         auth_code: auth,
       }),
     });

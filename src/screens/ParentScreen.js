@@ -243,27 +243,8 @@ export default function ParentScreen({ navigation }) {
     }
   }, [students, selectedStudent, restoreSelectedStudent]);
 
-  // Load notifications when students are loaded (only once per student set)
-  useEffect(() => {
-    if (students.length > 0) {
-      // Create a unique key for this set of students
-      const studentIds = students
-        .map((s) => s.id)
-        .sort()
-        .join(',');
-
-      // Only load if we haven't loaded for this exact set of students
-      if (!notificationsLoadedRef.current.has(studentIds)) {
-        notificationsLoadedRef.current.add(studentIds);
-        // Use a timeout to prevent immediate execution during render
-        const timeoutId = setTimeout(() => {
-          refreshAllStudents(students);
-        }, 100);
-
-        return () => clearTimeout(timeoutId);
-      }
-    }
-  }, [students, refreshAllStudents]);
+  // Note: In parent proxy system, notifications are loaded through main notification context
+  // No need to load individual student notifications
 
   const handleLogout = async () => {
     Alert.alert(t('logout'), t('confirmLogout'), [
