@@ -167,8 +167,15 @@ export default function AttendanceScreen({ navigation, route }) {
           proxyOptions.studentId
         );
 
-        if (response.success && response.attendance) {
-          setAttendanceData(response.attendance);
+        if (
+          response.success &&
+          (response.attendance || response.attendance_records)
+        ) {
+          // Handle both response formats:
+          // 1. response.attendance (if data is nested)
+          // 2. response directly contains attendance_records, daily_statistics, summary_statistics
+          const attendanceData = response.attendance || response;
+          setAttendanceData(attendanceData);
         } else {
           console.warn(
             '⚠️ ATTENDANCE: No attendance data in parent proxy response'

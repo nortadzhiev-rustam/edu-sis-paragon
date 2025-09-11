@@ -95,8 +95,18 @@ export default function StudentHealthScreen({ route, navigation }) {
           proxyOptions.studentId
         );
 
-        if (response.success && response.health_records) {
-          setHealthRecords(response.health_records.medical_visits || []);
+        if (
+          response.success &&
+          (response.health_records || response.data?.records)
+        ) {
+          // Handle both response formats:
+          // 1. response.health_records.medical_visits (if data is directly in response)
+          // 2. response.data.records (if data is nested under data)
+          const healthRecords =
+            response.health_records?.medical_visits ||
+            response.data?.records ||
+            [];
+          setHealthRecords(healthRecords);
         } else {
           console.warn(
             '⚠️ HEALTH RECORDS: No health records in parent proxy response'
@@ -131,9 +141,19 @@ export default function StudentHealthScreen({ route, navigation }) {
           proxyOptions.studentId
         );
 
-        if (response.success && response.health_info) {
-          setHealthInfo(response.health_info);
-          setMeasurements(response.health_info.basic_info || null);
+        if (
+          response.success &&
+          (response.health_info || response.data?.health_info)
+        ) {
+          // Handle both response formats:
+          // 1. response.health_info (if data is directly in response)
+          // 2. response.data.health_info (if data is nested under data)
+          const healthInfo = response.health_info || response.data?.health_info;
+          const measurements =
+            response.measurements || response.data?.measurements;
+
+          setHealthInfo(healthInfo);
+          setMeasurements(measurements);
         } else {
           console.warn(
             '⚠️ HEALTH INFO: No health info in parent proxy response'
