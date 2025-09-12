@@ -161,7 +161,7 @@ const lightTheme = {
     success: '#7CB342', // Green from tertiary
     warning: '#FFD700', // Yellow from tertiary
     error: '#EC2227', // Secondary red for errors
-    info: '#9AC4E4', // Light blue from tertiary
+    info: '#1982c4', // Light blue from tertiary
 
     // Card and container colors
     card: '#FFFFFF',

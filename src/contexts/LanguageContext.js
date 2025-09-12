@@ -1072,6 +1072,17 @@ const translations = {
     addGuardiansMessage: 'Add authorized guardians who can pick up your child',
     managingFor: 'Managing for',
     manageAllChildren: 'Manage guardians for all children',
+
+    // Branch Selection
+    switchingBranch: 'Switching branch...',
+    branchSwitched: 'Branch switched successfully',
+    currentBranch: 'Current Branch',
+    availableBranches: 'Available Branches',
+    noBranchesAvailable: 'No branches available',
+    switchToBranch: 'Switch to {branchName}',
+    branchSelectionFailed: 'Failed to switch branch',
+    multipleBranchesAvailable: 'Multiple branches available',
+    singleBranchOnly: 'Single branch access',
   },
   my: {
     // Common
@@ -1887,6 +1898,17 @@ const translations = {
     requestingCameraPermission: 'ကင်မရာခွင့်ပြုချက်တောင်းနေသည်...',
     grantPermission: 'ခွင့်ပြုချက်ပေးပါ',
     enterManually: 'လက်ဖြင့်ရိုက်ထည့်ပါ',
+
+    // Branch Selection
+    switchingBranch: 'ဌာနခွဲပြောင်းနေသည်...',
+    branchSwitched: 'ဌာနခွဲအောင်မြင်စွာပြောင်းပြီး',
+    currentBranch: 'လက်ရှိဌာနခွဲ',
+    availableBranches: 'ရရှိနိုင်သောဌာနခွဲများ',
+    noBranchesAvailable: 'ဌာနခွဲများမရှိပါ',
+    switchToBranch: '{branchName} သို့ပြောင်းရန်',
+    branchSelectionFailed: 'ဌာနခွဲပြောင်းမှုမအောင်မြင်ပါ',
+    multipleBranchesAvailable: 'ဌာနခွဲများစွာရရှိနိုင်သည်',
+    singleBranchOnly: 'ဌာနခွဲတစ်ခုသာအသုံးပြုနိုင်သည်',
   },
   zh: {
     // Common
@@ -2642,6 +2664,17 @@ const translations = {
     requestingCameraPermission: '正在请求相机权限...',
     grantPermission: '授予权限',
     enterManually: '手动输入',
+
+    // Branch Selection
+    switchingBranch: '正在切换分支...',
+    branchSwitched: '分支切换成功',
+    currentBranch: '当前分支',
+    availableBranches: '可用分支',
+    noBranchesAvailable: '没有可用分支',
+    switchToBranch: '切换到{branchName}',
+    branchSelectionFailed: '分支切换失败',
+    multipleBranchesAvailable: '多个分支可用',
+    singleBranchOnly: '仅单一分支访问',
   },
   th: {
     // Common
@@ -3424,6 +3457,17 @@ const translations = {
     requestingCameraPermission: 'กำลังขอสิทธิ์กล้อง...',
     grantPermission: 'อนุญาตสิทธิ์',
     enterManually: 'ใส่ด้วยตนเอง',
+
+    // Branch Selection
+    switchingBranch: 'กำลังเปลี่ยนสาขา...',
+    branchSwitched: 'เปลี่ยนสาขาสำเร็จ',
+    currentBranch: 'สาขาปัจจุบัน',
+    availableBranches: 'สาขาที่ใช้ได้',
+    noBranchesAvailable: 'ไม่มีสาขาที่ใช้ได้',
+    switchToBranch: 'เปลี่ยนไป{branchName}',
+    branchSelectionFailed: 'การเปลี่ยนสาขาล้มเหลว',
+    multipleBranchesAvailable: 'มีหลายสาขาที่ใช้ได้',
+    singleBranchOnly: 'เข้าถึงได้เฉพาะสาขาเดียว',
   },
   km: {
     // Common
@@ -3523,11 +3567,12 @@ const translations = {
 
     // Grades Screen
     loadingFormativeGrades: 'កំពុងផ្ទុកពិន្ទុសិក្សាអាល់ខ្លួន...',
-    noLifeSkillsGradesForSubject: 'មិនមានពិន្ទុសិក្សាអាល់ខ្លួនសម្រាប់ {subject}',
+    noLifeSkillsGradesForSubject:
+      'មិនមានពិន្ទុសិក្សាអាល់ខ្លួនសម្រាប់ {subject}',
     noLifeSkillsGrades: 'មិនមានពិន្ទុសិក្សាអាល់ខ្លួន',
     summative: 'ទម្រង់',
     notGraded: 'មិនបានដាក់ពិន្ទុ',
-    formative: "ទម្រង់",
+    formative: 'ទម្រង់',
 
     // Login Screen
     teacherId: 'លេខសម្គាល់គ្រូ',
@@ -3807,6 +3852,17 @@ const translations = {
     requestingCameraPermission: 'កំពុងស្នើសុំការអនុញ្ញាតកាមេរ៉ា...',
     grantPermission: 'ផ្តល់ការអនុញ្ញាត',
     enterManually: 'បញ្ចូលដោយដៃ',
+
+    // Branch Selection
+    switchingBranch: 'កំពុងប្តូរសាខា...',
+    branchSwitched: 'ប្តូរសាខាបានជោគជ័យ',
+    currentBranch: 'សាខាបច្ចុប្បន្ន',
+    availableBranches: 'សាខាដែលអាចប្រើបាន',
+    noBranchesAvailable: 'គ្មានសាខាដែលអាចប្រើបាន',
+    switchToBranch: 'ប្តូរទៅ{branchName}',
+    branchSelectionFailed: 'ការប្តូរសាខាបរាជ័យ',
+    multipleBranchesAvailable: 'មានសាខាជាច្រើនដែលអាចប្រើបាន',
+    singleBranchOnly: 'អាចចូលប្រើបានតែសាខាតែមួយ',
   },
 };
 

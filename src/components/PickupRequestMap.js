@@ -101,8 +101,17 @@ const PickupRequestMap = ({
 
   // Safely load MapView only on physical devices
   useEffect(() => {
+    console.log('🗺️ MAP DEBUG: Loading MapView...', {
+      isSimulator,
+      hasMapViewComponent: !!MapViewComponent,
+      userLocation,
+      schoolLocation,
+      mapRegion,
+    });
+
     if (!isSimulator && !MapViewComponent) {
       try {
+        console.log('🗺️ MAP DEBUG: Attempting to import react-native-maps...');
         // Import MapView components safely
         const mapComponents = require('react-native-maps');
         const MapView = mapComponents.default;
@@ -110,6 +119,10 @@ const PickupRequestMap = ({
         const Circle = mapComponents.Circle;
         const PROVIDER_GOOGLE = mapComponents.PROVIDER_GOOGLE;
         const PROVIDER_DEFAULT = mapComponents.PROVIDER_DEFAULT;
+
+        console.log(
+          '🗺️ MAP DEBUG: Successfully imported react-native-maps components'
+        );
 
         // Create a safe MapView component
         const SafeMapView = ({ onLocationUpdate }) => {
@@ -419,10 +432,22 @@ const PickupRequestMap = ({
           );
         };
 
+        console.log('🗺️ MAP DEBUG: Setting MapViewComponent...');
         setMapViewComponent(() => SafeMapView);
+        console.log('🗺️ MAP DEBUG: MapViewComponent set successfully');
       } catch (error) {
-        console.warn('Failed to load MapView:', error);
+        console.error('🗺️ MAP DEBUG: Failed to load MapView:', error);
+        console.error(
+          '🗺️ MAP DEBUG: Error details:',
+          error.message,
+          error.stack
+        );
       }
+    } else {
+      console.log('🗺️ MAP DEBUG: Skipping MapView import:', {
+        isSimulator,
+        hasMapViewComponent: !!MapViewComponent,
+      });
     }
   }, [
     mapRegion,
@@ -500,11 +525,20 @@ const PickupRequestMap = ({
   }
 
   // Show actual map on physical devices if available
+  console.log('🗺️ MAP DEBUG: Final render decision:', {
+    isSimulator,
+    hasMapViewComponent: !!MapViewComponent,
+    hasMapRegion: !!mapRegion,
+    shouldShowMap: !isSimulator && MapViewComponent && mapRegion,
+  });
+
   if (!isSimulator && MapViewComponent && mapRegion) {
+    console.log('🗺️ MAP DEBUG: Rendering actual MapView');
     return <MapViewComponent onLocationUpdate={onLocationUpdate} />;
   }
 
   // Show loading placeholder for physical devices
+  console.log('🗺️ MAP DEBUG: Rendering loading placeholder');
   return (
     <View style={[styles.simulatorPlaceholder, style]}>
       <FontAwesome5 name='map' size={48} color={theme.colors.textSecondary} />

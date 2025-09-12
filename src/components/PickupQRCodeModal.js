@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 // Context
 import { useTheme } from '../contexts/ThemeContext';
@@ -33,9 +34,14 @@ const PickupQRCodeModal = ({
 
   if (!qrData) return null;
 
-  const handleCopyToken = () => {
-    // In a real app, you'd copy to clipboard
-    Alert.alert('Token Copied', 'QR token copied to clipboard');
+  const handleCopyToken = async () => {
+    try {
+      await Clipboard.setString(qrData.qr_token);
+      Alert.alert('Token Copied', 'QR token copied to clipboard');
+    } catch (error) {
+      console.error('Error copying QR token:', error);
+      Alert.alert('Error', 'Failed to copy QR token');
+    }
   };
 
   const formatTime = (timestamp) => {

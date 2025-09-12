@@ -742,21 +742,46 @@ export const staffPickupScanQr = async (qr_token, authCode = null) => {
  * Staff Pickup: Process Pickup
  * @param {Object} data
  * @param {string|null} data.authCode
- * @param {number} data.guardian_card_id
+ * @param {number} data.guardian_card_id - For guardian pickups
+ * @param {string} data.parent_auth_code - For parent pickups
  * @param {number} data.request_id
  * @param {string|null} data.staff_notes
  */
 export const staffPickupProcess = async ({
   authCode = null,
   guardian_card_id,
+  parent_auth_code,
   request_id,
   staff_notes = null,
 }) => {
   try {
     const auth = authCode || (await getAuthCode());
     if (!auth) throw new Error('No authentication code found');
-    if (!guardian_card_id) throw new Error('guardian_card_id is required');
+
+    // Either guardian_card_id or parent_auth_code is required
+    if (!guardian_card_id && !parent_auth_code) {
+      throw new Error(
+        'Either guardian_card_id or parent_auth_code is required'
+      );
+    }
+
     if (!request_id) throw new Error('request_id is required');
+
+    // Build request body based on available parameters
+    const requestBody = {
+      authCode: auth,
+      request_id,
+      staff_notes,
+    };
+
+    // Add the appropriate identifier based on what's provided
+    if (parent_auth_code) {
+      requestBody.parent_auth_code = parent_auth_code;
+      console.log('📱 STAFF SERVICE: Processing pickup with parent_auth_code');
+    } else if (guardian_card_id) {
+      requestBody.guardian_card_id = guardian_card_id;
+      console.log('📱 STAFF SERVICE: Processing pickup with guardian_card_id');
+    }
 
     const url = buildApiUrl(Config.API_ENDPOINTS.STAFF_PICKUP_PROCESS);
     const response = await fetch(url, {
@@ -765,12 +790,7 @@ export const staffPickupProcess = async ({
         Accept: 'application/json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        authCode: auth,
-        guardian_card_id,
-        request_id,
-        staff_notes,
-      }),
+      body: JSON.stringify(requestBody),
     });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     return await response.json();

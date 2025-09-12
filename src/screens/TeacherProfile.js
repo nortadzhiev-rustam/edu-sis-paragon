@@ -30,6 +30,7 @@ import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getUserData } from '../services/authService';
 import { performLogout } from '../services/logoutService';
+import { borderRadius } from '../utils/commonStyles';
 
 export default function TeacherProfile({ route, navigation }) {
   const { theme } = useTheme();
@@ -40,15 +41,37 @@ export default function TeacherProfile({ route, navigation }) {
   const [userData, setUserData] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentBranchId, setCurrentBranchId] = useState(null);
 
   useEffect(() => {
     loadUserData();
   }, []);
 
+  const loadCurrentBranchId = async () => {
+    try {
+      const savedBranchId = await AsyncStorage.getItem('selectedBranchId');
+      if (savedBranchId) {
+        const branchId = parseInt(savedBranchId, 10);
+        setCurrentBranchId(branchId);
+        console.log('📍 TEACHER PROFILE: Current branch ID:', branchId);
+        return branchId;
+      }
+    } catch (error) {
+      console.error(
+        '❌ TEACHER PROFILE: Error loading current branch ID:',
+        error
+      );
+    }
+    return null;
+  };
+
   const loadUserData = async () => {
     try {
       setRefreshing(true);
       console.log('🔍 TEACHER PROFILE: Loading teacher data...');
+
+      // Load current branch ID
+      await loadCurrentBranchId();
 
       // First try to get teacher-specific data
       const teacherData = await getUserData('teacher', AsyncStorage);
@@ -130,40 +153,76 @@ export default function TeacherProfile({ route, navigation }) {
     ]);
   };
 
-  const formatUserRoles = (userData) => {
-    if (
-      userData.roles &&
-      Array.isArray(userData.roles) &&
-      userData.roles.length > 0
-    ) {
-      // Get unique role names across all branches
-      const uniqueRoles = [
-        ...new Set(userData.roles.map((role) => role.role_name)),
-      ];
-
-      if (uniqueRoles.length === 1) {
-        // Single unique role - just show the role name
-        return uniqueRoles[0];
-      } else {
-        // Multiple unique roles - show them separated by dashes
-        return uniqueRoles.join(' - ');
-      }
-    }
-
-    // Fallback to new API response fields
+  const formatUserPosition = (userData) => {
+    // Prioritize position-related fields over roles
     if (userData.profession_position) {
       return userData.profession_position;
     }
 
-    if (userData.role) {
-      return userData.role;
+    if (userData.position) {
+      return userData.position;
     }
 
     if (userData.staff_category_name) {
       return userData.staff_category_name;
     }
 
-    return userData.position || 'Teacher';
+    if (userData.role) {
+      return userData.role;
+    }
+
+    // Only use roles as fallback if no position data is available
+    if (
+      userData.roles &&
+      Array.isArray(userData.roles) &&
+      userData.roles.length > 0
+    ) {
+      // Just return the first role's name as position
+      return userData.roles[0].role_name;
+    }
+
+    return 'Teacher';
+  };
+
+  const getCurrentBranchRoles = (userData, currentBranchId) => {
+    if (
+      !userData.roles ||
+      !Array.isArray(userData.roles) ||
+      userData.roles.length === 0
+    ) {
+      return [];
+    }
+
+    // If no current branch ID is available, return all roles
+    if (!currentBranchId) {
+      return userData.roles;
+    }
+
+    // Filter roles by current branch ID
+    const currentBranchRoles = userData.roles.filter((role) => {
+      // Check if role has branch_id that matches current branch
+      if (role.branch_id && role.branch_id === currentBranchId) {
+        return true;
+      }
+
+      // Fallback: if no branch_id but has branch_name, try to match by name
+      // This is less reliable but provides fallback support
+      if (!role.branch_id && role.branch_name && userData.accessible_branches) {
+        const matchingBranch = userData.accessible_branches.find(
+          (branch) =>
+            branch.branch_id === currentBranchId &&
+            branch.branch_name === role.branch_name
+        );
+        return !!matchingBranch;
+      }
+
+      return false;
+    });
+
+    console.log(
+      `📍 TEACHER PROFILE: Filtered ${currentBranchRoles.length} roles for current branch (ID: ${currentBranchId})`
+    );
+    return currentBranchRoles;
   };
 
   const ProfileItem = ({ icon, label, value, onPress }) => (
@@ -269,7 +328,7 @@ export default function TeacherProfile({ route, navigation }) {
             )}
           </View>
           <Text style={styles.userName}>{userData.name || 'Teacher'}</Text>
-          <Text style={styles.userRole}>{formatUserRoles(userData)}</Text>
+          <Text style={styles.userRole}>{formatUserPosition(userData)}</Text>
           <Text style={styles.userId}>ID: {userData.id || 'N/A'}</Text>
         </View>
 
@@ -404,34 +463,52 @@ export default function TeacherProfile({ route, navigation }) {
             </View>
           )}
 
-        {/* Roles Section */}
-        {userData.roles && userData.roles.length > 0 && (
-          <View style={styles.profileSection}>
-            <Text style={styles.sectionTitle}>
-              {t('rolesResponsibilities')}
-            </Text>
-            {userData.roles.map((role, index) => (
-              <View key={index} style={styles.roleItem}>
-                <View style={styles.roleIcon}>
-                  <FontAwesomeIcon
-                    icon={faUserTie}
-                    size={16}
-                    color={theme.colors.primary}
-                  />
-                </View>
-                <View style={styles.roleContent}>
-                  <Text style={styles.roleName}>{role.role_name}</Text>
-                  {role.branch_name && (
-                    <Text style={styles.roleBranch}>{role.branch_name}</Text>
+        {/* Roles Section - Only show current branch roles */}
+        {(() => {
+          const currentBranchRoles = getCurrentBranchRoles(
+            userData,
+            currentBranchId
+          );
+          return (
+            currentBranchRoles.length > 0 && (
+              <View style={styles.profileSection}>
+                <Text style={styles.sectionTitle}>
+                  {t('rolesResponsibilities')}
+                  {currentBranchId && (
+                    <Text style={styles.sectionSubtitle}>
+                      {' '}
+                      ({t('currentBranch')})
+                    </Text>
                   )}
-                  {role.role_id && (
-                    <Text style={styles.roleBranch}>ID: {role.role_id}</Text>
-                  )}
-                </View>
+                </Text>
+                {currentBranchRoles.map((role, index) => (
+                  <View key={index} style={styles.roleItem}>
+                    <View style={styles.roleIcon}>
+                      <FontAwesomeIcon
+                        icon={faUserTie}
+                        size={16}
+                        color={theme.colors.primary}
+                      />
+                    </View>
+                    <View style={styles.roleContent}>
+                      <Text style={styles.roleName}>{role.role_name}</Text>
+                      {role.branch_name && (
+                        <Text style={styles.roleBranch}>
+                          {role.branch_name}
+                        </Text>
+                      )}
+                      {role.role_id && (
+                        <Text style={styles.roleBranch}>
+                          ID: {role.role_id}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-        )}
+            )
+          );
+        })()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -446,9 +523,11 @@ const createStyles = (theme, fontSizes) =>
     header: {
       backgroundColor: theme.colors.headerBackground,
       padding: 15,
+      marginHorizontal: 16,
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      borderRadius: 16,
       ...theme.shadows.medium,
     },
     backButton: {
@@ -544,6 +623,12 @@ const createStyles = (theme, fontSizes) =>
       fontWeight: 'bold',
       color: theme.colors.text,
       marginBottom: 20,
+    },
+    sectionSubtitle: {
+      fontSize: fontSizes.bodySmall,
+      fontWeight: 'normal',
+      color: theme.colors.textSecondary,
+      fontStyle: 'italic',
     },
     profileItem: {
       flexDirection: 'row',

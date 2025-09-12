@@ -19,7 +19,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { getResponsiveHeaderFontSize } from '../utils/commonStyles';
+import { createMediumShadow } from '../utils/commonStyles';
 import {
   getStaffPickupRequests,
   staffPickupScanQr,
@@ -34,19 +34,22 @@ const TeacherPickupScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [requests, setRequests] = useState([]);
-  const [statusFilter, setStatusFilter] = useState('waiting');
+
   const [qrToken, setQrToken] = useState('');
   const [processing, setProcessing] = useState(false);
   const [validatedGuardian, setValidatedGuardian] = useState(null);
   const [pendingRequest, setPendingRequest] = useState(null);
+  const [activeTab, setActiveTab] = useState('waiting'); // 'waiting' or 'processed'
 
   const styles = createStyles(theme);
 
   const loadRequests = useCallback(async () => {
     try {
       setLoading(true);
+      // Call API with status based on active tab
+      const status = activeTab === 'waiting' ? 'waiting' : 'completed';
       const res = await getStaffPickupRequests(authCode, {
-        status: statusFilter,
+        status: status,
       });
       if (res?.success) {
         setRequests(res.requests || []);
@@ -59,7 +62,7 @@ const TeacherPickupScreen = ({ navigation, route }) => {
     } finally {
       setLoading(false);
     }
-  }, [authCode, statusFilter]);
+  }, [authCode, activeTab]);
 
   useEffect(() => {
     loadRequests();
@@ -78,7 +81,13 @@ const TeacherPickupScreen = ({ navigation, route }) => {
 
       const res = await staffPickupScanQr(token.trim(), authCode);
 
+      console.log(
+        '📱 PICKUP: Full API response:',
+        JSON.stringify(res, null, 2)
+      );
+
       if (!res?.success) {
+        console.log('📱 PICKUP: API returned failure:', res?.message);
         Alert.alert(
           'Scan Failed',
           res?.message || 'Invalid or inactive QR token'
@@ -88,25 +97,71 @@ const TeacherPickupScreen = ({ navigation, route }) => {
       }
 
       const guardian = res.guardian;
-      const student = res.student;
-      const pending = res.pending_request;
+      const pickupPerson = res.pickup_person;
+      const pendingRequests = res.pending_requests || [];
 
-      if (!pending?.request_id || !guardian?.card_id) {
+      // Get the first pending request (or handle multiple requests)
+      const pending = pendingRequests.length > 0 ? pendingRequests[0] : null;
+      const student = pending?.student;
+
+      console.log(
+        '📱 PICKUP: Guardian data:',
+        JSON.stringify(guardian, null, 2)
+      );
+      console.log(
+        '📱 PICKUP: Pickup person data:',
+        JSON.stringify(pickupPerson, null, 2)
+      );
+      console.log('📱 PICKUP: Student data:', JSON.stringify(student, null, 2));
+      console.log(
+        '📱 PICKUP: Pending request data:',
+        JSON.stringify(pending, null, 2)
+      );
+      console.log('📱 PICKUP: Total pending requests:', pendingRequests.length);
+
+      // Check what's missing
+      console.log('📱 PICKUP: Validation checks:');
+      console.log('  - pending?.request_id:', pending?.request_id);
+      console.log('  - pickupPerson?.auth_code:', pickupPerson?.auth_code);
+      console.log('  - pickupPerson?.card_type:', pickupPerson?.card_type);
+
+      // For parents, we only need request_id and auth_code
+      // For guardians, we might need additional fields
+      const isParent = pickupPerson?.card_type === 'parent';
+
+      if (!pending?.request_id) {
+        console.log('📱 PICKUP: Missing pending request');
+        Alert.alert('No Pending Request', 'No pending pickup requests found.');
+        setQrToken('');
+        return;
+      }
+
+      if (!pickupPerson?.auth_code) {
+        console.log('📱 PICKUP: Missing pickup person auth code');
         Alert.alert(
           'No Pending Request',
-          'No pending pickup request found for this guardian.'
+          'Authentication information is missing.'
         );
         setQrToken('');
         return;
       }
 
+      console.log(
+        '📱 PICKUP: Validation passed for',
+        isParent ? 'parent' : 'guardian'
+      );
+
       // Store validated data
       setQrToken(token.trim());
-      setValidatedGuardian(guardian);
+      setValidatedGuardian({ ...guardian, ...pickupPerson }); // Combine guardian and pickup person data
       setPendingRequest(pending);
 
       // Show guardian verification screen
-      showGuardianVerification(guardian, student, pending);
+      showGuardianVerification(
+        { ...guardian, ...pickupPerson },
+        student,
+        pending
+      );
     } catch (error) {
       console.error('❌ PICKUP QR Validation error:', error);
       Alert.alert(
@@ -129,7 +184,7 @@ Phone: ${guardian.phone || 'N/A'}
 Student: ${student.name || 'Unknown'}
 Classroom: ${student.classroom || 'N/A'}
 
-Request Time: ${pending.created_at || 'Unknown'}
+Request Time: ${pending.request_time || pending.created_at || 'Unknown'}
 Distance: ${pending.distance || 'N/A'}`;
 
     Alert.alert('Verify Guardian Identity', guardianInfo, [
@@ -161,12 +216,37 @@ Distance: ${pending.distance || 'N/A'}`;
       setProcessing(true);
       console.log('📱 PICKUP: Processing verified pickup...');
 
-      const result = await staffPickupProcess({
+      // For parents, use auth_code as the identifier
+      // For guardians, use card_id or similar
+      const isParent = validatedGuardian.card_type === 'parent';
+
+      let requestPayload = {
         authCode,
-        guardian_card_id: validatedGuardian.card_id,
         request_id: pendingRequest.request_id,
         staff_notes: '', // Could add notes input later
-      });
+      };
+
+      if (isParent) {
+        // For parents, send parent_auth_code instead of guardian_card_id
+        const parentAuthCode =
+          validatedGuardian.auth_code || validatedGuardian.parent_info?.user_id;
+        requestPayload.parent_auth_code = parentAuthCode;
+
+        console.log('📱 PICKUP: Processing for parent');
+        console.log('📱 PICKUP: Using parent_auth_code:', parentAuthCode);
+      } else {
+        // For guardians, use traditional guardian_card_id
+        const guardianCardId =
+          validatedGuardian.card_id ||
+          validatedGuardian.pickup_card_id ||
+          validatedGuardian.guardian_card_id;
+        requestPayload.guardian_card_id = guardianCardId;
+
+        console.log('📱 PICKUP: Processing for guardian');
+        console.log('📱 PICKUP: Using guardian_card_id:', guardianCardId);
+      }
+
+      const result = await staffPickupProcess(requestPayload);
 
       if (result?.success) {
         Alert.alert(
@@ -212,6 +292,105 @@ Distance: ${pending.distance || 'N/A'}`;
     await handleQRScanned(qrToken.trim());
   };
 
+  // Handle tab change and reload data
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    // Data will be reloaded automatically due to useEffect dependency on activeTab
+  };
+
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      <View style={styles.navigationHeader}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <FontAwesomeIcon
+            icon={faArrowLeft}
+            size={18}
+            color={theme.colors.headerText}
+          />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {t('pickupManagement') || 'Pickup Management'}
+        </Text>
+      </View>
+
+      {/* Tab Bar in Header */}
+      <View style={styles.headerTabBar}>
+        <TouchableOpacity
+          style={[
+            styles.headerTabButton,
+            activeTab === 'waiting' && styles.activeHeaderTabButton,
+          ]}
+          onPress={() => handleTabChange('waiting')}
+        >
+          <Text
+            style={[
+              styles.headerTabButtonText,
+              activeTab === 'waiting' && styles.activeHeaderTabButtonText,
+            ]}
+          >
+            {t('waiting') || 'Waiting'} (
+            {activeTab === 'waiting' ? requests.length : '...'})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.headerTabButton,
+            activeTab === 'processed' && styles.activeHeaderTabButton,
+          ]}
+          onPress={() => handleTabChange('processed')}
+        >
+          <Text
+            style={[
+              styles.headerTabButtonText,
+              activeTab === 'processed' && styles.activeHeaderTabButtonText,
+            ]}
+          >
+            {t('processed') || 'Processed'} (
+            {activeTab === 'processed' ? requests.length : '...'})
+          </Text>
+        </TouchableOpacity>
+      </View>
+      {/* QR input */}
+      <View style={styles.qrInputRow}>
+        <TextInput
+          placeholder={'Enter guardian QR token'}
+          value={qrToken}
+          onChangeText={setQrToken}
+          style={styles.qrInput}
+          autoCapitalize='none'
+          autoCorrect={false}
+        />
+        <TouchableOpacity
+          style={styles.scanButton}
+          onPress={() => {
+            navigation.navigate('TeacherQRScannerScreen', {
+              onScanned: (token) => {
+                if (token) handleQRScanned(String(token));
+              },
+            });
+          }}
+          disabled={processing}
+        >
+          <FontAwesomeIcon icon={faQrcode} color={'#fff'} size={16} />
+          <Text style={styles.scanButtonText}>Scan</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.scanButton]}
+          onPress={handleManualProcess}
+          disabled={processing}
+        >
+          <Text style={styles.scanButtonText}>
+            {processing ? 'Processing...' : 'Validate'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   const renderItem = ({ item }) => {
     const student = item.student || {};
     const requester = item.requester || {};
@@ -241,7 +420,7 @@ Distance: ${pending.distance || 'N/A'}`;
             <Text style={styles.metaText}>Distance: {info.distance}</Text>
           )}
         </View>
-        {statusFilter === 'completed' && (
+        {(item.status === 'processed' || item.status === 'completed') && (
           <View style={styles.cardRow}>
             {!!processingInfo.processed_by_staff && (
               <Text style={[styles.metaText, { color: theme.colors.success }]}>
@@ -258,7 +437,7 @@ Distance: ${pending.distance || 'N/A'}`;
             )}
           </View>
         )}
-        {statusFilter === 'waiting' && (
+        {(item.status === 'waiting' || item.status === 'pending') && (
           <TouchableOpacity
             style={styles.processButton}
             onPress={() => {
@@ -282,77 +461,9 @@ Distance: ${pending.distance || 'N/A'}`;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <FontAwesomeIcon icon={faArrowLeft} color={'#fff'} size={18} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {t('pickupManagement') || 'Pickup Management'}
-        </Text>
-        <View style={{ width: 36 }} />
-      </View>
+      {renderHeader()}
 
-      {/* QR input */}
-      <View style={styles.qrInputRow}>
-        <TextInput
-          placeholder={'Enter guardian QR token'}
-          value={qrToken}
-          onChangeText={setQrToken}
-          style={styles.qrInput}
-          autoCapitalize='none'
-          autoCorrect={false}
-        />
-        <TouchableOpacity
-          style={styles.scanButton}
-          onPress={() => {
-            navigation.navigate('TeacherQRScannerScreen', {
-              onScanned: (token) => {
-                if (token) handleQRScanned(String(token));
-              },
-            });
-          }}
-          disabled={processing}
-        >
-          <FontAwesomeIcon icon={faQrcode} color={'#fff'} size={16} />
-          <Text style={styles.scanButtonText}>Scan</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.scanButton, { marginLeft: 8 }]}
-          onPress={handleManualProcess}
-          disabled={processing}
-        >
-          <Text style={styles.scanButtonText}>
-            {processing ? 'Processing...' : 'Validate'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Filters */}
-      <View style={styles.filterRow}>
-        {['waiting', 'completed'].map((s) => (
-          <TouchableOpacity
-            key={s}
-            onPress={() => setStatusFilter(s)}
-            style={[
-              styles.filterChip,
-              statusFilter === s && styles.filterChipActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                statusFilter === s && styles.filterChipTextActive,
-              ]}
-            >
-              {s === 'waiting' ? 'Waiting' : 'Completed'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      
 
       {/* List */}
       {loading ? (
@@ -370,7 +481,11 @@ Distance: ${pending.distance || 'N/A'}`;
           contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
           ListEmptyComponent={() => (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No requests</Text>
+              <Text style={styles.emptyText}>
+                {activeTab === 'waiting'
+                  ? 'No waiting requests'
+                  : 'No processed requests'}
+              </Text>
             </View>
           )}
         />
@@ -381,33 +496,71 @@ Distance: ${pending.distance || 'N/A'}`;
 
 const createStyles = (theme) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.background },
-    header: {
-      backgroundColor: theme.colors.headerBackground,
-      padding: 15,
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      overflow: 'visible',
+    },
+    headerContainer: {
+      backgroundColor: theme.colors.primary,
+      paddingHorizontal: 16,
+      paddingBottom: 16,
+      marginHorizontal: 16,
+      borderRadius: 16,
+      ...createMediumShadow(theme),
+      overflow: 'visible',
+      zIndex: 9998,
+    },
+    navigationHeader: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
+      paddingTop: 8,
     },
     backButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      justifyContent: 'center',
-      alignItems: 'center',
+      padding: 8,
+      marginRight: 8,
     },
     headerTitle: {
-      color: '#fff',
-      fontSize: getResponsiveHeaderFontSize(3, 'Pickup'),
-      fontWeight: 'bold',
+      fontSize: 20,
+      fontWeight: '600',
+      color: theme.colors.headerText,
+    },
+    // Header Tab Bar Styles
+    headerTabBar: {
+      flexDirection: 'row',
+      marginTop: 16,
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      borderRadius: 8,
+      padding: 4,
+    },
+    headerTabButton: {
+      flex: 1,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      alignItems: 'center',
+      borderRadius: 6,
+    },
+    activeHeaderTabButton: {
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    headerTabButtonText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: theme.colors.headerText,
+      opacity: 0.8,
+    },
+    activeHeaderTabButtonText: {
+      opacity: 1,
+      fontWeight: '600',
     },
     qrInputRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 12,
+      marginTop: 8,
+      padding: 4,
       gap: 8,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.surface+'20',
+      borderRadius: 12,
     },
     qrInput: {
       flex: 1,
@@ -421,32 +574,12 @@ const createStyles = (theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.surface+'20',
       paddingHorizontal: 12,
       paddingVertical: 10,
       borderRadius: 8,
     },
     scanButtonText: { color: '#fff', fontWeight: '600' },
-    filterRow: {
-      flexDirection: 'row',
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      gap: 8,
-    },
-    filterChip: {
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-    },
-    filterChipActive: {
-      backgroundColor: theme.colors.primary + '15',
-      borderColor: theme.colors.primary,
-    },
-    filterChipText: { color: theme.colors.textSecondary, fontWeight: '600' },
-    filterChipTextActive: { color: theme.colors.primary },
 
     card: {
       backgroundColor: theme.colors.surface,

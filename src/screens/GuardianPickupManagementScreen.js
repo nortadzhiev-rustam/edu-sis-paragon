@@ -797,7 +797,7 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
               {
                 backgroundColor: canMakeRequest
                   ? theme.colors.success
-                  : theme.colors.textSecondary + '80',
+                  : theme.colors.textSecondary,
               },
             ]}
             onPress={handleCreatePickupRequest}

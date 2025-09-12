@@ -236,7 +236,7 @@ export const LocationStatusBanner = ({ locationStatus, canMakeRequest }) => {
       style={[
         styles.locationStatusBanner,
         { backgroundColor },
-        createSmallShadow(theme),
+        
       ]}
     >
       <FontAwesomeIcon icon={statusIcon} size={20} color={statusColor} />
@@ -458,6 +458,11 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     marginBottom: 16,
+    
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   locationStatusContent: {
     marginLeft: 12,

@@ -91,6 +91,10 @@ export const Config = {
     // Logout API Endpoints
     REMOVE_USER_FROM_DEVICE: '/remove-user-from-device/',
 
+    // Branch Selection API Endpoints
+    SWITCH_BRANCH: '/switch-branch/',
+    GET_CURRENT_BRANCH: '/get-current-branch/',
+
     // Information Data API Endpoints
     GET_ABOUT_DATA: '/about-data/',
     GET_CONTACTS_DATA: '/contacts-data/',

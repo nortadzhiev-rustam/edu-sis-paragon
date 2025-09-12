@@ -15,7 +15,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { Config, buildApiUrl } from '../config/env';
-import { getResponsiveHeaderFontSize } from '../utils/commonStyles';
+import {
+  getResponsiveHeaderFontSize,
+  createSmallShadow,
+  createMediumShadow,
+  createCustomShadow,
+} from '../utils/commonStyles';
 import {
   faUser,
   faSignOutAlt,
@@ -44,19 +49,18 @@ import NotificationBadge from '../components/NotificationBadge';
 import MessageBadge from '../components/MessageBadge';
 import { QuickActionTile } from '../components';
 import { performLogout } from '../services/logoutService';
-import { getUserData } from '../services/authService';
+import { getUserData, isDemoMode } from '../services/authService';
 import DemoModeIndicator from '../components/DemoModeIndicator';
+import {
+  switchBranch,
+  getCurrentBranchInfo,
+} from '../services/branchSelectionService';
+
 import { isIPad, isTablet } from '../utils/deviceDetection';
 import { useFocusEffect } from '@react-navigation/native';
-import {
-  createSmallShadow,
-  createMediumShadow,
-  createCustomShadow,
-} from '../utils/commonStyles';
-import { isDemoMode } from '../services/authService';
+
 import {
   getDemoTimetableData,
-  getDemoBPSData,
   getDemoTeacherClassesData,
 } from '../services/demoModeService';
 
@@ -75,15 +79,40 @@ export default function TeacherScreen({ route, navigation }) {
   const isTabletDevice = isTablet();
   const isLandscape = screenWidth > screenHeight;
 
-  // Helper function to format user roles
+  // Helper function to format user roles (branch-specific)
   const formatUserRoles = (userData) => {
-    // If user has roles array, format it
+    // If user has roles array, format it based on current branch
     if (
       userData.roles &&
       Array.isArray(userData.roles) &&
       userData.roles.length > 0
     ) {
-      // Get unique role names across all branches
+      // If a branch is selected, show only roles for that branch
+      if (selectedBranchId) {
+        const currentBranchRoles = userData.roles.filter(
+          (role) => role.branch_id === selectedBranchId
+        );
+
+        if (currentBranchRoles.length > 0) {
+          const roleNames = currentBranchRoles.map((role) => role.role_name);
+          const uniqueRoles = [...new Set(roleNames)];
+
+          if (uniqueRoles.length === 1) {
+            return uniqueRoles[0];
+          } else {
+            // Show only first 3 roles, add "..." if there are more
+            const displayRoles = uniqueRoles.slice(0, 3);
+            const hasMoreRoles = uniqueRoles.length > 3;
+            const rolesText = displayRoles.join(' - ');
+            return hasMoreRoles ? `${rolesText}...` : rolesText;
+          }
+        } else {
+          // No roles in current branch, show "No Role in Branch"
+          return `No Role in ${currentBranchInfo?.branch_name || 'Branch'}`;
+        }
+      }
+
+      // No branch selected, show only first 3 unique roles
       const uniqueRoles = [
         ...new Set(userData.roles.map((role) => role.role_name)),
       ];
@@ -92,11 +121,11 @@ export default function TeacherScreen({ route, navigation }) {
         // Single unique role - just show the role name
         return uniqueRoles[0];
       } else {
-        // Multiple unique roles - split across two lines for better readability
-        const mid = Math.ceil(uniqueRoles.length / 2);
-        const firstLine = uniqueRoles.slice(0, mid).join(' - ');
-        const secondLine = uniqueRoles.slice(mid).join(' - ');
-        return secondLine ? `${firstLine}\n${secondLine}` : firstLine;
+        // Show only first 3 roles, add "..." if there are more
+        const displayRoles = uniqueRoles.slice(0, 3);
+        const hasMoreRoles = uniqueRoles.length > 3;
+        const rolesText = displayRoles.join(' - ');
+        return hasMoreRoles ? `${rolesText}...` : rolesText;
       }
     }
 
@@ -144,15 +173,48 @@ export default function TeacherScreen({ route, navigation }) {
       return null;
     }
 
-    // Group roles by branch for display
-    const rolesByBranch = userData.roles.reduce((acc, role) => {
-      const branchName = role.branch_name || 'Unknown Branch';
-      if (!acc[branchName]) {
-        acc[branchName] = [];
-      }
-      acc[branchName].push(role);
-      return acc;
-    }, {});
+    // Filter roles for current branch only
+    let rolesToShow = userData.roles;
+    let modalTitle = 'All Roles';
+
+    if (selectedBranchId) {
+      rolesToShow = userData.roles.filter(
+        (role) => role.branch_id === selectedBranchId
+      );
+      modalTitle = `Roles in ${
+        currentBranchInfo?.branch_name || 'Current Branch'
+      }`;
+    }
+
+    // If no roles in current branch, show message
+    if (rolesToShow.length === 0) {
+      return (
+        <Modal
+          visible={showAllRoles}
+          transparent={true}
+          animationType='fade'
+          onRequestClose={() => setShowAllRoles(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{modalTitle}</Text>
+              <View style={styles.rolesContainer}>
+                <Text style={styles.noRolesText}>
+                  No roles found in{' '}
+                  {currentBranchInfo?.branch_name || 'this branch'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowAllRoles(false)}
+              >
+                <Text style={styles.modalCloseText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      );
+    }
 
     return (
       <Modal
@@ -163,22 +225,14 @@ export default function TeacherScreen({ route, navigation }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>All Roles</Text>
+            <Text style={styles.modalTitle}>{modalTitle}</Text>
             <ScrollView
               style={styles.rolesContainer}
               showsVerticalScrollIndicator={false}
             >
-              {Object.entries(rolesByBranch).map(([branchName, roles]) => (
-                <View key={branchName} style={styles.branchRoleGroup}>
-                  <Text style={styles.branchRoleGroupTitle}>{branchName}</Text>
-                  {roles.map((role, index) => (
-                    <View
-                      key={`${branchName}-${index}`}
-                      style={styles.roleItem}
-                    >
-                      <Text style={styles.roleName}>{role.role_name}</Text>
-                    </View>
-                  ))}
+              {rolesToShow.map((role, index) => (
+                <View key={index} style={styles.roleItem}>
+                  <Text style={styles.roleName}>{role.role_name}</Text>
                 </View>
               ))}
             </ScrollView>
@@ -212,6 +266,11 @@ export default function TeacherScreen({ route, navigation }) {
   // Branch selection state - now using branch_id instead of array index
   const [selectedBranchId, setSelectedBranchId] = useState(null);
   const [showBranchSelector, setShowBranchSelector] = useState(false);
+
+  // Enhanced branch selection state
+  const [currentBranchInfo, setCurrentBranchInfo] = useState(null);
+  const [accessibleBranches, setAccessibleBranches] = useState([]);
+  const [branchSwitching, setBranchSwitching] = useState(false);
 
   const styles = createStyles(theme, fontSizes);
 
@@ -392,6 +451,114 @@ export default function TeacherScreen({ route, navigation }) {
     return null;
   };
 
+  // Load branch information from API first, fallback to user data
+  const loadBranchInfo = async () => {
+    try {
+      console.log('🌿 TEACHER SCREEN: Loading branch information from API');
+
+      // First try to get current branch info from API
+      try {
+        const apiResponse = await getCurrentBranchInfo(userData.authCode);
+
+        if (apiResponse.success && apiResponse.accessible_branches) {
+          console.log('✅ TEACHER SCREEN: Branch info loaded from API');
+          console.log(
+            '📍 API Current branch:',
+            apiResponse.current_branch?.branch_name
+          );
+          console.log(
+            '🏢 API Accessible branches:',
+            apiResponse.accessible_branches.length
+          );
+
+          // Set accessible branches from API response
+          const branchesWithActiveFlag = apiResponse.accessible_branches.map(
+            (branch) => ({
+              ...branch,
+              is_active:
+                branch.branch_id === apiResponse.current_branch?.branch_id,
+            })
+          );
+
+          setAccessibleBranches(branchesWithActiveFlag);
+          setCurrentBranchInfo(apiResponse.current_branch);
+
+          if (apiResponse.current_branch) {
+            setSelectedBranchId(apiResponse.current_branch.branch_id);
+          }
+
+          return; // Successfully loaded from API, exit function
+        }
+      } catch (apiError) {
+        console.log(
+          '⚠️ TEACHER SCREEN: API call failed, falling back to user data:',
+          apiError.message
+        );
+      }
+
+      // Fallback to user data if API fails
+      console.log(
+        '🔄 TEACHER SCREEN: Loading branch information from user data'
+      );
+      console.log('🔍 TEACHER SCREEN: User data structure:', {
+        hasAccessibleBranches: !!userData.accessible_branches,
+        accessibleBranchesLength: userData.accessible_branches?.length || 0,
+        hasBranch: !!userData.branch,
+        branchName: userData.branch?.branch_name,
+        branches: userData.branches?.length || 0,
+      });
+
+      // Use accessible_branches or branches from user data
+      const userBranches =
+        userData.accessible_branches || userData.branches || [];
+
+      if (userBranches && userBranches.length > 0) {
+        console.log(
+          '📍 TEACHER SCREEN: Found branches in user data:',
+          userBranches.length
+        );
+
+        // Set accessible branches with is_active flag
+        const branchesWithActiveFlag = userBranches.map((branch, index) => ({
+          ...branch,
+          is_active: selectedBranchId
+            ? branch.branch_id === selectedBranchId
+            : index === 0,
+        }));
+
+        setAccessibleBranches(branchesWithActiveFlag);
+
+        // Set current branch info
+        const currentBranch =
+          branchesWithActiveFlag.find((b) => b.is_active) ||
+          branchesWithActiveFlag[0];
+        setCurrentBranchInfo(currentBranch);
+
+        // Update selected branch ID if not set
+        if (!selectedBranchId && currentBranch) {
+          setSelectedBranchId(currentBranch.branch_id);
+        }
+
+        console.log('✅ TEACHER SCREEN: Branch info loaded from user data');
+        console.log('📍 Current branch:', currentBranch?.branch_name);
+        console.log('🏢 Accessible branches:', branchesWithActiveFlag.length);
+      } else if (userData.branch) {
+        // Fallback to single branch from user data
+        console.log('📍 TEACHER SCREEN: Using single branch from user data');
+        const singleBranch = { ...userData.branch, is_active: true };
+        setAccessibleBranches([singleBranch]);
+        setCurrentBranchInfo(singleBranch);
+        setSelectedBranchId(singleBranch.branch_id);
+      } else {
+        console.log(
+          '⚠️ TEACHER SCREEN: No branch information found in user data'
+        );
+      }
+    } catch (error) {
+      console.error('❌ TEACHER SCREEN: Error loading branch info:', error);
+    }
+  };
+
   // Load all teacher data
   const loadTeacherData = async () => {
     setRefreshing(true);
@@ -477,6 +644,13 @@ export default function TeacherScreen({ route, navigation }) {
     }
   }, [userData.authCode, loading]);
 
+  // Load branch info when userData changes
+  useEffect(() => {
+    if (userData && Object.keys(userData).length > 0) {
+      loadBranchInfo();
+    }
+  }, [userData]);
+
   // Load saved branch selection when branch data is available
   useEffect(() => {
     const branches = teacherClassesData?.branches || timetableData?.branches;
@@ -515,20 +689,117 @@ export default function TeacherScreen({ route, navigation }) {
     return null;
   };
 
-  // Handle branch selection - now using branch_id instead of index
+  // Handle branch selection - using API
   const handleBranchSelection = async (branchId) => {
-    setSelectedBranchId(branchId);
+    if (branchSwitching) return; // Prevent multiple simultaneous switches
+
+    setBranchSwitching(true);
     setShowBranchSelector(false);
 
-    // Save selected branch ID to AsyncStorage for persistence
     try {
-      await AsyncStorage.setItem('selectedBranchId', branchId.toString());
-    } catch (error) {
-      console.error('Error saving selected branch:', error);
-    }
+      console.log('🔄 TEACHER SCREEN: Switching to branch via API:', branchId);
 
-    // Refresh data for the new branch
-    await loadTeacherData();
+      // Call the branch switch API
+      const response = await switchBranch(userData.authCode, branchId);
+
+      if (response.success) {
+        console.log('✅ TEACHER SCREEN: Branch switch API successful');
+
+        // Update local state with API response
+        if (response.current_branch) {
+          setSelectedBranchId(response.current_branch.branch_id);
+          setCurrentBranchInfo(response.current_branch);
+
+          // Update accessible branches with new active state
+          const updatedBranches = accessibleBranches.map((branch) => ({
+            ...branch,
+            is_active: branch.branch_id === response.current_branch.branch_id,
+          }));
+          setAccessibleBranches(updatedBranches);
+        }
+
+        // Save to local storage for persistence
+        try {
+          await AsyncStorage.setItem('selectedBranchId', branchId.toString());
+          console.log(
+            '✅ TEACHER SCREEN: Branch switched via API to:',
+            response.current_branch?.branch_name
+          );
+        } catch (error) {
+          console.error('Error saving selected branch:', error);
+        }
+
+        // Refresh data for the new branch
+        await loadTeacherData();
+      } else {
+        console.error(
+          '❌ TEACHER SCREEN: Branch switch API failed:',
+          response.error
+        );
+        // Fallback to local switching if API fails
+        await handleLocalBranchSelection(branchId);
+      }
+    } catch (error) {
+      console.error(
+        '❌ TEACHER SCREEN: Error switching branch via API:',
+        error
+      );
+      // Fallback to local switching if API fails
+      await handleLocalBranchSelection(branchId);
+    } finally {
+      setBranchSwitching(false);
+    }
+  };
+
+  // Fallback local branch selection (when API fails)
+  const handleLocalBranchSelection = async (branchId) => {
+    try {
+      console.log(
+        '🔄 TEACHER SCREEN: Fallback to local branch switching:',
+        branchId
+      );
+
+      // Find the selected branch in accessible branches
+      const selectedBranch = accessibleBranches.find(
+        (branch) => branch.branch_id === branchId
+      );
+
+      if (selectedBranch) {
+        // Update branch selection state
+        setSelectedBranchId(branchId);
+        setCurrentBranchInfo(selectedBranch);
+
+        // Update accessible branches with new active state
+        const updatedBranches = accessibleBranches.map((branch) => ({
+          ...branch,
+          is_active: branch.branch_id === branchId,
+        }));
+        setAccessibleBranches(updatedBranches);
+
+        // Save to local storage for persistence
+        try {
+          await AsyncStorage.setItem('selectedBranchId', branchId.toString());
+          console.log(
+            '✅ TEACHER SCREEN: Branch switched locally to:',
+            selectedBranch.branch_name
+          );
+        } catch (error) {
+          console.error('Error saving selected branch:', error);
+        }
+
+        // Refresh data for the new branch
+        await loadTeacherData();
+      } else {
+        console.error(
+          '❌ TEACHER SCREEN: Selected branch not found in accessible branches'
+        );
+      }
+    } catch (error) {
+      console.error(
+        '❌ TEACHER SCREEN: Error in local branch selection:',
+        error
+      );
+    }
   };
 
   // Load saved branch selection - now using branch_id
@@ -633,9 +904,82 @@ export default function TeacherScreen({ route, navigation }) {
     ]);
   };
 
-  // Get quick actions array
+  // Helper function to check if user has access to a feature in current branch
+  const hasAccessInCurrentBranch = (featureId) => {
+    // If no branch is selected, allow all features
+    if (!selectedBranchId) {
+      return true;
+    }
+
+    // Basic features are always available
+    const basicFeatures = ['messaging', 'calendar', 'materials'];
+    if (basicFeatures.includes(featureId)) {
+      return true;
+    }
+
+    // For pickup, use a more flexible approach based on actual user data
+    if (featureId === 'pickup') {
+      // Check if user has any teaching/staff role or position
+      const hasTeachingRole = userData.is_teacher || userData.is_staff;
+      const hasStaffCategory = userData.staff_category_name;
+      const hasProfessionPosition = userData.profession_position;
+      const hasRoleInBranch = userData.roles?.some(
+        (r) => r.branch_id === selectedBranchId
+      );
+
+      console.log('🚚 PICKUP FLEXIBLE ACCESS DEBUG:', {
+        featureId,
+        selectedBranchId,
+        hasTeachingRole,
+        hasStaffCategory,
+        hasProfessionPosition,
+        hasRoleInBranch,
+        staff_category_name: userData.staff_category_name,
+        profession_position: userData.profession_position,
+        userRoles: userData.roles
+          ?.filter((r) => r.branch_id === selectedBranchId)
+          ?.map((r) => r.role_name),
+      });
+
+      // Allow pickup access if user has any staff/teaching role or position
+      return (
+        hasTeachingRole ||
+        hasStaffCategory ||
+        hasProfessionPosition ||
+        hasRoleInBranch
+      );
+    }
+
+    // For other features, use a more permissive approach
+    // If user has roles array, check if they have any role in current branch
+    if (userData.roles && Array.isArray(userData.roles)) {
+      const hasRoleInBranch = userData.roles.some(
+        (role) => role.branch_id === selectedBranchId
+      );
+
+      // If user has any role in current branch, allow most features
+      if (hasRoleInBranch) {
+        return true;
+      }
+    }
+
+    // If user has staff/teacher flags, allow access
+    if (userData.is_teacher || userData.is_staff) {
+      return true;
+    }
+
+    // If user has staff category or profession position, allow access
+    if (userData.staff_category_name || userData.profession_position) {
+      return true;
+    }
+
+    // Default: allow access (more permissive fallback)
+    return true;
+  };
+
+  // Get quick actions array (filtered by branch-specific roles)
   const getQuickActions = () => {
-    const actions = [
+    const allActions = [
       {
         id: 'timetable',
         title: t('viewTimetable'),
@@ -779,9 +1123,14 @@ export default function TeacherScreen({ route, navigation }) {
       // },
     ];
 
-    // Add homeroom action conditionally
-    if (userData.is_homeroom) {
-      actions.splice(3, 0, {
+    // Filter actions based on branch-specific role access
+    const filteredActions = allActions.filter((action) =>
+      hasAccessInCurrentBranch(action.id)
+    );
+
+    // Add homeroom action conditionally (if user has homeroom role in current branch)
+    if (userData.is_homeroom && hasAccessInCurrentBranch('homeroom')) {
+      const homeroomAction = {
         id: 'homeroom',
         title: t('homeroom'),
         subtitle: t('classManagement'),
@@ -795,18 +1144,42 @@ export default function TeacherScreen({ route, navigation }) {
             teacherName: userData.name,
             selectedBranchId: selectedBranchId,
           }),
-      });
+      };
+
+      // Insert homeroom action at position 3 (after homework)
+      const insertIndex = Math.min(3, filteredActions.length);
+      filteredActions.splice(insertIndex, 0, homeroomAction);
     }
 
-    // Staff Pickup Management - Check permissions
+    // Staff Pickup Management - Check permissions and branch access
     const hasPickupAccess =
       userData.permissions?.pickup?.has_pickup_access ||
       userData.permissions?.pickup?.can_view_requests ||
       userData.permissions?.pickup?.can_process_pickup ||
       userData.permissions?.pickup?.can_scan_qr;
 
-    if (hasPickupAccess) {
-      actions.splice(4, 0, {
+    const hasPickupRoleAccess = hasAccessInCurrentBranch('pickup');
+
+    console.log('🚚 PICKUP DEBUG:', {
+      hasPickupAccess,
+      hasPickupRoleAccess,
+      selectedBranchId,
+      userRoles: userData.roles
+        ?.filter((r) => r.branch_id === selectedBranchId)
+        ?.map((r) => r.role_name),
+      pickupPermissions: userData.permissions?.pickup,
+    });
+
+    // Show pickup if user has permissions OR role access (more permissive)
+    // Also show if user has any role in current branch and pickup permissions
+    const shouldShowPickup =
+      hasPickupAccess ||
+      hasPickupRoleAccess ||
+      (hasPickupAccess &&
+        userData.roles?.some((r) => r.branch_id === selectedBranchId));
+
+    if (shouldShowPickup) {
+      const pickupAction = {
         id: 'pickup',
         title: t('pickupManagement') || 'Pickup Management',
         subtitle: t('scanAndProcess') || 'Scan & process requests',
@@ -819,10 +1192,21 @@ export default function TeacherScreen({ route, navigation }) {
             authCode: userData.authCode,
             permissions: userData.permissions?.pickup,
           }),
-      });
+      };
+
+      // Insert pickup action at position 4 (after homeroom if it exists)
+      const insertIndex = Math.min(4, filteredActions.length);
+      filteredActions.splice(insertIndex, 0, pickupAction);
     }
 
-    return actions;
+    console.log(
+      '🎯 TEACHER SCREEN: Filtered actions for branch',
+      selectedBranchId,
+      ':',
+      filteredActions.map((a) => a.id)
+    );
+
+    return filteredActions;
   };
 
   return (
@@ -978,25 +1362,38 @@ export default function TeacherScreen({ route, navigation }) {
                 <View style={styles.branchSummaryInfo}>
                   <TouchableOpacity
                     onPress={() => {
+                      // Prioritize API data, fall back to local data
                       const branches =
-                        teacherClassesData?.branches ||
-                        timetableData?.branches ||
-                        [];
+                        accessibleBranches.length > 0
+                          ? accessibleBranches
+                          : teacherClassesData?.branches ||
+                            timetableData?.branches ||
+                            [];
+
                       if (branches.length > 1) {
                         setShowBranchSelector(!showBranchSelector);
                       }
                     }}
                     activeOpacity={(() => {
+                      // Prioritize API data, fall back to local data
                       const branches =
-                        teacherClassesData?.branches ||
-                        timetableData?.branches ||
-                        [];
+                        accessibleBranches.length > 0
+                          ? accessibleBranches
+                          : teacherClassesData?.branches ||
+                            timetableData?.branches ||
+                            [];
                       return branches.length > 1 ? 0.7 : 1;
                     })()}
                     style={styles.branchTitleContainer}
                   >
                     <Text style={styles.branchSummaryTitle}>
                       {(() => {
+                        // Prioritize API current branch info
+                        if (currentBranchInfo?.branch_name) {
+                          return currentBranchInfo.branch_name;
+                        }
+
+                        // Fall back to existing logic
                         const branches =
                           teacherClassesData?.branches ||
                           timetableData?.branches ||
@@ -1010,10 +1407,14 @@ export default function TeacherScreen({ route, navigation }) {
                       })()}
                     </Text>
                     {(() => {
+                      // Prioritize API data, fall back to local data
                       const branches =
-                        teacherClassesData?.branches ||
-                        timetableData?.branches ||
-                        [];
+                        accessibleBranches.length > 0
+                          ? accessibleBranches
+                          : teacherClassesData?.branches ||
+                            timetableData?.branches ||
+                            [];
+
                       return (
                         branches.length > 1 && (
                           <FontAwesomeIcon
@@ -1061,49 +1462,76 @@ export default function TeacherScreen({ route, navigation }) {
               {/* Branch Selector Dropdown */}
               {showBranchSelector &&
                 (() => {
+                  // Prioritize API data, fall back to local data
                   const branches =
-                    teacherClassesData?.branches ||
-                    timetableData?.branches ||
-                    [];
+                    accessibleBranches.length > 0
+                      ? accessibleBranches
+                      : teacherClassesData?.branches ||
+                        timetableData?.branches ||
+                        [];
+
                   return (
                     branches.length > 1 && (
                       <View style={styles.branchSelectorDropdown}>
+                        {branchSwitching && (
+                          <View style={styles.branchSwitchingIndicator}>
+                            <ActivityIndicator
+                              size='small'
+                              color={theme.colors.primary}
+                            />
+                            <Text style={styles.branchSwitchingText}>
+                              {t('switchingBranch') || 'Switching branch...'}
+                            </Text>
+                          </View>
+                        )}
                         <ScrollView
                           style={styles.branchSelectorScroll}
                           showsVerticalScrollIndicator={false}
                         >
-                          {branches.map((branch) => (
-                            <TouchableOpacity
-                              key={branch.branch_id}
-                              style={[
-                                styles.branchSelectorItem,
-                                selectedBranchId === branch.branch_id &&
-                                  styles.branchSelectorItemSelected,
-                              ]}
-                              onPress={() =>
-                                handleBranchSelection(branch.branch_id)
-                              }
-                            >
-                              <View style={styles.branchSelectorItemContent}>
-                                <Text
-                                  style={[
-                                    styles.branchSelectorItemText,
-                                    selectedBranchId === branch.branch_id &&
-                                      styles.branchSelectorItemTextSelected,
-                                  ]}
-                                >
-                                  {branch.branch_name}
-                                </Text>
-                                {selectedBranchId === branch.branch_id && (
-                                  <FontAwesomeIcon
-                                    icon={faChevronRight}
-                                    size={14}
-                                    color={theme.colors.primary}
-                                  />
-                                )}
-                              </View>
-                            </TouchableOpacity>
-                          ))}
+                          {branches.map((branch) => {
+                            // Handle both API format and local data format
+                            const branchId = branch.branch_id;
+                            const branchName = branch.branch_name;
+                            const isActive =
+                              branch.is_active || selectedBranchId === branchId;
+
+                            return (
+                              <TouchableOpacity
+                                key={branchId}
+                                style={[
+                                  styles.branchSelectorItem,
+                                  isActive && styles.branchSelectorItemSelected,
+                                ]}
+                                onPress={() => handleBranchSelection(branchId)}
+                                disabled={branchSwitching}
+                              >
+                                <View style={styles.branchSelectorItemContent}>
+                                  <Text
+                                    style={[
+                                      styles.branchSelectorItemText,
+                                      isActive &&
+                                        styles.branchSelectorItemTextSelected,
+                                      branchSwitching &&
+                                        styles.branchSelectorItemTextDisabled,
+                                    ]}
+                                  >
+                                    {branchName}
+                                  </Text>
+                                  {isActive && (
+                                    <FontAwesomeIcon
+                                      icon={faChevronRight}
+                                      size={14}
+                                      color={
+                                        branchSwitching
+                                          ? theme.colors.textSecondary
+                                          : theme.colors.primary
+                                      }
+                                    />
+                                  )}
+                                </View>
+                              </TouchableOpacity>
+                            );
+                          })}
                         </ScrollView>
                       </View>
                     )
@@ -1539,6 +1967,28 @@ const createStyles = (theme, fontSizes) =>
     branchSelectorItemTextSelected: {
       color: theme.colors.primary,
       fontWeight: '600',
+    },
+    branchSelectorItemTextDisabled: {
+      color: theme.colors.textSecondary,
+      opacity: 0.6,
+    },
+
+    // Branch Switching Indicator
+    branchSwitchingIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      backgroundColor: theme.colors.primary + '05',
+    },
+    branchSwitchingText: {
+      marginLeft: 8,
+      fontSize: 12,
+      color: theme.colors.primary,
+      fontWeight: '500',
     },
 
     // Quick Stats Row
@@ -2021,6 +2471,13 @@ const createStyles = (theme, fontSizes) =>
       fontSize: 15,
       fontWeight: '600',
       color: theme.colors.text,
+    },
+    noRolesText: {
+      fontSize: 16,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      fontStyle: 'italic',
+      paddingVertical: 20,
     },
     modalCloseButton: {
       backgroundColor: '#007AFF',
