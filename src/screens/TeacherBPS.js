@@ -998,7 +998,7 @@ export default function TeacherBPS({ route, navigation }) {
                   {
                     key: 'all',
                     label: 'All',
-                    count: currentBranch.total_bps_records,
+                    count: currentBranch.bps_summary.total_records,
                   },
                   {
                     key: 'prs',
