@@ -43,6 +43,7 @@ import {
   faUsers,
   faCheckSquare,
   faSquare,
+  faSpinner,
 } from '@fortawesome/free-solid-svg-icons';
 
 export default function TeacherBPS({ route, navigation }) {
@@ -62,17 +63,30 @@ export default function TeacherBPS({ route, navigation }) {
 
   // Initialize selectedBranchId - prioritize new parameter, fallback to index-based
   const [selectedBranchId, setSelectedBranchId] = useState(() => {
+    console.log('🔍 BPS: Initializing with route params:', {
+      initialSelectedBranchId,
+      initialSelectedBranch,
+      hasInitialData: !!initialData,
+    });
+
     // First priority: use the new selectedBranchId parameter
     if (initialSelectedBranchId) {
+      console.log(
+        '🔍 BPS: Using initialSelectedBranchId:',
+        initialSelectedBranchId
+      );
       return initialSelectedBranchId;
     }
 
     // Fallback: convert old selectedBranch index to branch_id
     if (initialData?.branches && initialSelectedBranch !== undefined) {
       const branch = initialData.branches[initialSelectedBranch];
-      return branch ? branch.branch_id : null;
+      const branchId = branch ? branch.branch_id : null;
+      console.log('🔍 BPS: Using initialSelectedBranch index:', branchId);
+      return branchId;
     }
 
+    console.log('🔍 BPS: No initial branch selection, will use default');
     return null;
   });
   const [loading, setLoading] = useState(!initialData); // Start loading if no initial data
@@ -89,6 +103,72 @@ export default function TeacherBPS({ route, navigation }) {
   const [isMultipleSelection, setIsMultipleSelection] = useState(false);
 
   const [selectedBehaviorType, setSelectedBehaviorType] = useState(null);
+  const [loadingStudents, setLoadingStudents] = useState(new Set());
+
+  // Load students for a specific classroom
+  const loadClassroomStudents = async (
+    classroomId,
+    branchId,
+    academicYearId
+  ) => {
+    if (!authCode || loadingStudents.has(classroomId)) return;
+
+    try {
+      setLoadingStudents((prev) => new Set(prev).add(classroomId));
+
+      const url = buildApiUrl(Config.API_ENDPOINTS.GET_CLASS_STUDENTS_FOR_BPS, {
+        authCode: authCode,
+        classroomId: classroomId,
+        branchId: branchId,
+        academicYearId: academicYearId,
+      });
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.students) {
+          // Update the BPS data with the loaded students
+          setBpsData((prevData) => {
+            const newData = { ...prevData };
+            if (newData.branches) {
+              newData.branches = newData.branches.map((branch) => {
+                if (branch.classes) {
+                  branch.classes = branch.classes.map((classData) => {
+                    if (classData.classroom_id === classroomId) {
+                      return {
+                        ...classData,
+                        students: data.students,
+                        lazy_load: false,
+                      };
+                    }
+                    return classData;
+                  });
+                }
+                return branch;
+              });
+            }
+            return newData;
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading classroom students:', error);
+      Alert.alert('Error', 'Failed to load students for this class');
+    } finally {
+      setLoadingStudents((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(classroomId);
+        return newSet;
+      });
+    }
+  };
 
   const fetchBPSData = async () => {
     if (!authCode) {
@@ -109,9 +189,19 @@ export default function TeacherBPS({ route, navigation }) {
     try {
       setLoading(true);
       setRefreshing(true);
-      const url = buildApiUrl(Config.API_ENDPOINTS.GET_TEACHER_BPS, {
-        authCode,
-      });
+
+      // Build URL with branch filter if selectedBranchId is available
+      const urlParams = { authCode };
+      if (selectedBranchId) {
+        urlParams.branchId = selectedBranchId;
+      }
+
+      const url = buildApiUrl(Config.API_ENDPOINTS.GET_TEACHER_BPS, urlParams);
+
+      console.log(
+        '🔍 Fetching BPS data for branch:',
+        selectedBranchId || 'all branches'
+      );
 
       const response = await fetch(url, {
         method: 'GET',
@@ -120,8 +210,19 @@ export default function TeacherBPS({ route, navigation }) {
           'Content-Type': 'application/json',
         },
       });
+
       if (response.ok) {
         const data = await response.json();
+        console.log(
+          '🔍 BPS API Response - branches count:',
+          data.branches?.length
+        );
+        console.log(
+          '🔍 BPS API Response - branch names:',
+          data.branches?.map((b) => b.branch_name)
+        );
+
+        // The BPS response already includes classes array in each branch
         setBpsData(data);
       } else {
         Alert.alert(t('error'), t('failedToFetchBPSData'));
@@ -398,27 +499,62 @@ export default function TeacherBPS({ route, navigation }) {
   const getGroupedStudents = () => {
     const branch = getCurrentBranch();
 
-    // First try to use the structured classes array if available
-    // This avoids the need to group students manually and reduces processing
+    console.log(
+      '🔍 getGroupedStudents - Current branch:',
+      branch
+        ? {
+            id: branch.branch_id,
+            name: branch.branch_name,
+            classesCount: branch.classes?.length,
+          }
+        : 'NO BRANCH'
+    );
+
+    console.log(
+      '🔍 getGroupedStudents - All available branches:',
+      bpsData?.branches?.map((b) => ({ id: b.branch_id, name: b.branch_name }))
+    );
+
+    // Only show classes from the currently selected branch
     if (branch?.classes && Array.isArray(branch.classes)) {
       const grouped = {};
 
+      console.log(
+        '🔍 getGroupedStudents - Processing classes for branch:',
+        branch.branch_name
+      );
+      console.log(
+        '🔍 getGroupedStudents - Classes in this branch:',
+        branch.classes.map((c) => c.grade_name || c.class_name)
+      );
+
       branch.classes.forEach((classData) => {
-        if (classData.students && Array.isArray(classData.students)) {
+        // Handle both demo data (class_name) and real API (grade_name)
+        const className = classData.class_name || classData.grade_name;
+
+        if (!className) return; // Skip if no class name available
+
+        // Check if students are loaded or if it's lazy loading
+        if (
+          classData.students &&
+          Array.isArray(classData.students) &&
+          classData.students.length > 0
+        ) {
+          // Students are loaded - process them
           classData.students.forEach((student) => {
             if (!student.student_name || student.student_name.trim() === '') {
               return; // Skip students without names
             }
 
-            // Determine the group name based on classroom_name
+            // Determine the group name based on classroom_name or class name
             let groupName;
             if (
               !student.classroom_name ||
               student.classroom_name.trim() === '' ||
               student.classroom_name === 'No Classroom'
             ) {
-              // Use grade_name from class object if no classroom or "No Classroom"
-              groupName = classData.grade_name;
+              // Use class name from class object if no classroom or "No Classroom"
+              groupName = className;
             } else {
               // Use the actual classroom_name (for batches)
               groupName = student.classroom_name;
@@ -436,14 +572,37 @@ export default function TeacherBPS({ route, navigation }) {
               classroom_name: groupName,
             });
           });
+        } else if (classData.lazy_load && classData.total_students > 0) {
+          // Students are not loaded yet (lazy loading) - show placeholder
+          if (!grouped[className]) {
+            grouped[className] = [];
+          }
+
+          // Add a single placeholder for lazy loading (students will auto-load when expanded)
+          grouped[className].push({
+            student_id: `lazy_load_${classData.classroom_id}`,
+            student_name: `Loading ${classData.total_students} students...`,
+            name: `Loading ${classData.total_students} students...`,
+            classroom_name: className,
+            classroom_id: classData.classroom_id,
+            total_students: classData.total_students,
+            branch_id: branch.branch_id,
+            academic_year_id: branch.academic_year_id,
+            isLazyLoad: true,
+          });
         }
       });
 
-      // Sort students within each group
+      // Sort students within each group (but keep lazy load indicators at the top)
       Object.keys(grouped).forEach((groupName) => {
-        grouped[groupName].sort((a, b) =>
-          a.student_name.localeCompare(b.student_name)
-        );
+        grouped[groupName].sort((a, b) => {
+          // Keep lazy load indicators at the top
+          if (a.isLazyLoad && !b.isLazyLoad) return -1;
+          if (!a.isLazyLoad && b.isLazyLoad) return 1;
+          if (a.isLazyLoad && b.isLazyLoad) return 0;
+
+          return a.student_name.localeCompare(b.student_name);
+        });
       });
 
       return grouped;
@@ -479,7 +638,9 @@ export default function TeacherBPS({ route, navigation }) {
     const filtered = {};
     Object.keys(groupedStudents).forEach((className) => {
       const filteredStudents = groupedStudents[className].filter((student) =>
-        student.name.toLowerCase().includes(searchQuery.toLowerCase())
+        (student.name || student.student_name || '')
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())
       );
       if (filteredStudents.length > 0) {
         filtered[className] = filteredStudents;
@@ -495,11 +656,30 @@ export default function TeacherBPS({ route, navigation }) {
       newExpanded.delete(className);
     } else {
       newExpanded.add(className);
+
+      // Auto-load students when expanding a class
+      const students = getFilteredStudents()[className];
+      if (students && students.length > 0) {
+        const lazyLoadStudent = students.find((s) => s.isLazyLoad);
+        if (lazyLoadStudent) {
+          console.log('🔄 Auto-loading students for class:', className);
+          loadClassroomStudents(
+            lazyLoadStudent.classroom_id,
+            lazyLoadStudent.branch_id,
+            lazyLoadStudent.academic_year_id
+          );
+        }
+      }
     }
     setExpandedClasses(newExpanded);
   };
 
   const handleStudentSelection = (student) => {
+    // Skip selection for lazy load placeholders (they're just loading indicators)
+    if (student.isLazyLoad) {
+      return;
+    }
+
     if (isMultipleSelection) {
       const isSelected = selectedStudents.some(
         (s) => s.student_id === student.student_id
@@ -760,10 +940,20 @@ export default function TeacherBPS({ route, navigation }) {
   const getClassStudentCount = (className) => {
     const branch = getCurrentBranch();
 
-    // If classes array is available, count students properly considering batches
+    // If classes array is available, check for total_students first (for lazy-loaded classes)
     if (branch?.classes && Array.isArray(branch.classes)) {
-      let count = 0;
+      // First, check if this class has lazy-loaded data with total_students
+      const classData = branch.classes.find((cls) => {
+        const clsName = cls.class_name || cls.grade_name;
+        return clsName === className && cls.lazy_load && cls.total_students;
+      });
 
+      if (classData && classData.total_students) {
+        return classData.total_students;
+      }
+
+      // If not lazy-loaded, count actual loaded students
+      let count = 0;
       branch.classes.forEach((classData) => {
         if (classData.students && Array.isArray(classData.students)) {
           classData.students.forEach((student) => {
@@ -856,13 +1046,35 @@ export default function TeacherBPS({ route, navigation }) {
   const getCurrentBranch = () => {
     if (!bpsData?.branches || bpsData.branches.length === 0) return null;
 
+    console.log(
+      '🔍 getCurrentBranch - Available branches:',
+      bpsData.branches.map((b) => ({
+        id: b.branch_id,
+        name: b.branch_name,
+      }))
+    );
+    console.log('🔍 getCurrentBranch - Selected branch ID:', selectedBranchId);
+
     if (selectedBranchId) {
       const branch = bpsData.branches.find(
         (b) => b.branch_id === selectedBranchId
       );
+      console.log(
+        '🔍 getCurrentBranch - Found branch:',
+        branch
+          ? {
+              id: branch.branch_id,
+              name: branch.branch_name,
+              classesCount: branch.classes?.length,
+            }
+          : 'NOT FOUND'
+      );
       return branch || bpsData.branches[0];
     }
 
+    console.log(
+      '🔍 getCurrentBranch - No selectedBranchId, using first branch'
+    );
     return bpsData.branches[0];
   };
 
@@ -912,26 +1124,44 @@ export default function TeacherBPS({ route, navigation }) {
 
   // Initialize selectedBranchId when bpsData changes
   useEffect(() => {
-    if (bpsData?.branches && !selectedBranchId) {
-      // First priority: use the new selectedBranchId parameter
-      if (initialSelectedBranchId) {
-        const branchExists = bpsData.branches.find(
-          (b) => b.branch_id === initialSelectedBranchId
-        );
-        if (branchExists) {
-          setSelectedBranchId(initialSelectedBranchId);
-          return;
-        }
-      }
+    console.log('🔍 BPS Branch Effect - Data changed:', {
+      hasBpsData: !!bpsData?.branches,
+      branchesCount: bpsData?.branches?.length,
+      currentSelectedBranchId: selectedBranchId,
+      initialSelectedBranchId,
+      initialSelectedBranch,
+    });
 
+    // Always prioritize the initialSelectedBranchId from Teacher Screen
+    if (
+      initialSelectedBranchId &&
+      selectedBranchId !== initialSelectedBranchId
+    ) {
+      console.log(
+        '🔍 BPS: Updating branch to match Teacher Screen selection:',
+        initialSelectedBranchId
+      );
+      setSelectedBranchId(initialSelectedBranchId);
+      return;
+    }
+
+    // Only set default branch if no branch is selected and no initial branch provided
+    if (bpsData?.branches && !selectedBranchId && !initialSelectedBranchId) {
       // Fallback: convert old selectedBranch index to branch_id
       if (
         initialSelectedBranch !== undefined &&
         bpsData.branches[initialSelectedBranch]
       ) {
-        setSelectedBranchId(bpsData.branches[initialSelectedBranch].branch_id);
+        const branchId = bpsData.branches[initialSelectedBranch].branch_id;
+        console.log(
+          '🔍 Setting branch from initialSelectedBranch index:',
+          branchId
+        );
+        setSelectedBranchId(branchId);
       } else if (bpsData.branches.length > 0) {
-        setSelectedBranchId(bpsData.branches[0].branch_id);
+        const branchId = bpsData.branches[0].branch_id;
+        console.log('🔍 Setting branch to first available:', branchId);
+        setSelectedBranchId(branchId);
       }
     }
   }, [
@@ -940,6 +1170,25 @@ export default function TeacherBPS({ route, navigation }) {
     initialSelectedBranch,
     initialSelectedBranchId,
   ]);
+
+  // Monitor changes to initialSelectedBranchId (when parent switches branches)
+  useEffect(() => {
+    if (
+      initialSelectedBranchId &&
+      selectedBranchId !== initialSelectedBranchId
+    ) {
+      console.log(
+        '🔍 BPS: Parent branch changed, updating from',
+        selectedBranchId,
+        'to',
+        initialSelectedBranchId
+      );
+      setSelectedBranchId(initialSelectedBranchId);
+    }
+  }, [initialSelectedBranchId]);
+
+  // Note: Branch switching should be handled by parent component
+  // The parent should pass new bpsData when branch changes
 
   const currentBranch = getCurrentBranch();
   const filteredRecords = getFilteredRecords();
@@ -1490,12 +1739,33 @@ export default function TeacherBPS({ route, navigation }) {
                                     style={[
                                       styles.studentItem,
                                       isSelected && styles.selectedStudentItem,
+                                      student.isLazyLoad && styles.lazyLoadItem,
                                     ]}
                                     onPress={() =>
                                       handleStudentSelection(student)
                                     }
+                                    disabled={loadingStudents.has(
+                                      student.classroom_id
+                                    )}
                                   >
-                                    {isMultipleSelection ? (
+                                    {student.isLazyLoad ? (
+                                      loadingStudents.has(
+                                        student.classroom_id
+                                      ) ? (
+                                        <FontAwesomeIcon
+                                          icon={faSpinner}
+                                          size={16}
+                                          color={theme.colors.secondary}
+                                          spin
+                                        />
+                                      ) : (
+                                        <FontAwesomeIcon
+                                          icon={faUsers}
+                                          size={14}
+                                          color={theme.colors.textLight}
+                                        />
+                                      )
+                                    ) : isMultipleSelection ? (
                                       <FontAwesomeIcon
                                         icon={
                                           isSelected ? faCheckSquare : faSquare
@@ -2099,7 +2369,8 @@ const getStyles = (theme) =>
       paddingVertical: 8,
       marginHorizontal: 4,
       borderRadius: 8,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.surface,
+      ...theme.shadows.small,
     },
     compactFilterTabSelected: {
       backgroundColor: theme.colors.secondary,
@@ -2722,6 +2993,12 @@ const getStyles = (theme) =>
       backgroundColor: `${theme.colors.secondary}1A`,
       borderWidth: 1,
       borderColor: theme.colors.secondary,
+    },
+    lazyLoadItem: {
+      backgroundColor: `${theme.colors.primary}0A`,
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+      borderStyle: 'dashed',
     },
     selectedStudentItemText: {
       fontSize: 14,

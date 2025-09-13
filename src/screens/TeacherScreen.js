@@ -659,6 +659,18 @@ export default function TeacherScreen({ route, navigation }) {
     }
   }, [teacherClassesData, timetableData]);
 
+  // Monitor selectedBranchId changes
+  useEffect(() => {
+    console.log(
+      '🔄 TEACHER SCREEN: selectedBranchId changed to:',
+      selectedBranchId
+    );
+    console.log(
+      '🔄 TEACHER SCREEN: currentBranchInfo:',
+      currentBranchInfo?.branch_name
+    );
+  }, [selectedBranchId, currentBranchInfo]);
+
   // Get current branch data (prioritize teacher classes data, fallback to timetable)
   const getCurrentBranch = () => {
     // Try teacher classes data first (more comprehensive)
@@ -704,11 +716,32 @@ export default function TeacherScreen({ route, navigation }) {
 
       if (response.success) {
         console.log('✅ TEACHER SCREEN: Branch switch API successful');
+        console.log('✅ TEACHER SCREEN: API Response:', response);
 
         // Update local state with API response
         if (response.current_branch) {
+          console.log(
+            '🔄 TEACHER SCREEN: Setting selectedBranchId to:',
+            response.current_branch.branch_id
+          );
+          console.log(
+            '🔄 TEACHER SCREEN: Previous selectedBranchId was:',
+            selectedBranchId
+          );
+
           setSelectedBranchId(response.current_branch.branch_id);
           setCurrentBranchInfo(response.current_branch);
+
+          // Update userData.current_branch to reflect the switch
+          const updatedUserData = {
+            ...userData,
+            current_branch: response.current_branch,
+          };
+          setUserData(updatedUserData);
+          console.log(
+            '🔄 TEACHER SCREEN: Updated userData.current_branch to:',
+            response.current_branch.branch_name
+          );
 
           // Update accessible branches with new active state
           const updatedBranches = accessibleBranches.map((branch) => ({
@@ -716,20 +749,48 @@ export default function TeacherScreen({ route, navigation }) {
             is_active: branch.branch_id === response.current_branch.branch_id,
           }));
           setAccessibleBranches(updatedBranches);
+
+          console.log(
+            '✅ TEACHER SCREEN: State updated with new branch:',
+            response.current_branch.branch_name
+          );
         }
 
-        // Save to local storage for persistence
+        // Save to local storage for persistence BEFORE refreshing data
         try {
-          await AsyncStorage.setItem('selectedBranchId', branchId.toString());
+          await AsyncStorage.setItem(
+            'selectedBranchId',
+            response.current_branch.branch_id.toString()
+          );
+
+          // Also save the updated userData with new current_branch
+          const updatedUserData = {
+            ...userData,
+            current_branch: response.current_branch,
+          };
+          await AsyncStorage.setItem(
+            'teacherData',
+            JSON.stringify(updatedUserData)
+          );
+
           console.log(
             '✅ TEACHER SCREEN: Branch switched via API to:',
             response.current_branch?.branch_name
           );
+          console.log(
+            '💾 TEACHER SCREEN: Saved to AsyncStorage:',
+            response.current_branch.branch_id.toString()
+          );
+          console.log('💾 TEACHER SCREEN: Updated userData in AsyncStorage');
         } catch (error) {
           console.error('Error saving selected branch:', error);
         }
 
         // Refresh data for the new branch
+        console.log(
+          '🔄 TEACHER SCREEN: About to refresh data for branch:',
+          response.current_branch.branch_id
+        );
         await loadTeacherData();
       } else {
         console.error(
@@ -769,6 +830,13 @@ export default function TeacherScreen({ route, navigation }) {
         setSelectedBranchId(branchId);
         setCurrentBranchInfo(selectedBranch);
 
+        // Update userData.current_branch for consistency
+        const updatedUserData = {
+          ...userData,
+          current_branch: selectedBranch,
+        };
+        setUserData(updatedUserData);
+
         // Update accessible branches with new active state
         const updatedBranches = accessibleBranches.map((branch) => ({
           ...branch,
@@ -805,20 +873,73 @@ export default function TeacherScreen({ route, navigation }) {
   // Load saved branch selection - now using branch_id
   const loadSavedBranchSelection = async () => {
     try {
+      console.log('📖 TEACHER SCREEN: Loading saved branch selection...');
+      console.log(
+        '📖 TEACHER SCREEN: Current selectedBranchId before load:',
+        selectedBranchId
+      );
+
       // First try to load by branch_id (new method)
       const savedBranchId = await AsyncStorage.getItem('selectedBranchId');
+      console.log(
+        '📖 TEACHER SCREEN: Read from AsyncStorage selectedBranchId:',
+        savedBranchId
+      );
+
       if (savedBranchId !== null) {
-        const branches =
-          teacherClassesData?.branches || timetableData?.branches;
+        // Try multiple sources for branches data
+        let branches = teacherClassesData?.branches || timetableData?.branches;
+
+        // If no branches found, try accessible_branches from API response
+        if (!branches && accessibleBranches?.length > 0) {
+          branches = accessibleBranches;
+          console.log(
+            '📖 TEACHER SCREEN: Using accessibleBranches as fallback'
+          );
+        }
+
+        console.log(
+          '📖 TEACHER SCREEN: Available branches:',
+          branches?.map((b) => ({
+            id: b.branch_id,
+            name: b.branch_name,
+            idType: typeof b.branch_id,
+          }))
+        );
+        console.log(
+          '📖 TEACHER SCREEN: Looking for savedBranchId:',
+          savedBranchId,
+          'type:',
+          typeof savedBranchId
+        );
+
         if (branches) {
           const branchExists = branches.find(
             (branch) => branch.branch_id.toString() === savedBranchId
           );
+          console.log('📖 TEACHER SCREEN: Branch search result:', branchExists);
+
           if (branchExists) {
+            console.log(
+              '📖 TEACHER SCREEN: Setting selectedBranchId from AsyncStorage to:',
+              parseInt(savedBranchId, 10)
+            );
             setSelectedBranchId(parseInt(savedBranchId, 10));
+            return;
+          } else {
+            console.log(
+              '📖 TEACHER SCREEN: Saved branch ID not found in available branches - keeping current selection:',
+              selectedBranchId
+            );
+            // Don't change selectedBranchId if the saved branch isn't available
+            // This happens when switching to a branch that doesn't have classes data
             return;
           }
         }
+      } else {
+        console.log(
+          '📖 TEACHER SCREEN: No saved branch ID found in AsyncStorage'
+        );
       }
 
       // Fallback: try to load by old index method and convert to branch_id
@@ -979,6 +1100,15 @@ export default function TeacherScreen({ route, navigation }) {
 
   // Get quick actions array (filtered by branch-specific roles)
   const getQuickActions = () => {
+    console.log(
+      '🎯 TEACHER SCREEN: getQuickActions called with selectedBranchId:',
+      selectedBranchId
+    );
+    console.log(
+      '🎯 TEACHER SCREEN: currentBranchInfo:',
+      currentBranchInfo?.branch_name
+    );
+
     const allActions = [
       {
         id: 'timetable',
