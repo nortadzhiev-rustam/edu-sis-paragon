@@ -107,6 +107,9 @@ export const Config = {
     UPDATE_GUARDIAN_PROFILE: '/guardian/complete-profile',
     ROTATE_QR_TOKEN: '/pickup/guardians/rotate-qr',
     QR_LOGIN: '/pickup/qr/login',
+    DEACTIVATE_GUARDIAN: '/guardians/deactivate',
+    DELETE_GUARDIAN: '/pickup/guardians/delete',
+    REACTIVATE_GUARDIAN: '/pickup/guardians/reactivate',
 
     // Pickup Request API Endpoints
     CREATE_PICKUP_REQUEST: '/pickup-request/',
@@ -136,6 +139,7 @@ export const Config = {
     PARENT_STUDENT_BPS_PROFILE: '/parent/student/bps-profile',
     PARENT_STUDENT_HEALTH_INFO: '/parent/student/health-info',
     PARENT_STUDENT_HEALTH_RECORDS: '/parent/student/health-records',
+    PARENT_STUDENT_LIBRARY: '/parent/student/library',
 
     // Parent Calendar API Endpoints
     PARENT_CALENDAR_DATA: '/parent/calendar/data',

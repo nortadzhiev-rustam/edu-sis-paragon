@@ -34,6 +34,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import NotificationBadge from '../components/NotificationBadge';
 import { getDemoStudentLibraryData } from '../services/demoModeService';
 import { useFocusEffect } from '@react-navigation/native';
+import { getChildLibrary } from '../services/parentService';
 
 export default function LibraryScreen({ navigation, route }) {
   const { theme } = useTheme();
@@ -46,7 +47,8 @@ export default function LibraryScreen({ navigation, route }) {
   const [selectedTab, setSelectedTab] = useState('overview'); // 'overview', 'borrowed', 'history', 'available'
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
 
-  const { studentName, authCode } = route.params || {};
+  const { studentName, authCode, studentId, useParentProxy, parentData } =
+    route.params || {};
   const styles = createStyles(theme);
 
   // Listen for orientation changes
@@ -78,26 +80,43 @@ export default function LibraryScreen({ navigation, route }) {
         return;
       }
 
-      const url = buildApiUrl('/student/library-data', {
-        authCode,
-      });
+      let response;
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setLibraryData(data);
-        } else {
-          Alert.alert(t('error'), t('failedToLoadLibraryData'));
-        }
+      // Check if this is parent proxy access
+      if (useParentProxy && studentId) {
+        console.log('🔄 LIBRARY SCREEN: Using parent proxy access');
+        console.log('🔑 Parent Auth Code:', authCode);
+        console.log('👤 Student ID:', studentId);
+
+        // Use parent proxy service
+        response = await getChildLibrary(authCode, studentId);
       } else {
-        Alert.alert(t('error'), t('failedToConnectLibrarySystem'));
+        console.log('📚 LIBRARY SCREEN: Using direct student access');
+
+        // Use direct API call for student access
+        const url = buildApiUrl('/student/library-data', {
+          authCode,
+        });
+
+        const apiResponse = await fetch(url, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (apiResponse.ok) {
+          response = await apiResponse.json();
+        } else {
+          throw new Error('Failed to connect to library system');
+        }
+      }
+
+      if (response && response.success) {
+        setLibraryData(response);
+      } else {
+        Alert.alert(t('error'), t('failedToLoadLibraryData'));
       }
     } catch (error) {
       console.error('Library data fetch error:', error);

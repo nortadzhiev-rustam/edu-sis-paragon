@@ -119,6 +119,14 @@ const TeacherPickupScreen = ({ navigation, route }) => {
       );
       console.log('📱 PICKUP: Total pending requests:', pendingRequests.length);
 
+      // Additional debugging for validation issues
+      console.log('📱 PICKUP: Validation debugging:');
+      console.log('  - res.guardian exists:', !!guardian);
+      console.log('  - res.pickup_person exists:', !!pickupPerson);
+      console.log('  - res.pending_requests exists:', !!res.pending_requests);
+      console.log('  - pending request exists:', !!pending);
+      console.log('  - student exists:', !!student);
+
       // Check what's missing
       console.log('📱 PICKUP: Validation checks:');
       console.log('  - pending?.request_id:', pending?.request_id);
@@ -136,14 +144,36 @@ const TeacherPickupScreen = ({ navigation, route }) => {
         return;
       }
 
-      if (!pickupPerson?.auth_code) {
-        console.log('📱 PICKUP: Missing pickup person auth code');
-        Alert.alert(
-          'No Pending Request',
-          'Authentication information is missing.'
-        );
-        setQrToken('');
-        return;
+      // Validate required fields based on pickup person type
+      if (isParent) {
+        if (!pickupPerson?.auth_code) {
+          console.log('📱 PICKUP: Missing parent auth code');
+          Alert.alert(
+            'Authentication Error',
+            'Parent authentication information is missing.'
+          );
+          setQrToken('');
+          return;
+        }
+      } else {
+        // For guardians, check for card_id or similar identifier
+        const hasGuardianId =
+          pickupPerson?.card_id ||
+          pickupPerson?.pickup_card_id ||
+          pickupPerson?.guardian_card_id ||
+          guardian?.card_id ||
+          guardian?.pickup_card_id ||
+          guardian?.guardian_card_id;
+
+        if (!hasGuardianId) {
+          console.log('📱 PICKUP: Missing guardian card ID');
+          Alert.alert(
+            'Authentication Error',
+            'Guardian card information is missing.'
+          );
+          setQrToken('');
+          return;
+        }
       }
 
       console.log(
@@ -152,16 +182,23 @@ const TeacherPickupScreen = ({ navigation, route }) => {
       );
 
       // Store validated data
+      const combinedGuardianData = { ...guardian, ...pickupPerson };
+
+      console.log(
+        '📱 PICKUP: Setting state with combined data:',
+        JSON.stringify(combinedGuardianData, null, 2)
+      );
+      console.log(
+        '📱 PICKUP: Setting pending request:',
+        JSON.stringify(pending, null, 2)
+      );
+
       setQrToken(token.trim());
-      setValidatedGuardian({ ...guardian, ...pickupPerson }); // Combine guardian and pickup person data
+      setValidatedGuardian(combinedGuardianData);
       setPendingRequest(pending);
 
-      // Show guardian verification screen
-      showGuardianVerification(
-        { ...guardian, ...pickupPerson },
-        student,
-        pending
-      );
+      // Show guardian verification screen with the actual data (not relying on state)
+      showGuardianVerification(combinedGuardianData, student, pending);
     } catch (error) {
       console.error('❌ PICKUP QR Validation error:', error);
       Alert.alert(
@@ -200,15 +237,58 @@ Distance: ${pending.distance || 'N/A'}`;
       },
       {
         text: 'Verify & Process Pickup',
-        onPress: () => processVerifiedPickup(),
+        onPress: () => processVerifiedPickup(guardian, pending),
       },
     ]);
   };
 
   // Step 3: Process pickup after staff verification
-  const processVerifiedPickup = async () => {
-    if (!validatedGuardian || !pendingRequest) {
+  const processVerifiedPickup = async (
+    guardianData = null,
+    requestData = null
+  ) => {
+    console.log('📱 PICKUP: Processing verified pickup...');
+
+    // Use passed parameters or fall back to state
+    const guardian = guardianData || validatedGuardian;
+    const request = requestData || pendingRequest;
+
+    console.log('📱 PICKUP: Guardian data:', JSON.stringify(guardian, null, 2));
+    console.log('📱 PICKUP: Request data:', JSON.stringify(request, null, 2));
+
+    if (!guardian || !request) {
+      console.log(
+        '📱 PICKUP: Missing data - guardian:',
+        !!guardian,
+        'request:',
+        !!request
+      );
       Alert.alert('Error', 'Missing guardian or request information.');
+      return;
+    }
+
+    // Additional validation for required fields
+    if (!request.request_id) {
+      console.log('📱 PICKUP: Missing request_id in request data');
+      Alert.alert('Error', 'Missing pickup request ID.');
+      return;
+    }
+
+    const isParent = guardian.card_type === 'parent';
+    if (isParent && !guardian.auth_code) {
+      console.log('📱 PICKUP: Missing auth_code for parent');
+      Alert.alert('Error', 'Missing parent authentication code.');
+      return;
+    }
+
+    if (
+      !isParent &&
+      !guardian.card_id &&
+      !guardian.pickup_card_id &&
+      !guardian.guardian_card_id
+    ) {
+      console.log('📱 PICKUP: Missing card_id for guardian');
+      Alert.alert('Error', 'Missing guardian card ID.');
       return;
     }
 
@@ -218,18 +298,18 @@ Distance: ${pending.distance || 'N/A'}`;
 
       // For parents, use auth_code as the identifier
       // For guardians, use card_id or similar
-      const isParent = validatedGuardian.card_type === 'parent';
+      const isParent = guardian.card_type === 'parent';
 
       let requestPayload = {
         authCode,
-        request_id: pendingRequest.request_id,
+        request_id: request.request_id,
         staff_notes: '', // Could add notes input later
       };
 
       if (isParent) {
         // For parents, send parent_auth_code instead of guardian_card_id
         const parentAuthCode =
-          validatedGuardian.auth_code || validatedGuardian.parent_info?.user_id;
+          guardian.auth_code || guardian.parent_info?.user_id;
         requestPayload.parent_auth_code = parentAuthCode;
 
         console.log('📱 PICKUP: Processing for parent');
@@ -237,9 +317,9 @@ Distance: ${pending.distance || 'N/A'}`;
       } else {
         // For guardians, use traditional guardian_card_id
         const guardianCardId =
-          validatedGuardian.card_id ||
-          validatedGuardian.pickup_card_id ||
-          validatedGuardian.guardian_card_id;
+          guardian.card_id ||
+          guardian.pickup_card_id ||
+          guardian.guardian_card_id;
         requestPayload.guardian_card_id = guardianCardId;
 
         console.log('📱 PICKUP: Processing for guardian');
@@ -463,8 +543,6 @@ Distance: ${pending.distance || 'N/A'}`;
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {renderHeader()}
 
-      
-
       {/* List */}
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -559,7 +637,7 @@ const createStyles = (theme) =>
       marginTop: 8,
       padding: 4,
       gap: 8,
-      backgroundColor: theme.colors.surface+'20',
+      backgroundColor: theme.colors.surface + '20',
       borderRadius: 12,
     },
     qrInput: {
@@ -574,7 +652,7 @@ const createStyles = (theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      backgroundColor: theme.colors.surface+'20',
+      backgroundColor: theme.colors.surface + '20',
       paddingHorizontal: 12,
       paddingVertical: 10,
       borderRadius: 8,

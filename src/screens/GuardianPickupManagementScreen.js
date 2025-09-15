@@ -567,6 +567,108 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
     await generateNewQR();
   };
 
+  const handleDeactivateGuardian = async (pickupCardId) => {
+    try {
+      setLoading(true);
+      console.log('🟡 GUARDIAN PICKUP: Deactivating guardian:', pickupCardId);
+
+      const response = await guardianService.deactivateGuardian(
+        authCode,
+        pickupCardId
+      );
+
+      if (response.success) {
+        Alert.alert('Guardian Deactivated', response.message, [
+          {
+            text: 'OK',
+            onPress: () => fetchGuardians(), // Refresh the list
+          },
+        ]);
+      } else {
+        throw new Error(response.message || 'Failed to deactivate guardian');
+      }
+    } catch (error) {
+      console.error('❌ GUARDIAN PICKUP: Error deactivating guardian:', error);
+      Alert.alert(
+        'Deactivation Failed',
+        error.message || 'Failed to deactivate guardian. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteGuardian = async (pickupCardId) => {
+    try {
+      setLoading(true);
+      console.log('🔴 GUARDIAN PICKUP: Deleting guardian:', pickupCardId);
+
+      const response = await guardianService.deleteGuardian(
+        authCode,
+        pickupCardId
+      );
+
+      if (response.success) {
+        Alert.alert('Guardian Deleted', response.message, [
+          {
+            text: 'OK',
+            onPress: () => fetchGuardians(), // Refresh the list
+          },
+        ]);
+      } else {
+        throw new Error(response.message || 'Failed to delete guardian');
+      }
+    } catch (error) {
+      console.error('❌ GUARDIAN PICKUP: Error deleting guardian:', error);
+      Alert.alert(
+        'Deletion Failed',
+        error.message || 'Failed to delete guardian. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReactivateGuardian = async (pickupCardId) => {
+    try {
+      setLoading(true);
+      console.log('🟢 GUARDIAN PICKUP: Reactivating guardian:', pickupCardId);
+
+      const response = await guardianService.reactivateGuardian(
+        authCode,
+        pickupCardId
+      );
+
+      if (response.success) {
+        let message = response.message;
+
+        // Add guardian limit info if provided
+        if (response.guardian_limit_check) {
+          const { current_active, limit, remaining } =
+            response.guardian_limit_check;
+          message += `\n\nGuardian Limit Status:\n• Active: ${current_active}/${limit}\n• Remaining slots: ${remaining}`;
+        }
+
+        Alert.alert('Guardian Reactivated', message, [
+          {
+            text: 'OK',
+            onPress: () => fetchGuardians(), // Refresh the list
+          },
+        ]);
+      } else {
+        throw new Error(response.message || 'Failed to reactivate guardian');
+      }
+    } catch (error) {
+      console.error('❌ GUARDIAN PICKUP: Error reactivating guardian:', error);
+      Alert.alert(
+        'Reactivation Failed',
+        error.message || 'Failed to reactivate guardian. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderChildDropdown = () => {
     if (!showChildDropdown) return null;
 
@@ -716,6 +818,9 @@ const GuardianPickupManagementScreen = ({ navigation, route }) => {
                     authCode,
                   });
                 }}
+                onDeactivate={handleDeactivateGuardian}
+                onDelete={handleDeleteGuardian}
+                onReactivate={handleReactivateGuardian}
                 showActions={true}
                 showPickupAction={true}
                 onPickupRequest={() => setActiveTab('pickup')}

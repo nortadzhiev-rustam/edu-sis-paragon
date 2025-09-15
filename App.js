@@ -34,6 +34,7 @@ import HomeroomAttendanceDetailsScreen from './src/screens/HomeroomAttendanceDet
 
 // Parent/Student Screens
 import ParentScreen from './src/screens/ParentScreen';
+import ParentProfileScreen from './src/screens/ParentProfileScreen';
 import StudentScreen from './src/screens/StudentScreen';
 import StudentProfileScreen from './src/screens/StudentProfileScreen';
 import TimetableScreen from './src/screens/TimetableScreen';
@@ -400,6 +401,10 @@ export default function App() {
                     <Stack.Screen
                       name='ParentScreen'
                       component={ParentScreen}
+                    />
+                    <Stack.Screen
+                      name='ParentProfile'
+                      component={ParentProfileScreen}
                     />
                     <Stack.Screen
                       name='StudentScreen'

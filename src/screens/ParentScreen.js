@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
   Dimensions,
+  Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,13 +32,13 @@ import {
   faScaleBalanced,
   faBell,
   faBookOpen,
-  faFileAlt,
   faHeartbeat,
   faClock,
   faSignOutAlt,
-  faGear,
   faUserShield,
   faArrowLeft,
+  faUser,
+  faEdit,
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -119,14 +120,14 @@ const getMenuItems = (t) => [
     iconColor: '#fff',
     action: 'discipline',
   },
-  // {
-  //   id: 'library',
-  //   title: t('library'),
-  //   icon: faBookOpen,
-  //   backgroundColor: '#FF6B35',
-  //   iconColor: '#fff',
-  //   action: 'library',
-  // },
+  {
+    id: 'library',
+    title: t('library'),
+    icon: faBookOpen,
+    backgroundColor: '#FF6B35',
+    iconColor: '#fff',
+    action: 'library',
+  },
   // Health
   {
     id: 'health',
@@ -195,13 +196,52 @@ export default function ParentScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [currentUserData, setCurrentUserData] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = React.useRef(null);
   const notificationsLoadedRef = React.useRef(new Set());
+  const animatedValues = React.useRef([]).current;
 
   // Parent notifications hook
   const { selectStudent, refreshAllStudents } = useParentNotifications();
 
   const styles = createStyles(theme, fontSizes);
+
+  // Initialize animated values when students change
+  useEffect(() => {
+    // Initialize animated values for each student
+    while (animatedValues.length < students.length) {
+      // Initialize first dot as active (1), others as inactive (0)
+      const initialValue = animatedValues.length === 0 ? 1 : 0;
+      animatedValues.push(new Animated.Value(initialValue));
+    }
+    // Remove excess animated values
+    if (animatedValues.length > students.length) {
+      animatedValues.splice(students.length);
+    }
+  }, [students.length]);
+
+  // Update current index when selected student changes
+  useEffect(() => {
+    if (selectedStudent && students.length > 0) {
+      const studentIndex = students.findIndex(
+        (s) => s.id === selectedStudent.id
+      );
+      if (studentIndex !== -1 && studentIndex !== currentIndex) {
+        setCurrentIndex(studentIndex);
+      }
+    }
+  }, [selectedStudent, students]);
+
+  // Animate dots when current index changes
+  useEffect(() => {
+    animatedValues.forEach((animValue, index) => {
+      Animated.timing(animValue, {
+        toValue: index === currentIndex ? 1 : 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    });
+  }, [currentIndex, animatedValues]);
 
   // Refresh notifications when screen comes into focus
   useFocusEffect(
@@ -242,6 +282,13 @@ export default function ParentScreen({ navigation }) {
       restoreSelectedStudent();
     }
   }, [students, selectedStudent, restoreSelectedStudent]);
+
+  // Ensure first dot is selected when students are first loaded
+  useEffect(() => {
+    if (students.length > 0 && currentIndex !== 0 && !selectedStudent) {
+      setCurrentIndex(0);
+    }
+  }, [students.length, selectedStudent]);
 
   // Note: In parent proxy system, notifications are loaded through main notification context
   // No need to load individual student notifications
@@ -302,6 +349,16 @@ export default function ParentScreen({ navigation }) {
   const handleStudentPress = async (student) => {
     // Set the selected student
     setSelectedStudent(student);
+
+    // Find the index of the selected student and center it
+    const studentIndex = students.findIndex((s) => s.id === student.id);
+    if (studentIndex !== -1) {
+      setCurrentIndex(studentIndex);
+      flatListRef.current?.scrollToIndex({
+        index: studentIndex,
+        animated: true,
+      });
+    }
 
     // Save selected student to AsyncStorage for persistence
     try {
@@ -847,6 +904,58 @@ export default function ParentScreen({ navigation }) {
     );
   };
 
+  // Render parent profile section
+  const renderParentProfile = () => {
+    if (!currentUserData) return null;
+
+    const parentName =
+      currentUserData?.name || currentUserData?.user_name || 'Parent';
+    const parentPhoto = currentUserData?.photo || currentUserData?.parent_photo;
+
+    return (
+      <TouchableOpacity
+        style={styles.parentProfileSection}
+        onPress={() => navigation.navigate('ParentProfile')}
+        activeOpacity={0.7}
+      >
+        <View style={styles.parentProfileCard}>
+          <View style={styles.parentAvatarContainer}>
+            {parentPhoto ? (
+              <Image
+                source={{
+                  uri: parentPhoto.startsWith('http')
+                    ? parentPhoto
+                    : `${Config.API_DOMAIN}${parentPhoto}`,
+                }}
+                style={styles.parentAvatar}
+                resizeMode='cover'
+              />
+            ) : (
+              <View style={styles.parentAvatarPlaceholder}>
+                <FontAwesomeIcon
+                  icon={faUser}
+                  size={18}
+                  color={theme.colors.primary}
+                />
+              </View>
+            )}
+          </View>
+
+          <View style={styles.parentInfo}>
+            <Text style={styles.parentName}>{parentName}</Text>
+            <Text style={styles.parentRole}>{t('tapToViewProfile')}</Text>
+          </View>
+
+          <FontAwesomeIcon
+            icon={faEdit}
+            size={14}
+            color={theme.colors.textSecondary}
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   const renderStudentItem = ({ item }) => {
     const isSelected = selectedStudent && selectedStudent.id === item.id;
 
@@ -872,20 +981,32 @@ export default function ParentScreen({ navigation }) {
                 isSelected && styles.selectedStudentIcon,
               ]}
             >
-              <FontAwesomeIcon icon={faChild} size={30} color='#fff' />
+              <FontAwesomeIcon icon={faChild} size={24} color='#fff' />
             </View>
           )}
-          <Text
-            style={[
-              styles.studentName,
-              isSelected && styles.selectedStudentText,
-            ]}
-          >
-            {item.name || t('student')}
-          </Text>
-          <Text style={styles.studentDetails}>
-            {t('id')}: {item.id || t('notAvailable')}
-          </Text>
+
+          <View style={styles.studentInfoContainer}>
+            <Text
+              style={[
+                styles.studentName,
+                isSelected && styles.selectedStudentText,
+              ]}
+            >
+              {item.name || t('student')}
+            </Text>
+            <Text style={styles.studentClass}>
+              Class:{' '}
+              {item.class_name || item.grade_name || t('classNotAvailable')}
+            </Text>
+            <Text style={styles.studentDetails}>
+              {t('id')}: {item.id || t('notAvailable')}
+            </Text>
+
+            <Text style={styles.studentEmail}>
+              Email:{' '}
+              {item.email || item.student_email || t('emailNotAvailable')}
+            </Text>
+          </View>
 
           {isSelected && (
             <View style={styles.selectedBadge}>
@@ -893,15 +1014,6 @@ export default function ParentScreen({ navigation }) {
             </View>
           )}
         </TouchableOpacity>
-
-        {isSelected && (
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => handleDeleteStudent(item)}
-          >
-            <FontAwesomeIcon icon={faTrash} size={16} color='#FF3B30' />
-          </TouchableOpacity>
-        )}
       </View>
     );
   };
@@ -1035,6 +1147,9 @@ export default function ParentScreen({ navigation }) {
       )}
 
       <View style={styles.content}>
+        {/* Parent Profile Section */}
+        {renderParentProfile()}
+
         <View style={styles.childrenSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
@@ -1076,12 +1191,28 @@ export default function ParentScreen({ navigation }) {
               data={students}
               renderItem={renderStudentItem}
               keyExtractor={(_, index) => `student-${index}`}
-              contentContainerStyle={styles.listContainer}
+              contentContainerStyle={[
+                styles.listContainer,
+                { paddingHorizontal: 24 }, // Shift content right for better centering
+              ]}
               horizontal={true}
               showsHorizontalScrollIndicator={false}
-              snapToAlignment='start'
+              ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
+              snapToInterval={346} // Card width (330) + separator (16)
+              snapToAlignment='center'
               decelerationRate='fast'
-              snapToInterval={176} // Width of tile (160) + margin (16)
+              getItemLayout={(data, index) => ({
+                length: 346, // Card width + separator
+                offset: 346 * index,
+                index,
+              })}
+              onMomentumScrollEnd={(event) => {
+                const contentOffset = event.nativeEvent.contentOffset.x;
+                const index = Math.round(contentOffset / 346);
+                setCurrentIndex(
+                  Math.max(0, Math.min(index, students.length - 1))
+                );
+              }}
               onScrollToIndexFailed={(info) => {
                 // Handle the failure by scrolling to a nearby item
                 setTimeout(() => {
@@ -1097,6 +1228,52 @@ export default function ParentScreen({ navigation }) {
                 }, 100);
               }}
             />
+          )}
+
+          {/* Dotted Pagination Indicator */}
+          {students.length > 1 && (
+            <View style={styles.paginationContainer}>
+              {students.map((_, index) => {
+                const animValue =
+                  animatedValues[index] || new Animated.Value(0);
+                const dotWidth = animValue.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [8, 24],
+                });
+                const dotOpacity = animValue.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.5, 1],
+                });
+
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => {
+                      setCurrentIndex(index);
+                      flatListRef.current?.scrollToIndex({
+                        index,
+                        animated: true,
+                      });
+                    }}
+                    style={styles.paginationDotTouchable}
+                  >
+                    <Animated.View
+                      style={[
+                        styles.paginationDot,
+                        {
+                          width: dotWidth,
+                          opacity: dotOpacity,
+                          backgroundColor:
+                            index === currentIndex
+                              ? theme.colors.primary
+                              : theme.colors.border,
+                        },
+                      ]}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           )}
         </View>
 
@@ -1320,8 +1497,131 @@ const createStyles = (theme, fontSizes) =>
       flex: 1,
       padding: 10,
     },
+    // Parent Profile Styles
+    parentProfileSection: {
+      marginBottom: 12,
+      marginHorizontal: 8,
+    },
+    parentProfileCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      padding: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      ...createMediumShadow(theme),
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    parentAvatarContainer: {
+      marginRight: 12,
+    },
+    parentAvatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      borderWidth: 2,
+      borderColor: theme.colors.primary,
+    },
+    parentAvatarPlaceholder: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: theme.colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: theme.colors.primary,
+    },
+    parentInfo: {
+      flex: 1,
+    },
+    parentName: {
+      fontSize: fontSizes.medium,
+      fontWeight: 'bold',
+      color: theme.colors.text,
+      marginBottom: 2,
+    },
+    parentRole: {
+      fontSize: fontSizes.small,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
+    },
+    parentStatsContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-around',
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+    },
+    parentStat: {
+      alignItems: 'center',
+      flex: 1,
+    },
+    parentStatNumber: {
+      fontSize: fontSizes.medium,
+      fontWeight: 'bold',
+      color: theme.colors.primary,
+      marginBottom: 2,
+    },
+    parentStatLabel: {
+      fontSize: fontSizes.extraSmall,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    parentStatDivider: {
+      width: 1,
+      height: 30,
+      backgroundColor: theme.colors.border,
+      marginHorizontal: 12,
+    },
     childrenSection: {
       marginBottom: 5,
+    },
+    scrollIndicatorContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 12,
+      marginTop: 8,
+    },
+    scrollIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      ...createCustomShadow(theme, {
+        height: 1,
+        opacity: 0.1,
+        radius: 4,
+        elevation: 2,
+      }),
+    },
+    scrollIndicatorText: {
+      fontSize: fontSizes.extraSmall,
+      color: theme.colors.textSecondary,
+      marginLeft: 6,
+      fontWeight: '500',
+    },
+    paginationContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 5,
+      paddingHorizontal: 20,
+    },
+    paginationDotTouchable: {
+      paddingHorizontal: 4,
+
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    paginationDot: {
+      height: 8,
+      borderRadius: 4,
+      marginHorizontal: 2,
     },
     sectionHeader: {
       flexDirection: 'row',
@@ -1329,22 +1629,7 @@ const createStyles = (theme, fontSizes) =>
       alignItems: 'center',
       marginBottom: 5,
     },
-    scrollIndicator: {
-      backgroundColor: theme.colors.primaryLight,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 15,
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.colors.primary + '50',
-      marginRight: 10,
-    },
-    scrollIndicatorText: {
-      color: theme.colors.primary,
-      fontSize: fontSizes.caption,
-      fontWeight: '600',
-    },
+
     menuSection: {
       flex: 1,
     },
@@ -1359,22 +1644,22 @@ const createStyles = (theme, fontSizes) =>
       marginLeft: 15,
     },
     listContainer: {
-      paddingBottom: 10,
-      paddingLeft: 10,
-      paddingRight: 40,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
     },
     studentTileContainer: {
       position: 'relative',
-      margin: 8,
-      width: 160,
-      height: 180,
+      marginVertical: 6,
+      width: 330,
+      minHeight: 120,
     },
     studentTile: {
       backgroundColor: theme.colors.surface,
       borderRadius: 12,
-      padding: 15,
+      padding: 16,
       width: '100%',
-      height: '100%',
+      minHeight: 120,
+      flexDirection: 'row',
       alignItems: 'center',
       // Platform-specific shadow
       ...createCustomShadow(theme, {
@@ -1386,16 +1671,15 @@ const createStyles = (theme, fontSizes) =>
       borderWidth: 2,
       borderColor: 'transparent',
       position: 'relative',
-      overflow: 'hidden',
     },
     deleteButton: {
       position: 'absolute',
-      top: 5,
-      right: 5,
+      top: 4,
+      right: 4,
       backgroundColor: theme.colors.surface,
-      width: 30,
-      height: 30,
-      borderRadius: 15,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: 10,
@@ -1434,11 +1718,11 @@ const createStyles = (theme, fontSizes) =>
     },
     selectedBadge: {
       position: 'absolute',
-      top: 10,
-      left: 10,
+      top: 6,
+      left: 6,
       backgroundColor: theme.colors.primary,
       paddingHorizontal: 6,
-      paddingVertical: 3,
+      paddingVertical: 4,
       borderRadius: 10,
     },
     selectedBadgeText: {
@@ -1447,39 +1731,50 @@ const createStyles = (theme, fontSizes) =>
       fontWeight: 'bold',
     },
     studentIconContainer: {
-      width: 70,
-      height: 70,
-      borderRadius: 35,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
       backgroundColor: theme.colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 15,
+      marginRight: 16,
     },
     studentPhoto: {
-      width: 90,
-      height: 90,
-      borderRadius: 50,
-      marginTop: 5,
-      marginBottom: 15,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      marginRight: 12,
       borderWidth: 2,
       borderColor: 'transparent',
     },
     selectedStudentPhoto: {
       borderColor: theme.colors.primary,
     },
-    // No longer needed with FontAwesome icon
+    studentInfoContainer: {
+      flex: 1,
+      justifyContent: 'center',
+    },
     studentName: {
-      fontSize: 11,
-      fontWeight: '600',
+      fontSize: fontSizes.medium,
+      fontWeight: '700',
       color: theme.colors.text,
-      marginBottom: 8,
-      textAlign: 'center',
+      marginBottom: 4,
     },
     studentDetails: {
-      fontSize: 14,
+      fontSize: fontSizes.small,
       color: theme.colors.textSecondary,
-      marginBottom: 4,
-      textAlign: 'center',
+      marginBottom: 2,
+    },
+    studentClass: {
+      fontSize: fontSizes.small,
+      color: theme.colors.primary,
+      fontWeight: '600',
+      marginBottom: 2,
+    },
+    studentEmail: {
+      fontSize: fontSizes.caption,
+      color: theme.colors.textSecondary,
+      fontStyle: 'italic',
     },
     emptyContainer: {
       width: '100%',

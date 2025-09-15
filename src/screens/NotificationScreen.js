@@ -123,11 +123,29 @@ const NotificationScreen = ({ navigation, route }) => {
         if (response.ok) {
           const data = await response.json();
           if (data?.success) {
-            setContextNotifications(data.notifications || []);
-            setContextUnreadCount(data.unread_count || 0);
+            // Transform API notifications to match expected format
+            const transformedNotifications = (data.notifications || []).map(
+              (notification) => ({
+                ...notification,
+                // Ensure consistent field mapping
+                id:
+                  notification.notification_id?.toString() ||
+                  notification.id?.toString() ||
+                  Date.now().toString(),
+                read: !!notification.read_at || !!notification.is_read,
+                // Keep original API data for reference
+                _apiData: notification,
+              })
+            );
+
+            setContextNotifications(transformedNotifications);
+            setContextUnreadCount(
+              data.unread_count ||
+                transformedNotifications.filter((n) => !n.read).length
+            );
             console.log(
-              '📱 NOTIFICATION: Loaded',
-              data.notifications?.length || 0,
+              '📱 NOTIFICATION: Loaded and transformed',
+              transformedNotifications.length,
               'notifications for',
               userType
             );
@@ -173,24 +191,44 @@ const NotificationScreen = ({ navigation, route }) => {
   useEffect(() => {
     const getUserType = async () => {
       try {
+        console.log('📱 NOTIFICATION: Starting getUserType function');
+        console.log(
+          '📱 NOTIFICATION: Route params:',
+          JSON.stringify(route?.params, null, 2)
+        );
+
         // First check route params (if passed from parent screen)
         if (route?.params?.userType) {
           console.log(
             '📱 NOTIFICATION: User type from route params:',
             route.params.userType
           );
+          console.log(
+            '📱 NOTIFICATION: Setting userType state immediately for faster UI response'
+          );
+
+          // Set userType immediately so UI can render faster
           setUserType(route.params.userType);
 
-          // Load notifications for the specific user type
+          // Load notifications asynchronously (don't await to avoid blocking UI)
           console.log(
-            '📱 NOTIFICATION: About to load notifications for user type:',
+            '📱 NOTIFICATION: Starting async notification loading for:',
             route.params.userType
           );
-          await loadNotificationsForUserType(route.params.userType);
-          console.log(
-            '📱 NOTIFICATION: Finished loading notifications for user type:',
-            route.params.userType
-          );
+          loadNotificationsForUserType(route.params.userType)
+            .then(() => {
+              console.log(
+                '📱 NOTIFICATION: Async loading completed for:',
+                route.params.userType
+              );
+            })
+            .catch((error) => {
+              console.error(
+                '📱 NOTIFICATION: Async loading failed for:',
+                route.params.userType,
+                error
+              );
+            });
 
           // If this is a parent viewing student notifications
           if (route.params.userType === 'parent' && route?.params?.authCode) {
@@ -216,8 +254,15 @@ const NotificationScreen = ({ navigation, route }) => {
               '📱 NOTIFICATION: Direct student access - using main notification context'
             );
           }
+          console.log(
+            '📱 NOTIFICATION: Early return - route params userType found'
+          );
           return;
         }
+
+        console.log(
+          '📱 NOTIFICATION: No userType in route params, determining from storage...'
+        );
 
         // Otherwise determine user type from available user data
         // Check which user types are logged in and determine the active one
@@ -273,23 +318,35 @@ const NotificationScreen = ({ navigation, route }) => {
         }
 
         if (activeUserType) {
-          setUserType(activeUserType);
           console.log(
             '📱 NOTIFICATION: Determined active user type:',
             activeUserType,
             'from available types:',
             loggedInUserTypes
           );
-          // Load notifications for the determined user type
+
+          // Set userType immediately for faster UI response
+          setUserType(activeUserType);
+
+          // Load notifications asynchronously
           console.log(
-            '📱 NOTIFICATION: About to load notifications for user type:',
+            '📱 NOTIFICATION: Starting async notification loading for determined type:',
             activeUserType
           );
-          await loadNotificationsForUserType(activeUserType);
-          console.log(
-            '📱 NOTIFICATION: Finished loading notifications for user type:',
-            activeUserType
-          );
+          loadNotificationsForUserType(activeUserType)
+            .then(() => {
+              console.log(
+                '📱 NOTIFICATION: Async loading completed for determined type:',
+                activeUserType
+              );
+            })
+            .catch((error) => {
+              console.error(
+                '📱 NOTIFICATION: Async loading failed for determined type:',
+                activeUserType,
+                error
+              );
+            });
         } else {
           console.warn('⚠️ NOTIFICATION: Could not determine active user type');
           navigation.reset({
@@ -404,72 +461,184 @@ const NotificationScreen = ({ navigation, route }) => {
       globalNotificationsCount: notifications.length,
     });
 
-    // Use context-specific notifications if available (loaded for the specific user type)
-    if (contextNotifications.length > 0) {
-      console.log(
-        '📱 NOTIFICATION: Using context-specific notifications for',
-        userType,
-        ', count:',
-        contextNotifications.length
-      );
-      return contextNotifications;
+    // For teachers: Use context-specific notifications, but allow global fallback while loading
+    if (userType === 'teacher') {
+      if (contextNotifications.length > 0) {
+        console.log(
+          '📱 NOTIFICATION: Teacher - using context-specific notifications, count:',
+          contextNotifications.length
+        );
+        return contextNotifications;
+      } else if (contextLoading && notifications.length > 0) {
+        console.log(
+          '📱 NOTIFICATION: Teacher - context loading, showing global notifications temporarily, count:',
+          notifications.length
+        );
+        return notifications;
+      } else {
+        console.log(
+          '📱 NOTIFICATION: Teacher - no notifications available, count: 0'
+        );
+        return contextNotifications; // Return empty array
+      }
     }
 
-    // Fallback to global notifications if context notifications are not loaded yet
-    // This handles the case where the context notifications are still loading
-    if (userType === 'parent') {
+    // For students: Use context-specific notifications if available
+    if (userType === 'student') {
+      // If we have context notifications loaded specifically for this student, use them
+      if (contextNotifications.length > 0) {
+        console.log(
+          '📱 NOTIFICATION: Student context - using context-specific notifications, count:',
+          contextNotifications.length
+        );
+        return contextNotifications;
+      }
+
+      // If we have student-specific notifications from route params, use those
+      if (route?.params?.authCode) {
+        const studentAuthCode = route.params.authCode;
+        const studentNotifs = studentNotifications[studentAuthCode];
+        if (studentNotifs && studentNotifs.length > 0) {
+          console.log(
+            '📱 NOTIFICATION: Student - using route-specific notifications, count:',
+            studentNotifs.length
+          );
+          return studentNotifs;
+        }
+      }
+
+      // Fallback to global notifications for students only if no context notifications
       console.log(
-        '📱 NOTIFICATION: Parent context, using global notifications, count:',
+        '📱 NOTIFICATION: Student - fallback to global notifications, count:',
         notifications.length
       );
       return notifications;
     }
 
-    // If we're a student with authCode passed from route params, check if we have student-specific notifications
-    if (userType === 'student' && route?.params?.authCode) {
-      const studentAuthCode = route.params.authCode;
-      const studentNotifs = studentNotifications[studentAuthCode];
-      if (studentNotifs && studentNotifs.length > 0) {
+    // For parents: Use context-specific notifications if available, otherwise global
+    if (userType === 'parent') {
+      if (contextNotifications.length > 0) {
         console.log(
-          '📱 NOTIFICATION: Returning student-specific notifications, count:',
-          studentNotifs.length
+          '📱 NOTIFICATION: Parent - using context-specific notifications, count:',
+          contextNotifications.length
         );
-        return studentNotifs;
+        return contextNotifications;
       }
+
+      console.log(
+        '📱 NOTIFICATION: Parent - fallback to global notifications, count:',
+        notifications.length
+      );
+      return notifications;
     }
 
-    // For teachers and students (fallback), show their own notifications
+    // Default fallback (should not reach here normally)
     console.log(
-      '📱 NOTIFICATION: Returning global fallback notifications, count:',
-      notifications.length
+      '📱 NOTIFICATION: Default fallback to context notifications, count:',
+      contextNotifications.length
     );
-    return notifications;
+    return contextNotifications;
   };
 
   // Get active unread count
   const getActiveUnreadCount = () => {
-    // Use context-specific unread count if available
-    if (contextUnreadCount > 0) {
+    // For teachers: ALWAYS use context-specific unread count
+    if (userType === 'teacher') {
       console.log(
-        '📱 NOTIFICATION: Using context-specific unread count for',
-        userType,
-        ':',
+        '📱 NOTIFICATION: Teacher - using context-specific unread count:',
         contextUnreadCount
       );
       return contextUnreadCount;
     }
 
-    // Fallback to global unread counts
-    if (userType === 'parent') {
+    // For students: Use context-specific unread count if available
+    if (userType === 'student') {
+      if (contextUnreadCount > 0) {
+        console.log(
+          '📱 NOTIFICATION: Student - using context-specific unread count:',
+          contextUnreadCount
+        );
+        return contextUnreadCount;
+      }
+
+      // If we have student-specific unread count from route params, use that
+      if (route?.params?.authCode) {
+        const studentAuthCode = route.params.authCode;
+        const studentUnreadCount = studentUnreadCounts[studentAuthCode] || 0;
+        console.log(
+          '📱 NOTIFICATION: Student - using route-specific unread count:',
+          studentUnreadCount
+        );
+        return studentUnreadCount;
+      }
+
+      // Fallback to global unread count for students
+      console.log(
+        '📱 NOTIFICATION: Student - fallback to global unread count:',
+        unreadCount
+      );
       return unreadCount;
     }
-    // If we're a student with authCode passed from route params, check student-specific unread count
-    if (userType === 'student' && route?.params?.authCode) {
-      const studentAuthCode = route.params.authCode;
-      return studentUnreadCounts[studentAuthCode] || 0;
+
+    // For parents: Use context-specific unread count if available, otherwise global
+    if (userType === 'parent') {
+      if (contextUnreadCount > 0) {
+        console.log(
+          '📱 NOTIFICATION: Parent - using context-specific unread count:',
+          contextUnreadCount
+        );
+        return contextUnreadCount;
+      }
+
+      console.log(
+        '📱 NOTIFICATION: Parent - fallback to global unread count:',
+        unreadCount
+      );
+      return unreadCount;
     }
-    // For teachers and students (fallback), show their own unread count
-    return unreadCount;
+
+    // Default fallback
+    console.log(
+      '📱 NOTIFICATION: Default fallback to context unread count:',
+      contextUnreadCount
+    );
+    return contextUnreadCount;
+  };
+
+  // Determine if we should show loading indicator
+  const shouldShowLoading = () => {
+    // If we don't have a userType yet, show loading
+    if (!userType) {
+      console.log('📱 NOTIFICATION: Loading - no userType yet');
+      return true;
+    }
+
+    // Get all available notifications to check if we have anything to show
+    const activeNotifications = getActiveNotifications();
+    const hasNotificationsToShow = activeNotifications.length > 0;
+
+    // For teachers: show loading only if context is loading AND we have no notifications to show
+    if (userType === 'teacher') {
+      const shouldLoad = contextLoading && !hasNotificationsToShow;
+      console.log('📱 NOTIFICATION: Teacher loading state:', {
+        contextLoading,
+        contextNotificationsCount: contextNotifications.length,
+        globalNotificationsCount: notifications.length,
+        hasNotificationsToShow,
+        shouldLoad,
+      });
+      return shouldLoad;
+    }
+
+    // For students and parents: show loading only if context is loading AND we have no notifications to show
+    const shouldLoad = contextLoading && !hasNotificationsToShow;
+    console.log('📱 NOTIFICATION: Loading state for', userType, ':', {
+      contextLoading,
+      activeNotificationsCount: activeNotifications.length,
+      hasNotificationsToShow,
+      shouldLoad,
+    });
+    return shouldLoad;
   };
 
   const getFilteredNotifications = () => {
@@ -544,13 +713,20 @@ const NotificationScreen = ({ navigation, route }) => {
 
   const filteredNotifications = getFilteredNotifications();
 
-  const renderNotificationItem = ({ item }) => (
-    <NotificationItem
-      notification={item}
-      userType={userType}
-      // NotificationItem will handle navigation automatically
-    />
-  );
+  const renderNotificationItem = ({ item }) => {
+    console.log(
+      '📱 NOTIFICATION: Rendering notification item with userType:',
+      userType
+    );
+    console.log('📱 NOTIFICATION: Notification type:', item.type);
+    return (
+      <NotificationItem
+        notification={item}
+        userType={userType}
+        // NotificationItem will handle navigation automatically
+      />
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -654,7 +830,7 @@ const NotificationScreen = ({ navigation, route }) => {
 
       {/* Notifications List */}
       <View style={styles.contentContainer}>
-        {loading ? (
+        {shouldShowLoading() ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size='large' color={theme.colors.primary} />
             <Text style={styles.loadingText}>{t('loadingNotifications')}</Text>

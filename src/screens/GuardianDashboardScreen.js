@@ -25,6 +25,7 @@ import {
   faSignOutAlt,
   faEdit,
   faCar,
+  faArrowLeft,
 } from '@fortawesome/free-solid-svg-icons';
 import guardianStorageService from '../services/guardianStorageService';
 import { QRCodeDisplay } from '../components/guardian';
@@ -64,14 +65,14 @@ const GuardianDashboardScreen = ({ navigation, route }) => {
             // Navigate back to login screen
             navigation.reset({
               index: 0,
-              routes: [{ name: 'Login' }],
+              routes: [{ name: 'Home' }],
             });
           } catch (error) {
             console.error('❌ GUARDIAN DASHBOARD: Error during logout:', error);
             // Still navigate to login even if clearing data fails
             navigation.reset({
               index: 0,
-              routes: [{ name: 'Login' }],
+              routes: [{ name: 'Home' }],
             });
           }
         },
@@ -226,6 +227,22 @@ const GuardianDashboardScreen = ({ navigation, route }) => {
       {/* Compact Header */}
       <View style={styles.compactHeaderContainer}>
         <View style={styles.navigationHeader}>
+          <TouchableOpacity
+            onPress={() => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Home' }],
+              });
+            }}
+            style={styles.backButton}
+          >
+            {/* go back */}
+            <FontAwesomeIcon
+              icon={faArrowLeft}
+              size={18}
+              color={theme.colors.headerText}
+            />
+          </TouchableOpacity>
           <View style={styles.headerLeft}>
             <Text style={styles.headerTitle}>{t('guardianDashboard')}</Text>
           </View>
@@ -321,6 +338,15 @@ const createStyles = (theme) =>
       shadowRadius: 4,
       overflow: 'hidden',
       zIndex: 1,
+    },
+    backButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
     },
     navigationHeader: {
       backgroundColor: theme.colors.headerBackground,

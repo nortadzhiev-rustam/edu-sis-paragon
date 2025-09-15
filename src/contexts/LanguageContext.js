@@ -106,6 +106,20 @@ const translations = {
     notifications: 'Notifications',
     about: 'About',
     version: 'Version',
+    profileSettings: 'Profile Settings',
+    profileEditComingSoon: 'Profile editing feature coming soon!',
+    parentAccount: 'Parent Account',
+    accountId: 'Account ID',
+    child: 'Child',
+    children: 'Children',
+    scrollToSeeMore: 'Scroll to see more',
+    classNotAvailable: 'Class not available',
+    emailNotAvailable: 'Email not available',
+    parentProfile: 'Parent Profile',
+    contactInformation: 'Contact Information',
+    address: 'Address',
+    memberSince: 'Member Since',
+    tapToViewProfile: 'Tap to view profile',
 
     // Messages
     noData: 'No data available',
@@ -513,6 +527,11 @@ const translations = {
       'Profile completed successfully! You can now access all features.',
     failedToCompleteProfile: 'Failed to complete profile. Please try again.',
     childName: 'Child Name',
+    guardianInfoMissing: 'Guardian information is missing',
+    phoneOrEmergencyContactRequired:
+      'Phone number or emergency contact is required',
+    willUseEmergencyContact: 'Will use emergency contact',
+    willBeUsedAsPhone: 'will be used as phone',
 
     // Guardian Dashboard
     guardianDashboard: 'Guardian Dashboard',
@@ -1139,6 +1158,16 @@ const translations = {
     notifications: 'အကြောင်းကြားချက်များ',
     about: 'အကြောင်း',
     version: 'ဗားရှင်း',
+    profileSettings: 'ကိုယ်ရေးအချက်အလက်ဆက်တင်များ',
+    profileEditComingSoon:
+      'ကိုယ်ရေးအချက်အလက်ပြင်ဆင်ခြင်းလုပ်ဆောင်ချက်မကြာမီရရှိမည်!',
+    parentAccount: 'မိဘအကောင့်',
+    accountId: 'အကောင့်အမှတ်',
+    child: 'ကလေး',
+    children: 'ကလေးများ',
+    scrollToSeeMore: 'ပိုမိုကြည့်ရှုရန် လှိမ့်ပါ',
+    classNotAvailable: 'အတန်းအချက်အလက် မရရှိပါ',
+    emailNotAvailable: 'အီးမေးလ် မရရှိပါ',
 
     // Messages
     noData: 'ဒေတာမရှိပါ',
@@ -1909,6 +1938,13 @@ const translations = {
     branchSelectionFailed: 'ဌာနခွဲပြောင်းမှုမအောင်မြင်ပါ',
     multipleBranchesAvailable: 'ဌာနခွဲများစွာရရှိနိုင်သည်',
     singleBranchOnly: 'ဌာနခွဲတစ်ခုသာအသုံးပြုနိုင်သည်',
+
+    // Guardian Profile Completion - New Keys
+    guardianInfoMissing: 'အုပ်ထိန်းသူအချက်အလက်များပျောက်နေသည်',
+    phoneOrEmergencyContactRequired:
+      'ဖုန်းနံပါတ် သို့မဟုတ် အရေးပေါ်ဆက်သွယ်ရန်လိုအပ်သည်',
+    willUseEmergencyContact: 'အရေးပေါ်ဆက်သွယ်မှုကိုအသုံးပြုမည်',
+    willBeUsedAsPhone: 'ဖုန်းနံပါတ်အဖြစ်အသုံးပြုမည်',
   },
   zh: {
     // Common
@@ -1965,6 +2001,15 @@ const translations = {
     notifications: '通知',
     about: '关于',
     version: '版本',
+    profileSettings: '个人资料设置',
+    profileEditComingSoon: '个人资料编辑功能即将推出！',
+    parentAccount: '家长账户',
+    accountId: '账户ID',
+    child: '孩子',
+    children: '孩子们',
+    scrollToSeeMore: '滚动查看更多',
+    classNotAvailable: '班级信息不可用',
+    emailNotAvailable: '邮箱不可用',
 
     // Messages
     noData: '无数据',
@@ -2675,6 +2720,12 @@ const translations = {
     branchSelectionFailed: '分支切换失败',
     multipleBranchesAvailable: '多个分支可用',
     singleBranchOnly: '仅单一分支访问',
+
+    // Guardian Profile Completion - New Keys
+    guardianInfoMissing: '监护人信息缺失',
+    phoneOrEmergencyContactRequired: '需要电话号码或紧急联系方式',
+    willUseEmergencyContact: '将使用紧急联系方式',
+    willBeUsedAsPhone: '将用作电话号码',
   },
   th: {
     // Common
@@ -2731,6 +2782,15 @@ const translations = {
     notifications: 'การแจ้งเตือน',
     about: 'เกี่ยวกับ',
     version: 'เวอร์ชัน',
+    profileSettings: 'การตั้งค่าโปรไฟล์',
+    profileEditComingSoon: 'ฟีเจอร์แก้ไขโปรไฟล์จะมาเร็วๆ นี้!',
+    parentAccount: 'บัญชีผู้ปกครอง',
+    accountId: 'รหัสบัญชี',
+    child: 'เด็ก',
+    children: 'เด็กๆ',
+    scrollToSeeMore: 'เลื่อนเพื่อดูเพิ่มเติม',
+    classNotAvailable: 'ข้อมูลชั้นเรียนไม่พร้อมใช้งาน',
+    emailNotAvailable: 'อีเมลไม่พร้อมใช้งาน',
 
     // Messages
     noData: 'ไม่มีข้อมูล',
@@ -3468,6 +3528,13 @@ const translations = {
     branchSelectionFailed: 'การเปลี่ยนสาขาล้มเหลว',
     multipleBranchesAvailable: 'มีหลายสาขาที่ใช้ได้',
     singleBranchOnly: 'เข้าถึงได้เฉพาะสาขาเดียว',
+
+    // Guardian Profile Completion - New Keys
+    guardianInfoMissing: 'ข้อมูลผู้ปกครองหายไป',
+    phoneOrEmergencyContactRequired:
+      'ต้องการหมายเลขโทรศัพท์หรือการติดต่อฉุกเฉิน',
+    willUseEmergencyContact: 'จะใช้การติดต่อฉุกเฉิน',
+    willBeUsedAsPhone: 'จะใช้เป็นหมายเลขโทรศัพท์',
   },
   km: {
     // Common
@@ -3524,6 +3591,15 @@ const translations = {
     notifications: 'ការជូនដំណឹង',
     about: 'អំពី',
     version: 'កំណែ',
+    profileSettings: 'ការកំណត់ប្រវត្តិរូប',
+    profileEditComingSoon: 'មុខងារកែសម្រួលប្រវត្តិរូបនឹងមកដល់ឆាប់ៗនេះ!',
+    parentAccount: 'គណនីឪពុកម្តាយ',
+    accountId: 'លេខសម្គាល់គណនី',
+    child: 'កូន',
+    children: 'កូនៗ',
+    scrollToSeeMore: 'រំកិលដើម្បីមើលបន្ថែម',
+    classNotAvailable: 'ព័ត៌មានថ្នាក់មិនមាន',
+    emailNotAvailable: 'អ៊ីមែលមិនមាន',
 
     // Messages
     noData: 'គ្មានទិន្នន័យ',
@@ -3863,6 +3939,12 @@ const translations = {
     branchSelectionFailed: 'ការប្តូរសាខាបរាជ័យ',
     multipleBranchesAvailable: 'មានសាខាជាច្រើនដែលអាចប្រើបាន',
     singleBranchOnly: 'អាចចូលប្រើបានតែសាខាតែមួយ',
+
+    // Guardian Profile Completion - New Keys
+    guardianInfoMissing: 'ព័ត៌មានអាណាព្យាបាលបាត់បង់',
+    phoneOrEmergencyContactRequired: 'ត្រូវការលេខទូរសព្ទ ឬ ការទាក់ទងបន្ទាន់',
+    willUseEmergencyContact: 'នឹងប្រើការទាក់ទងបន្ទាន់',
+    willBeUsedAsPhone: 'នឹងត្រូវបានប្រើជាទូរសព្ទ',
   },
 };
 

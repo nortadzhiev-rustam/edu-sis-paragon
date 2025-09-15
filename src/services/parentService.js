@@ -812,6 +812,114 @@ export const getChildHealthRecords = async (authCode, studentId) => {
 };
 
 /**
+ * Get child's library data using parent proxy access
+ * @param {string} authCode - Parent's authentication code
+ * @param {number} studentId - Child's student ID
+ * @returns {Promise<Object>} - Library data
+ */
+export const getChildLibrary = async (authCode, studentId) => {
+  try {
+    console.log('📚 PARENT SERVICE: Fetching child library data');
+    console.log('🔑 PARENT SERVICE: Auth code:', authCode);
+    console.log('👤 PARENT SERVICE: Student ID:', studentId);
+
+    if (USE_MOCK_DATA) {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      return {
+        success: true,
+        available_books: [
+          {
+            id: 1,
+            title: 'Advanced Mathematics: Calculus and Beyond',
+            author: 'Dr. Sarah Mitchell',
+            isbn: '978-0-123456-78-9',
+            category: 'Mathematics',
+            availability: 'Available',
+            location: 'Science Section - Shelf A3',
+          },
+          {
+            id: 2,
+            title: 'World History: Ancient Civilizations',
+            author: 'Prof. Michael Chen',
+            isbn: '978-0-987654-32-1',
+            category: 'History',
+            availability: 'Available',
+            location: 'History Section - Shelf B2',
+          },
+        ],
+        currently_borrowed: [
+          {
+            id: 3,
+            title: 'Introduction to Physics',
+            author: 'Dr. Emily Johnson',
+            isbn: '978-0-456789-01-2',
+            borrowed_date: '2025-09-01',
+            due_date: '2025-09-15',
+            days_remaining: 0,
+            status: 'borrowed',
+            category: 'Physics',
+            location: 'Science Section - Shelf A1',
+          },
+        ],
+        library_history: [
+          {
+            id: 4,
+            title: 'Chemistry Fundamentals',
+            author: 'Dr. Robert Wilson',
+            borrowed_date: '2025-08-15',
+            returned_date: '2025-08-29',
+            status: 'returned',
+            category: 'Chemistry',
+          },
+        ],
+        overdue_books: [],
+        library_statistics: {
+          borrowing_limit: 2,
+          currently_borrowed: 1,
+          remaining_limit: 1,
+          can_borrow_more: true,
+          total_borrowed_this_year: 11,
+          books_returned_on_time: 10,
+          overdue_count: 0,
+          total_fines: 0,
+        },
+        student_info: {
+          student_id: studentId,
+          student_name: 'Demo Student',
+          student_photo: '/data/studentFiles/demo/student_photo.jpg',
+          branch_id: 1,
+        },
+        summary: {
+          total_currently_borrowed: 1,
+          total_overdue: 0,
+          total_history_records: 14,
+          can_borrow_more: true,
+          borrowing_limit: 2,
+          remaining_limit: 1,
+        },
+        generated_at: new Date().toISOString(),
+      };
+    }
+
+    const url = buildApiUrl(Config.API_ENDPOINTS.PARENT_STUDENT_LIBRARY, {
+      authCode,
+      student_id: studentId,
+    });
+    const response = await makeApiRequest(url);
+
+    return response;
+  } catch (error) {
+    console.error(
+      '❌ PARENT SERVICE: Error fetching child library data:',
+      error
+    );
+    throw error;
+  }
+};
+
+/**
  * Get comprehensive child data (all academic information)
  * @param {string} authCode - Parent's authentication code
  * @param {number} studentId - Child's student ID
@@ -1262,6 +1370,7 @@ export default {
   getChildBpsProfile,
   getChildHealthInfo,
   getChildHealthRecords,
+  getChildLibrary,
   getChildComprehensiveData,
 
   // Calendar API methods

@@ -353,6 +353,11 @@ export const uploadGuardianPhoto = async (authCode, photo) => {
 export const completeGuardianProfile = async (authCode, profileData) => {
   try {
     console.log('👤 GUARDIAN SERVICE: Completing guardian profile');
+    console.log('👤 GUARDIAN SERVICE: Profile data:', profileData);
+    console.log(
+      '👤 GUARDIAN SERVICE: QR Token:',
+      profileData?.qr_token ? 'available' : 'not available'
+    );
 
     if (USE_MOCK_DATA) {
       // Simulate API delay
@@ -374,6 +379,10 @@ export const completeGuardianProfile = async (authCode, profileData) => {
             'https://school.com/storage/guardian_photos/guardian_123.jpg',
           profile_complete: true,
           pickup_card_id: 123,
+          qr_token: profileData.qr_token || 'a1b2c3d4e5f6g7h8', // Include qr_token in response
+          qr_url: profileData.qr_token
+            ? `https://school.com/pickup/qr/login?token=${profileData.qr_token}`
+            : 'https://school.com/pickup/qr/login?token=a1b2c3d4e5f6g7h8',
         },
       };
     }
@@ -426,6 +435,8 @@ export const guardianQrLogin = async (token, deviceInfo) => {
           emergency_contact: null,
           address: null,
           pickup_card_id: 123,
+          qr_token: 'a1b2c3d4e5f6g7h8', // Include qr_token in initial login response
+          qr_url: 'https://school.com/pickup/qr/login?token=a1b2c3d4e5f6g7h8',
         },
         child: {
           student_id: 104551,
@@ -549,6 +560,128 @@ export const updateGuardianProfile = async (authCode, profileData) => {
 };
 
 /**
+ * Deactivate Guardian (Soft Delete)
+ * Sets status = 0, keeps all data intact, removes mobile device access
+ * Reversible action that can be undone with reactivateGuardian
+ */
+export const deactivateGuardian = async (authCode, pickupCardId) => {
+  try {
+    console.log('🟡 GUARDIAN SERVICE: Deactivating guardian (soft delete)');
+    console.log('🟡 GUARDIAN SERVICE: Pickup card ID:', pickupCardId);
+
+    if (USE_MOCK_DATA) {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      return {
+        success: true,
+        message:
+          'Guardian has been deactivated successfully. They can no longer access the system but their data is preserved.',
+        action: 'deactivated',
+        reversible: true,
+      };
+    }
+
+    const url = buildApiUrl(Config.API_ENDPOINTS.DEACTIVATE_GUARDIAN);
+    const response = await makeApiRequest(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        authCode,
+        pickup_card_id: pickupCardId,
+      }),
+    });
+
+    return response;
+  } catch (error) {
+    console.error('❌ GUARDIAN SERVICE: Error deactivating guardian:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete Guardian (Hard Delete)
+ * Permanently removes record from database
+ * Cannot be undone - data is permanently lost
+ */
+export const deleteGuardian = async (authCode, pickupCardId) => {
+  try {
+    console.log('🔴 GUARDIAN SERVICE: Deleting guardian (hard delete)');
+    console.log('🔴 GUARDIAN SERVICE: Pickup card ID:', pickupCardId);
+
+    if (USE_MOCK_DATA) {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      return {
+        success: true,
+        message:
+          'Guardian has been permanently deleted. This action cannot be undone.',
+        action: 'deleted',
+        reversible: false,
+      };
+    }
+
+    const url = buildApiUrl(Config.API_ENDPOINTS.DELETE_GUARDIAN);
+    const response = await makeApiRequest(url, {
+      method: 'DELETE',
+      body: JSON.stringify({
+        authCode,
+        pickup_card_id: pickupCardId,
+      }),
+    });
+
+    return response;
+  } catch (error) {
+    console.error('❌ GUARDIAN SERVICE: Error deleting guardian:', error);
+    throw error;
+  }
+};
+
+/**
+ * Reactivate Guardian
+ * Restores status = 1 for previously deactivated guardians
+ * Only works on soft-deleted guardians (status = 0)
+ * Enforces 5-guardian limit per student
+ */
+export const reactivateGuardian = async (authCode, pickupCardId) => {
+  try {
+    console.log('🟢 GUARDIAN SERVICE: Reactivating guardian');
+    console.log('🟢 GUARDIAN SERVICE: Pickup card ID:', pickupCardId);
+
+    if (USE_MOCK_DATA) {
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      return {
+        success: true,
+        message:
+          'Guardian has been reactivated successfully. They can now access the system again.',
+        action: 'reactivated',
+        guardian_limit_check: {
+          current_active: 3,
+          limit: 5,
+          remaining: 2,
+        },
+      };
+    }
+
+    const url = buildApiUrl(Config.API_ENDPOINTS.REACTIVATE_GUARDIAN);
+    const response = await makeApiRequest(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        authCode,
+        pickup_card_id: pickupCardId,
+      }),
+    });
+
+    return response;
+  } catch (error) {
+    console.error('❌ GUARDIAN SERVICE: Error reactivating guardian:', error);
+    throw error;
+  }
+};
+
+/**
  * Guardian Service Export
  */
 export default {
@@ -564,4 +697,7 @@ export default {
   completeGuardianProfile,
   guardianQrLogin,
   updateGuardianProfile,
+  deactivateGuardian,
+  deleteGuardian,
+  reactivateGuardian,
 };

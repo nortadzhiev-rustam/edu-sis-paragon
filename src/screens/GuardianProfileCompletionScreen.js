@@ -46,6 +46,22 @@ const GuardianProfileCompletionScreen = ({ navigation, route }) => {
   const validateForm = () => {
     const newErrors = {};
 
+    // Check guardian basic info (should be available from route params)
+    if (!guardian?.name?.trim()) {
+      newErrors.guardian = t('guardianInfoMissing');
+    }
+
+    // Check if we have either guardian phone or emergency contact for phone field
+    const hasPhoneNumber =
+      guardian?.phone?.trim() || formData.emergency_contact?.trim();
+    if (!hasPhoneNumber) {
+      newErrors.emergency_contact = t('phoneOrEmergencyContactRequired');
+    }
+
+    if (!guardian?.relation?.trim()) {
+      newErrors.guardian = t('guardianInfoMissing');
+    }
+
     if (!formData.email.trim()) {
       newErrors.email = t('emailRequired');
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -182,11 +198,41 @@ const GuardianProfileCompletionScreen = ({ navigation, route }) => {
         }
       }
 
-      // Complete profile
-      const response = await guardianService.completeGuardianProfile(authCode, {
+      // Complete profile - include all required fields
+      // Use emergency contact as phone if guardian phone is not available
+      const phoneNumber =
+        guardian?.phone?.trim() || formData.emergency_contact?.trim();
+
+      console.log(
+        '📞 PROFILE COMPLETION: Phone logic - Guardian phone:',
+        guardian?.phone,
+        'Emergency contact:',
+        formData.emergency_contact,
+        'Using phone:',
+        phoneNumber
+      );
+
+      const profileSubmissionData = {
+        name: guardian?.name,
+        phone: phoneNumber,
+        relation: guardian?.relation,
+        qr_token: guardian?.qr_token, // Include qr_token in profile completion
         ...formData,
         photo_path: photoPath,
-      });
+      };
+
+      console.log(
+        '📝 PROFILE COMPLETION: Submitting data:',
+        profileSubmissionData
+      );
+      console.log(
+        '📝 PROFILE COMPLETION: QR Token being sent:',
+        guardian?.qr_token ? 'available' : 'not available'
+      );
+      const response = await guardianService.completeGuardianProfile(
+        authCode,
+        profileSubmissionData
+      );
 
       if (response.success) {
         Alert.alert(t('success'), t('profileCompletedSuccessfully'), [
@@ -312,11 +358,17 @@ const GuardianProfileCompletionScreen = ({ navigation, route }) => {
               {t('name')}: {guardian?.name}
             </Text>
             <Text style={styles.infoText}>
+              {t('phone')}: {guardian?.phone || t('willUseEmergencyContact')}
+            </Text>
+            <Text style={styles.infoText}>
               {t('relation')}: {guardian?.relation}
             </Text>
             <Text style={styles.infoText}>
               {t('childName')}: {child?.name}
             </Text>
+            {errors.guardian && (
+              <Text style={styles.errorText}>{errors.guardian}</Text>
+            )}
           </View>
 
           {/* Form */}
@@ -346,7 +398,9 @@ const GuardianProfileCompletionScreen = ({ navigation, route }) => {
             )}
 
             {renderFormField(
-              t('emergencyContact') + ' *',
+              t('emergencyContact') +
+                ' *' +
+                (!guardian?.phone ? ` (${t('willBeUsedAsPhone')})` : ''),
               'emergency_contact',
               t('enterEmergencyContact'),
               {

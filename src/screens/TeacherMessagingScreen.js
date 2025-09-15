@@ -90,7 +90,16 @@ const TeacherMessagingScreen = ({ navigation, route }) => {
   const fetchConversations = useCallback(async () => {
     try {
       setLoading(true);
+      console.log(
+        '🔍 TEACHER MESSAGING: Fetching conversations with authCode:',
+        authCode?.substring(0, 8) + '...'
+      );
+      console.log('🔍 TEACHER MESSAGING: Teacher name:', teacherName);
       const response = await getConversations(authCode);
+      console.log('🔍 TEACHER MESSAGING: Conversations response:', {
+        success: response.success,
+        conversationCount: response.data?.conversations?.length || 0,
+      });
       if (response.success && response.data) {
         setConversations(response.data.conversations || []);
       }
@@ -100,7 +109,7 @@ const TeacherMessagingScreen = ({ navigation, route }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authCode, teacherName]);
 
   // Handle refresh
   const handleRefresh = useCallback(async () => {

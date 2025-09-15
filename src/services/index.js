@@ -78,6 +78,7 @@ export {
   getChildBpsProfile,
   getChildHealthInfo,
   getChildHealthRecords,
+  getChildLibrary,
 } from './parentService';
 
 /**

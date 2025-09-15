@@ -163,19 +163,42 @@ const NotificationItem = ({ notification, onPress, userType }) => {
     }
   };
 
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffInHours = (now - date) / (1000 * 60 * 60);
+  const formatTimestamp = (notification) => {
+    // First, try to use the pre-calculated time_ago field if available
+    if (notification.time_ago) {
+      return notification.time_ago;
+    }
 
-    if (diffInHours < 1) {
-      const diffInMinutes = Math.floor((now - date) / (1000 * 60));
-      return `${diffInMinutes}m ago`;
-    } else if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)}h ago`;
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays}d ago`;
+    // Fallback to calculating from timestamp fields
+    let timestamp = notification.timestamp || notification.created_at;
+
+    if (!timestamp) {
+      return 'Unknown time';
+    }
+
+    try {
+      const date = new Date(timestamp);
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return 'Invalid date';
+      }
+
+      const now = new Date();
+      const diffInHours = (now - date) / (1000 * 60 * 60);
+
+      if (diffInHours < 1) {
+        const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+        return diffInMinutes <= 0 ? 'Just now' : `${diffInMinutes}m ago`;
+      } else if (diffInHours < 24) {
+        return `${Math.floor(diffInHours)}h ago`;
+      } else {
+        const diffInDays = Math.floor(diffInHours / 24);
+        return `${diffInDays}d ago`;
+      }
+    } catch (error) {
+      console.error('Error formatting timestamp:', error);
+      return 'Unknown time';
     }
   };
 
@@ -378,33 +401,121 @@ const NotificationItem = ({ notification, onPress, userType }) => {
         case 'message_received':
         case 'conversation':
         case 'chat': {
-          // Navigate to appropriate messaging screen based on user type
-          const messagingUserData = await AsyncStorage.getItem('userData');
-          if (messagingUserData) {
-            const user = JSON.parse(messagingUserData);
-            const userType = user.user_type || user.type;
+          console.log(
+            '📱 NOTIFICATION: Message navigation - userType prop:',
+            userType
+          );
 
-            if (userType === 'teacher' || userType === 'staff') {
-              navigation.navigate('TeacherMessagingScreen', {
-                authCode: navigationParams.authCode,
-                teacherName: navigationParams.studentName || user.name,
-              });
-            } else if (userType === 'student') {
-              navigation.navigate('StudentMessagingScreen', {
-                authCode: navigationParams.authCode,
-                studentName: navigationParams.studentName || user.name,
-              });
-            } else {
-              // Fallback for unknown user types
-              showNotificationAlert(
-                'Messaging',
-                'Please check your messages in the app.'
+          // First try to use the userType prop passed from parent component
+          let effectiveUserType = userType;
+          let userName = null;
+
+          // If no userType prop, fall back to AsyncStorage
+          if (!effectiveUserType) {
+            console.log(
+              '📱 NOTIFICATION: No userType prop, checking AsyncStorage...'
+            );
+            const messagingUserData = await AsyncStorage.getItem('userData');
+            if (messagingUserData) {
+              const user = JSON.parse(messagingUserData);
+              effectiveUserType = user.user_type || user.type;
+              userName = user.name;
+              console.log(
+                '📱 NOTIFICATION: Message navigation - userData userType:',
+                effectiveUserType
               );
+              console.log(
+                '📱 NOTIFICATION: Message navigation - userData:',
+                JSON.stringify(user, null, 2)
+              );
+            } else {
+              console.log('📱 NOTIFICATION: No userData found in AsyncStorage');
             }
           } else {
+            console.log(
+              '📱 NOTIFICATION: Using userType prop:',
+              effectiveUserType
+            );
+          }
+
+          console.log(
+            '📱 NOTIFICATION: Message navigation - effective userType:',
+            effectiveUserType
+          );
+          console.log(
+            '📱 NOTIFICATION: Message navigation - navigationParams:',
+            navigationParams
+          );
+
+          if (
+            effectiveUserType === 'teacher' ||
+            effectiveUserType === 'staff'
+          ) {
+            console.log(
+              '📱 NOTIFICATION: Navigating to TeacherMessagingScreen'
+            );
+
+            // For teachers, get the teacher's own authCode and name, not from the notification
+            let teacherAuthCode = null;
+            let teacherName = null;
+
+            try {
+              // Import getUserData function
+              const { getUserData } = require('../services/authService');
+
+              // Get teacher-specific data using the proper function
+              const teacherData = await getUserData('teacher', AsyncStorage);
+
+              if (teacherData && teacherData.userType === 'teacher') {
+                teacherAuthCode = teacherData.authCode || teacherData.auth_code;
+                teacherName = teacherData.name;
+                console.log(
+                  '📱 NOTIFICATION: Using teacher-specific data for navigation:',
+                  {
+                    teacherAuthCode: teacherAuthCode?.substring(0, 8) + '...',
+                    teacherName,
+                    userType: teacherData.userType,
+                  }
+                );
+              } else {
+                console.warn(
+                  '📱 NOTIFICATION: No valid teacher data found, using fallback'
+                );
+                // Fallback to notification params if teacher data not available
+                teacherAuthCode = navigationParams.authCode;
+                teacherName = navigationParams.studentName || userName;
+              }
+            } catch (error) {
+              console.error(
+                '📱 NOTIFICATION: Error getting teacher data:',
+                error
+              );
+              // Fallback to notification params if teacher data not available
+              teacherAuthCode = navigationParams.authCode;
+              teacherName = navigationParams.studentName || userName;
+            }
+
+            navigation.navigate('TeacherMessagingScreen', {
+              authCode: teacherAuthCode,
+              teacherName: teacherName,
+            });
+          } else if (effectiveUserType === 'student') {
+            console.log(
+              '📱 NOTIFICATION: Navigating to StudentMessagingScreen'
+            );
+            navigation.navigate('StudentMessagingScreen', {
+              authCode: navigationParams.authCode,
+              studentName: navigationParams.studentName || userName,
+            });
+          } else {
+            console.warn(
+              '📱 NOTIFICATION: Unknown or missing userType for messaging:',
+              effectiveUserType
+            );
+            // Fallback for unknown user types
             showNotificationAlert(
-              'Error',
-              'Unable to determine user type for messaging navigation.'
+              'Messaging',
+              'Please check your messages in the app.'
             );
           }
           break;
@@ -462,9 +573,7 @@ const NotificationItem = ({ notification, onPress, userType }) => {
             {notification.body}
           </Text>
 
-          <Text style={styles.timestamp}>
-            {formatTimestamp(notification.timestamp)}
-          </Text>
+          <Text style={styles.timestamp}>{formatTimestamp(notification)}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -542,8 +651,9 @@ NotificationItem.propTypes = {
     title: PropTypes.string.isRequired,
     body: PropTypes.string.isRequired,
     type: PropTypes.string.isRequired,
-    timestamp: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
-      .isRequired,
+    timestamp: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    created_at: PropTypes.string,
+    time_ago: PropTypes.string,
     read: PropTypes.bool.isRequired,
     studentAuthCode: PropTypes.string,
   }).isRequired,

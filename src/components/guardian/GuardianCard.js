@@ -10,6 +10,10 @@ import {
   faCar,
   faQrcode,
   faRotateRight,
+  faPause,
+  faTrash,
+  faPlay,
+  faExclamationTriangle,
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -18,6 +22,9 @@ const GuardianCard = ({
   guardian,
   onPress,
   onRotateQR,
+  onDeactivate,
+  onDelete,
+  onReactivate,
   showActions = true,
   showPickupAction = false,
   onPickupRequest,
@@ -41,6 +48,83 @@ const GuardianCard = ({
         onPress: () => onRotateQR(guardian.pickup_card_id),
       },
     ]);
+  };
+
+  const handleDeactivate = () => {
+    if (!onDeactivate) return;
+
+    Alert.alert(
+      'Deactivate Guardian',
+      `Are you sure you want to deactivate ${guardian.name}?\n\n🟡 This is a SOFT DELETE:\n• Guardian data will be preserved\n• Mobile access will be removed\n• Can be reactivated later\n• Reversible action`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Deactivate',
+          style: 'destructive',
+          onPress: () => onDeactivate(guardian.pickup_card_id),
+        },
+      ]
+    );
+  };
+
+  const handleDelete = () => {
+    if (!onDelete) return;
+
+    Alert.alert(
+      'Delete Guardian Permanently',
+      `⚠️ DANGER: This will PERMANENTLY DELETE ${guardian.name}!\n\n🔴 This is a HARD DELETE:\n• All guardian data will be lost forever\n• Mobile access will be removed\n• Cannot be undone\n• Irreversible action\n\nType "${guardian.name}" to confirm:`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'I understand - DELETE',
+          style: 'destructive',
+          onPress: () => {
+            // Show a second confirmation for hard delete
+            Alert.alert(
+              'Final Confirmation',
+              `This will PERMANENTLY DELETE ${guardian.name}. This action CANNOT be undone.\n\nAre you absolutely sure?`,
+              [
+                {
+                  text: 'Cancel',
+                  style: 'cancel',
+                },
+                {
+                  text: 'DELETE PERMANENTLY',
+                  style: 'destructive',
+                  onPress: () => onDelete(guardian.pickup_card_id),
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReactivate = () => {
+    if (!onReactivate) return;
+
+    Alert.alert(
+      'Reactivate Guardian',
+      `Reactivate ${guardian.name}?\n\n🟢 This will:\n• Restore guardian access\n• Allow mobile login\n• Check 5-guardian limit\n• Restore all permissions`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Reactivate',
+          style: 'default',
+          onPress: () => onReactivate(guardian.pickup_card_id),
+        },
+      ]
+    );
   };
 
   const formatRelation = (relation) => {
@@ -131,33 +215,85 @@ const GuardianCard = ({
       {/* Actions */}
       {showActions && (
         <View style={styles.actionsContainer}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.viewButton]}
-            onPress={() => onPress && onPress(guardian)}
-          >
-            <FontAwesomeIcon icon={faQrcode} size={12} color='#fff' />
-            <Text style={styles.actionButtonText}>{t('viewQr')}</Text>
-          </TouchableOpacity>
-
-          {showPickupAction && onPickupRequest && (
+          {/* Primary Actions Row */}
+          <View style={styles.primaryActionsRow}>
             <TouchableOpacity
-              style={[styles.actionButton, styles.pickupButton]}
-              onPress={onPickupRequest}
+              style={[styles.actionButton, styles.viewButton]}
+              onPress={() => onPress && onPress(guardian)}
             >
-              <FontAwesomeIcon icon={faCar} size={12} color='#fff' />
-              <Text style={styles.actionButtonText}>Pickup</Text>
+              <FontAwesomeIcon icon={faQrcode} size={12} color='#fff' />
+              <Text style={styles.actionButtonText}>{t('viewQr')}</Text>
             </TouchableOpacity>
-          )}
 
-          {onRotateQR && (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.rotateButton]}
-              onPress={handleRotateQR}
-            >
-              <FontAwesomeIcon icon={faRotateRight} size={12} color='#fff' />
-              <Text style={styles.actionButtonText}>{t('rotateQr')}</Text>
-            </TouchableOpacity>
-          )}
+            {showPickupAction && onPickupRequest && (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.pickupButton]}
+                onPress={onPickupRequest}
+              >
+                <FontAwesomeIcon icon={faCar} size={12} color='#fff' />
+                <Text style={styles.actionButtonText}>Pickup</Text>
+              </TouchableOpacity>
+            )}
+
+            {onRotateQR && (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.rotateButton]}
+                onPress={handleRotateQR}
+              >
+                <FontAwesomeIcon icon={faRotateRight} size={12} color='#fff' />
+                <Text style={styles.actionButtonText}>{t('rotateQr')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Lifecycle Management Actions Row */}
+          <View style={styles.lifecycleActionsRow}>
+            {guardian.status === 1 ? (
+              // Active guardian - show deactivate and delete options
+              <>
+                {onDeactivate && (
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.deactivateButton]}
+                    onPress={handleDeactivate}
+                  >
+                    <FontAwesomeIcon icon={faPause} size={12} color='#fff' />
+                    <Text style={styles.actionButtonText}>Deactivate</Text>
+                  </TouchableOpacity>
+                )}
+                {onDelete && (
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={handleDelete}
+                  >
+                    <FontAwesomeIcon icon={faTrash} size={12} color='#fff' />
+                    <Text style={styles.actionButtonText}>Delete</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            ) : (
+              // Inactive guardian - show reactivate and delete options
+              <>
+                {onReactivate && (
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.reactivateButton]}
+                    onPress={handleReactivate}
+                  >
+                    <FontAwesomeIcon icon={faPlay} size={12} color='#fff' />
+                    <Text style={styles.actionButtonText}>Reactivate</Text>
+                  </TouchableOpacity>
+                )}
+                {onDelete && (
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={handleDelete}
+                  >
+                    <FontAwesomeIcon icon={faTrash} size={12} color='#fff' />
+                    <Text style={styles.actionButtonText}>Delete</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
         </View>
       )}
     </TouchableOpacity>
@@ -260,9 +396,16 @@ const createStyles = (theme) =>
       marginBottom: 2,
     },
     actionsContainer: {
+      marginTop: 8,
+    },
+    primaryActionsRow: {
       flexDirection: 'row',
       gap: 8,
-      marginTop: 8,
+      marginBottom: 8,
+    },
+    lifecycleActionsRow: {
+      flexDirection: 'row',
+      gap: 8,
     },
     actionButton: {
       flex: 1,
@@ -282,6 +425,15 @@ const createStyles = (theme) =>
     },
     rotateButton: {
       backgroundColor: theme.colors.warning,
+    },
+    deactivateButton: {
+      backgroundColor: '#FF9500', // Orange for soft delete
+    },
+    deleteButton: {
+      backgroundColor: '#FF3B30', // Red for hard delete
+    },
+    reactivateButton: {
+      backgroundColor: '#34C759', // Green for reactivate
     },
     actionButtonText: {
       color: theme.colors.headerText,

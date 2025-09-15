@@ -13,6 +13,7 @@ import {
   getChildBpsProfile,
   getChildHealthInfo,
   getChildHealthRecords,
+  getChildLibrary,
   getParentCalendarData,
   getParentCalendarUpcoming,
   getParentCalendarPersonal,
@@ -418,6 +419,57 @@ export const extractProxyOptions = (navigationParams) => {
 };
 
 /**
+ * Adapter for Library Service
+ * Intercepts library requests and routes them through parent proxy if needed
+ */
+export const adaptLibraryService = (originalService) => {
+  return {
+    ...originalService,
+
+    /**
+     * Get library data - supports both student direct access and parent proxy
+     */
+    getLibraryData: async (authCode, options = {}) => {
+      try {
+        // Check if this is a parent proxy request
+        if (options.useParentProxy && options.studentId) {
+          console.log('🔄 LIBRARY ADAPTER: Using parent proxy access');
+          console.log('🔑 Parent Auth Code:', authCode);
+          console.log('👤 Student ID:', options.studentId);
+
+          const response = await getChildLibrary(authCode, options.studentId);
+
+          // Transform response to match expected format
+          return {
+            success: response.success,
+            available_books:
+              response.available_books || response.data?.available_books,
+            currently_borrowed:
+              response.currently_borrowed || response.data?.currently_borrowed,
+            library_history:
+              response.library_history || response.data?.library_history,
+            overdue_books:
+              response.overdue_books || response.data?.overdue_books,
+            library_statistics:
+              response.library_statistics || response.data?.library_statistics,
+            student_info: response.student_info || response.data?.student_info,
+            summary: response.summary || response.data?.summary,
+            generated_at: response.generated_at || response.data?.generated_at,
+            message: response.message,
+          };
+        } else {
+          console.log('📚 LIBRARY ADAPTER: Using direct student access');
+          return await originalService.getLibraryData(authCode, options);
+        }
+      } catch (error) {
+        console.error('❌ LIBRARY ADAPTER: Error:', error);
+        throw error;
+      }
+    },
+  };
+};
+
+/**
  * Generic adapter factory
  * Creates an adapter for any service that needs parent proxy support
  */
@@ -451,6 +503,7 @@ export default {
   adaptAssessmentService,
   adaptBehaviorService,
   adaptCalendarService,
+  adaptLibraryService,
   shouldUseParentProxy,
   extractProxyOptions,
   createServiceAdapter,

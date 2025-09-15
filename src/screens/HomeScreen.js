@@ -22,6 +22,7 @@ import {
   faQuestionCircle,
   faShareAlt,
   faCog,
+  faUserShield,
 } from '@fortawesome/free-solid-svg-icons';
 import {
   faFacebookF,
@@ -49,6 +50,7 @@ import {
   getValidatedStudentAccounts,
   validateAndSanitizeAllData,
 } from '../utils/dataValidation';
+import * as guardianStorageService from '../services/guardianStorageService';
 import {
   runHomescreenDiagnostics,
   generateUserFriendlyErrorMessage,
@@ -426,9 +428,32 @@ export default function HomeScreen({ navigation }) {
 
   const handleStudentParentGuardianPress = async () => {
     try {
-      console.log('👨‍👩‍👧‍👦 HOME: Checking for parent/student data...');
+      console.log('👨‍👩‍👧‍👦 HOME: Checking for Guardian/parent/student data...');
 
-      // Check for parent-specific data first (must be actual parent/student data, not teacher data)
+      // First, check for Guardian login state
+      console.log('🔍 HOME: Checking for Guardian login state first...');
+      const guardianData = await guardianStorageService.getStoredGuardianData();
+
+      if (guardianData) {
+        console.log(
+          '✅ HOME: Found Guardian login data, navigating to Guardian Dashboard'
+        );
+        console.log('✅ HOME: Guardian:', guardianData.guardian?.name);
+        console.log('✅ HOME: Child:', guardianData.child?.name);
+
+        navigation.navigate('GuardianDashboard', {
+          authCode: guardianData.authCode,
+          guardian: guardianData.guardian,
+          child: guardianData.child,
+        });
+        return; // Exit early - Guardian takes precedence
+      }
+
+      console.log(
+        '🔍 HOME: No Guardian login found, checking for parent/student data...'
+      );
+
+      // Check for parent-specific data (must be actual parent/student data, not teacher data)
       const parentData = await getUserData('parent', AsyncStorage);
       const studentData = await getUserData('student', AsyncStorage);
       const studentAccounts = await AsyncStorage.getItem('studentAccounts');
@@ -602,6 +627,37 @@ export default function HomeScreen({ navigation }) {
           { text: 'Cancel', style: 'cancel' },
         ]
       );
+    }
+  };
+
+  const handleGuardianPress = async () => {
+    try {
+      console.log(
+        '👨‍👩‍👧‍👦 HOME: Guardian button pressed, checking for existing login...'
+      );
+
+      // Check if Guardian is already logged in
+      const guardianData = await guardianStorageService.getStoredGuardianData();
+
+      if (guardianData) {
+        console.log(
+          '✅ HOME: Found existing Guardian login, navigating to Dashboard'
+        );
+        navigation.navigate('GuardianDashboard', {
+          authCode: guardianData.authCode,
+          guardian: guardianData.guardian,
+          child: guardianData.child,
+        });
+      } else {
+        console.log(
+          '🔄 HOME: No Guardian login found, navigating to Guardian Login'
+        );
+        navigation.navigate('GuardianLogin');
+      }
+    } catch (error) {
+      console.error('❌ HOME: Error in handleGuardianPress:', error);
+      // Fallback to Guardian Login screen
+      navigation.navigate('GuardianLogin');
     }
   };
 
@@ -851,9 +907,9 @@ export default function HomeScreen({ navigation }) {
                   color='#FF9500'
                 />
               </View>
-              <Text style={styles.roleText}>Student, Parent</Text>
-              <Text style={styles.roleDescription} numberOfLines={2}>
-                Access student grades, attendance, and parent features
+              <Text style={styles.roleText}>Student, Parent, Guardian</Text>
+              <Text style={styles.roleDescription} numberOfLines={1}>
+                Access student grades, attendance, parent and guardian features
               </Text>
             </TouchableOpacity>
           </View>
@@ -956,6 +1012,8 @@ export default function HomeScreen({ navigation }) {
                 {t('faq')}
               </Text>
             </TouchableOpacity>
+
+            
           </View>
 
           {/* Social Media Section */}
