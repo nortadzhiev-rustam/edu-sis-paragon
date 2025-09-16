@@ -84,6 +84,11 @@ import WorkspaceScreen from './src/screens/WorkspaceScreen';
 import StudentReportsScreen from './src/screens/StudentReportsScreen';
 import StaffReportsScreen from './src/screens/StaffReportsScreen';
 import ReportDetailScreen from './src/screens/ReportDetailScreen';
+
+// Profile Edit Screens
+import TeacherProfileEditScreen from './src/screens/TeacherProfileEditScreen';
+import StudentProfileEditScreen from './src/screens/StudentProfileEditScreen';
+import ParentProfileEditScreen from './src/screens/ParentProfileEditScreen';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { LanguageProvider } from './src/contexts/LanguageContext';
 import { NotificationProvider } from './src/contexts/NotificationContext';
@@ -338,6 +343,10 @@ export default function App() {
                       component={TeacherProfile}
                     />
                     <Stack.Screen
+                      name='TeacherProfileEdit'
+                      component={TeacherProfileEditScreen}
+                    />
+                    <Stack.Screen
                       name='TeacherTimetable'
                       component={TeacherTimetable}
                     />
@@ -407,12 +416,20 @@ export default function App() {
                       component={ParentProfileScreen}
                     />
                     <Stack.Screen
+                      name='ParentProfileEdit'
+                      component={ParentProfileEditScreen}
+                    />
+                    <Stack.Screen
                       name='StudentScreen'
                       component={StudentScreen}
                     />
                     <Stack.Screen
                       name='StudentProfile'
                       component={StudentProfileScreen}
+                    />
+                    <Stack.Screen
+                      name='StudentProfileEdit'
+                      component={StudentProfileEditScreen}
                     />
                     <Stack.Screen
                       name='TimetableScreen'

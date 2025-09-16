@@ -11,6 +11,7 @@ import { Config, buildApiUrl } from '../config/env';
 const mockParentData = {
   parent_id: 106890,
   parent_name: 'John Parent',
+  parent_photo: '/data/parentFiles/parent_106890.jpg', // Add parent photo for testing
   auth_code: 'fc7e72c3d19cccc4ec1482aa3f104b9bbb',
   user_type: 'parent',
   children: [

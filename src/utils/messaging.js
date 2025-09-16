@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Platform, Linking } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import { registerDeviceToken } from '../services/deviceService';
 
 // Navigation reference for programmatic navigation
 let navigationRef = null;
@@ -256,10 +257,13 @@ export async function getDeviceToken() {
     console.log('🔍 DEVICE CHECK: Is real device:', isRealDevice);
     if (!isRealDevice) {
       console.warn(
-        '⚠️ EMULATOR DETECTED: FCM tokens may not work properly on emulators'
+        '⚠️ SIMULATOR DETECTED: APNS tokens will not work on iOS simulators'
       );
       console.warn(
-        '💡 RECOMMENDATION: Test on a real Android device for accurate results'
+        '💡 RECOMMENDATION: Test push notifications on a real iOS/Android device'
+      );
+      console.warn(
+        '🧪 SIMULATOR: You can test local notifications and UI handling'
       );
     }
 
@@ -1135,6 +1139,46 @@ export async function handleNotificationNavigation(remoteMessage) {
     }
   } catch (error) {
     console.error('Error handling notification navigation:', error);
+  }
+}
+
+// Development helper for testing notifications on simulators
+export async function testNotificationOnSimulator(testData = {}) {
+  try {
+    if (Device.isDevice) {
+      console.log('📱 TEST: Running on real device, use actual APNS instead');
+      return { success: false, message: 'Use real APNS on physical device' };
+    }
+
+    console.log('🧪 TEST: Simulating notification on simulator...');
+
+    const mockNotification = {
+      title: testData.title || 'Test Notification',
+      body: testData.body || 'This is a test notification for simulator',
+      data: testData.data || { type: 'test', source: 'simulator' },
+      sound: 'default',
+    };
+
+    // Show local notification
+    await Notifications.scheduleNotificationAsync({
+      content: mockNotification,
+      trigger: null, // Show immediately
+    });
+
+    // Store in notification history
+    const mockRemoteMessage = {
+      notification: mockNotification,
+      data: mockNotification.data,
+      sentTime: Date.now(),
+    };
+
+    await storeNotificationInHistory(mockRemoteMessage);
+
+    console.log('✅ TEST: Simulator notification sent successfully');
+    return { success: true, message: 'Test notification sent' };
+  } catch (error) {
+    console.error('❌ TEST: Error sending simulator notification:', error);
+    return { success: false, error: error.message };
   }
 }
 

@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faEdit } from '@fortawesome/free-solid-svg-icons';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getResponsiveHeaderFontSize } from '../utils/commonStyles';
@@ -85,6 +85,10 @@ export default function StudentProfileScreen({ route, navigation }) {
     }
   };
 
+  const handleEditProfile = () => {
+    navigation.navigate('StudentProfileEdit');
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Compact Header */}
@@ -144,6 +148,22 @@ export default function StudentProfileScreen({ route, navigation }) {
                 {student.academic_info.branch_name}
               </Text>
             )}
+
+            {/* Edit Profile Button */}
+            <TouchableOpacity
+              style={styles.editProfileButton}
+              onPress={handleEditProfile}
+              activeOpacity={0.7}
+            >
+              <FontAwesomeIcon
+                icon={faEdit}
+                size={14}
+                color={theme.colors.primary}
+              />
+              <Text style={styles.editProfileText}>
+                {t('editProfile') || 'Edit Profile'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -321,6 +341,22 @@ const createStyles = (theme, fontSizes) =>
       marginBottom: 4,
     },
     subText: { fontSize: fontSizes.body, color: theme.colors.textSecondary },
+    editProfileButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.primary + '15',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      marginTop: 8,
+      alignSelf: 'flex-start',
+    },
+    editProfileText: {
+      fontSize: fontSizes.small,
+      color: theme.colors.primary,
+      fontWeight: '600',
+      marginLeft: 4,
+    },
 
     section: {
       backgroundColor: theme.colors.surface,

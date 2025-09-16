@@ -1402,11 +1402,14 @@ export default function TeacherScreen({ route, navigation }) {
           {/* Teacher Info Section */}
           <View style={styles.teacherSection}>
             <View style={styles.teacherAvatar}>
-              {userData.photo ? (
+              {userData.photo || userData.profile_photo ? (
                 <Image
-                  source={{ uri: userData.photo }}
+                  source={{ uri: userData.photo || userData.profile_photo }}
                   style={styles.avatarImage}
                   resizeMode='cover'
+                  onError={(error) => {
+                    console.log('❌ TEACHER SCREEN: Image load error:', error);
+                  }}
                 />
               ) : (
                 <FontAwesomeIcon

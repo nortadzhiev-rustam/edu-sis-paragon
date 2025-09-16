@@ -101,6 +101,13 @@ export const Config = {
     GET_CONTACTS_DATA: '/contacts-data/',
     GET_FAQ_DATA: '/faq-data/',
 
+    // Profile API Endpoints
+    GET_PROFILE: '/profile/',
+    UPDATE_PROFILE: '/profile/update',
+    UPLOAD_PROFILE_PHOTO: '/profile/upload-photo',
+    CHANGE_PASSWORD: '/profile/change-password',
+    GET_PROFILE_COMPLETENESS: '/profile/completeness',
+
     // Guardian Pickup API Endpoints
     CREATE_GUARDIAN: '/pickup/guardians/create',
     LIST_GUARDIANS: '/pickup/guardians/list',

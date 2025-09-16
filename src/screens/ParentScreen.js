@@ -598,6 +598,20 @@ export default function ParentScreen({ navigation }) {
       }
 
       if (parsedUserData) {
+        // Debug logging to see what data we're setting
+        console.log(
+          '🖼️ PARENT: Setting currentUserData with keys:',
+          Object.keys(parsedUserData)
+        );
+        console.log('🖼️ PARENT: Photo fields in parsedUserData:', {
+          photo: parsedUserData.photo,
+          parent_photo: parsedUserData.parent_photo,
+          user_photo: parsedUserData.user_photo,
+          parent_info: parsedUserData.parent_info
+            ? Object.keys(parsedUserData.parent_info)
+            : 'no parent_info',
+        });
+
         setCurrentUserData(parsedUserData); // Set current user data for demo mode indicator
 
         // Check if we have teacher data but no parent/student data
@@ -840,6 +854,54 @@ export default function ParentScreen({ navigation }) {
 
   // Student cleanup is now handled by the logoutService
 
+  // Debug function to help troubleshoot parent photo issue
+  const debugParentData = async () => {
+    try {
+      console.log('🔍 DEBUG: Checking all stored parent data...');
+
+      // Check all possible storage keys
+      const parentData = await getUserData('parent', AsyncStorage);
+      const studentData = await getUserData('student', AsyncStorage);
+      const genericUserData = await AsyncStorage.getItem('userData');
+
+      console.log('🔍 DEBUG: Parent data:', parentData);
+      console.log('🔍 DEBUG: Student data:', studentData);
+      console.log(
+        '🔍 DEBUG: Generic userData:',
+        genericUserData ? JSON.parse(genericUserData) : null
+      );
+      console.log('🔍 DEBUG: Current currentUserData:', currentUserData);
+
+      // Check if there's any photo data anywhere
+      const allPhotoFields = {
+        'parentData.photo': parentData?.photo,
+        'parentData.parent_photo': parentData?.parent_photo,
+        'parentData.user_photo': parentData?.user_photo,
+        'studentData.photo': studentData?.photo,
+        'studentData.parent_photo': studentData?.parent_photo,
+        'currentUserData.photo': currentUserData?.photo,
+        'currentUserData.parent_photo': currentUserData?.parent_photo,
+        'currentUserData.parent_info.parent_photo':
+          currentUserData?.parent_info?.parent_photo,
+      };
+
+      console.log('🖼️ DEBUG: All photo fields:', allPhotoFields);
+
+      Alert.alert(
+        'Debug Info',
+        `Check console for detailed parent data information. Photo fields found: ${
+          Object.entries(allPhotoFields)
+            .filter(([key, value]) => value)
+            .map(([key]) => key)
+            .join(', ') || 'None'
+        }`
+      );
+    } catch (error) {
+      console.error('❌ DEBUG: Error checking parent data:', error);
+      Alert.alert('Debug Error', error.message);
+    }
+  };
+
   const handleDeleteStudent = (studentToDelete) => {
     Alert.alert(
       t('deleteStudent'),
@@ -910,12 +972,30 @@ export default function ParentScreen({ navigation }) {
 
     const parentName =
       currentUserData?.name || currentUserData?.user_name || 'Parent';
-    const parentPhoto = currentUserData?.photo || currentUserData?.parent_photo;
+
+    // Check multiple possible photo field names and log for debugging
+    const parentPhoto =
+      currentUserData?.photo ||
+      currentUserData?.parent_photo ||
+      currentUserData?.parent_info?.parent_photo ||
+      currentUserData?.user_photo;
+
+    // Debug logging to help identify the issue
+    console.log('🖼️ PARENT PROFILE: Photo debug info:', {
+      hasCurrentUserData: !!currentUserData,
+      photo: currentUserData?.photo,
+      parent_photo: currentUserData?.parent_photo,
+      parent_info_photo: currentUserData?.parent_info?.parent_photo,
+      user_photo: currentUserData?.user_photo,
+      finalParentPhoto: parentPhoto,
+      currentUserDataKeys: currentUserData ? Object.keys(currentUserData) : [],
+    });
 
     return (
       <TouchableOpacity
         style={styles.parentProfileSection}
         onPress={() => navigation.navigate('ParentProfile')}
+        onLongPress={debugParentData} // Long press to debug parent data
         activeOpacity={0.7}
       >
         <View style={styles.parentProfileCard}>
@@ -929,6 +1009,21 @@ export default function ParentScreen({ navigation }) {
                 }}
                 style={styles.parentAvatar}
                 resizeMode='cover'
+                onError={(error) => {
+                  console.log(
+                    '❌ PARENT PROFILE: Image load error:',
+                    error.nativeEvent.error
+                  );
+                  console.log(
+                    '🔗 PARENT PROFILE: Failed image URL:',
+                    parentPhoto.startsWith('http')
+                      ? parentPhoto
+                      : `${Config.API_DOMAIN}${parentPhoto}`
+                  );
+                }}
+                onLoad={() => {
+                  console.log('✅ PARENT PROFILE: Image loaded successfully');
+                }}
               />
             ) : (
               <View style={styles.parentAvatarPlaceholder}>
@@ -943,6 +1038,7 @@ export default function ParentScreen({ navigation }) {
 
           <View style={styles.parentInfo}>
             <Text style={styles.parentName}>{parentName}</Text>
+            <Text style={styles.parentEmail}>Email: {currentUserData?.parent_info.email || currentUserData?.parent_info.parent_email}</Text>
             <Text style={styles.parentRole}>{t('tapToViewProfile')}</Text>
           </View>
 
@@ -2159,6 +2255,11 @@ const createStyles = (theme, fontSizes) =>
     iPadLandscapeMenuItemText: {
       fontSize: Math.max(fontSizes.bodySmall - 3, 9),
       marginBottom: 1,
+    },
+    parentEmail:{
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
     },
     // Tablet landscape-specific menu item text
     tabletLandscapeMenuItemText: {

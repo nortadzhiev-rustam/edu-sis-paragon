@@ -493,7 +493,8 @@ export const teacherLogin = async (username, password, deviceToken) => {
           authCode: authCode,
           userType: 'teacher', // Force to 'teacher' for teacher login (LoginScreen expects this)
           mobile_phone: data.mobile_phone,
-          photo: data.photo,
+          photo: data.photo || data.teacher_photo || data.user_photo,
+          teacher_photo: data.teacher_photo, // Keep original field for reference
 
           // Staff-specific information
           is_teacher: true,
@@ -832,7 +833,8 @@ export const studentLogin = async (username, password, deviceToken) => {
           authCode: data.auth_code,
           userType: 'student', // For backward compatibility with existing code
           mobile_phone: data.mobile_phone,
-          photo: data.photo,
+          photo: data.photo || data.student_photo || data.user_photo,
+          student_photo: data.student_photo, // Keep original field for reference
 
           // Student-specific information
           is_student: true,
@@ -1072,7 +1074,9 @@ export const unifiedLogin = async (
           authCode: data.auth_code,
           userType: userType,
           mobile_phone: data.mobile_phone,
-          photo: data.photo,
+          photo: data.photo || data.parent_photo || data.user_photo,
+          parent_photo: data.parent_info.parent_photo, // Keep original field for reference
+          parent_info: data.parent_info, // Keep original field for reference
 
           // Branch information
           branch: data.branch,

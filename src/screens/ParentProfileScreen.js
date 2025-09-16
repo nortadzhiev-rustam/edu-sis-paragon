@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
-  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +23,8 @@ import {
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { createMediumShadow } from '../utils/commonStyles';
+import { Config } from '../config/env';
+import { getUserData } from '../services/authService';
 
 const ParentProfileScreen = ({ navigation }) => {
   const { theme } = useTheme();
@@ -40,33 +41,101 @@ const ParentProfileScreen = ({ navigation }) => {
 
   const loadParentData = async () => {
     try {
-      const userData = await AsyncStorage.getItem('currentUserData');
-      if (userData) {
-        setCurrentUserData(JSON.parse(userData));
+      console.log('🔍 PARENT PROFILE SCREEN: Loading parent data...');
+
+      // Use the same logic as ParentScreen to load user data
+      const parentData = await getUserData('parent', AsyncStorage);
+      const studentData = await getUserData('student', AsyncStorage);
+
+      console.log('🔍 PARENT PROFILE SCREEN: Data check:', {
+        hasParentData: !!parentData,
+        hasStudentData: !!studentData,
+        parentUserType: parentData?.userType,
+        studentUserType: studentData?.userType,
+      });
+
+      // Use parent data if available, otherwise student data, otherwise fallback to generic
+      let parsedUserData = null;
+      if (parentData && parentData.userType === 'parent') {
+        parsedUserData = parentData;
+        console.log('✅ PARENT PROFILE SCREEN: Using parent-specific data');
+      } else if (studentData && studentData.userType === 'student') {
+        parsedUserData = studentData;
+        console.log('✅ PARENT PROFILE SCREEN: Using student-specific data');
+      } else {
+        // Fallback to generic userData for backward compatibility
+        const userData = await AsyncStorage.getItem('userData');
+        if (userData) {
+          parsedUserData = JSON.parse(userData);
+          console.log(
+            '⚠️ PARENT PROFILE SCREEN: Using generic userData as fallback:',
+            parsedUserData.userType
+          );
+        }
+      }
+
+      if (parsedUserData) {
+        // Debug logging to see what data we're setting
+        console.log(
+          '🖼️ PARENT PROFILE SCREEN: Setting currentUserData with keys:',
+          Object.keys(parsedUserData)
+        );
+        console.log(
+          '🖼️ PARENT PROFILE SCREEN: Photo fields in parsedUserData:',
+          {
+            photo: parsedUserData.photo,
+            parent_photo: parsedUserData.parent_photo,
+            user_photo: parsedUserData.user_photo,
+            parent_info: parsedUserData.parent_info
+              ? Object.keys(parsedUserData.parent_info)
+              : 'no parent_info',
+          }
+        );
+
+        setCurrentUserData(parsedUserData);
+      } else {
+        console.log('❌ PARENT PROFILE SCREEN: No user data found');
       }
     } catch (error) {
-      console.error('Error loading parent data:', error);
+      console.error(
+        '❌ PARENT PROFILE SCREEN: Error loading parent data:',
+        error
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const handleEditProfile = () => {
-    Alert.alert(t('profileSettings'), t('profileEditComingSoon'), [
-      { text: t('ok'), style: 'default' },
-    ]);
+    navigation.navigate('ParentProfileEdit');
   };
 
   const renderProfileHeader = () => {
     const parentName =
       currentUserData?.name || currentUserData?.user_name || 'Parent';
-    const parentPhoto = currentUserData?.photo || currentUserData?.parent_photo;
+
+    // Check multiple possible photo field names to match ParentScreen.js
+    const parentPhoto =
+      currentUserData?.photo ||
+      currentUserData?.parent_photo ||
+      currentUserData?.parent_info?.parent_photo ||
+      currentUserData?.user_photo;
+
+    // Debug logging to help identify the issue
+    console.log('🖼️ PARENT PROFILE SCREEN: Photo debug info:', {
+      hasCurrentUserData: !!currentUserData,
+      photo: currentUserData?.photo,
+      parent_photo: currentUserData?.parent_photo,
+      parent_info_photo: currentUserData?.parent_info?.parent_photo,
+      user_photo: currentUserData?.user_photo,
+      finalParentPhoto: parentPhoto,
+      currentUserDataKeys: currentUserData ? Object.keys(currentUserData) : [],
+    });
+
     const photoUri = parentPhoto?.startsWith('http')
       ? parentPhoto
       : parentPhoto
-      ? `${
-          process.env.EXPO_PUBLIC_API_URL || 'https://your-domain.com'
-        }${parentPhoto}`
+      ? `${Config.API_DOMAIN}${parentPhoto}`
       : null;
 
     return (
@@ -77,6 +146,21 @@ const ParentProfileScreen = ({ navigation }) => {
               source={{ uri: photoUri }}
               style={styles.avatar}
               resizeMode='cover'
+              onError={(error) => {
+                console.log(
+                  '❌ PARENT PROFILE SCREEN: Image load error:',
+                  error.nativeEvent.error
+                );
+                console.log(
+                  '🔗 PARENT PROFILE SCREEN: Failed image URL:',
+                  photoUri
+                );
+              }}
+              onLoad={() => {
+                console.log(
+                  '✅ PARENT PROFILE SCREEN: Image loaded successfully'
+                );
+              }}
             />
           ) : (
             <View style={styles.avatarPlaceholder}>

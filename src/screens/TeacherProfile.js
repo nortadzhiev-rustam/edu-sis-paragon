@@ -153,6 +153,10 @@ export default function TeacherProfile({ route, navigation }) {
     ]);
   };
 
+  const handleEditProfile = () => {
+    navigation.navigate('TeacherProfileEdit');
+  };
+
   const formatUserPosition = (userData) => {
     // Prioritize position-related fields over roles
     if (userData.profession_position) {
@@ -311,11 +315,17 @@ export default function TeacherProfile({ route, navigation }) {
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
-            {userData.photo ? (
+            {userData.photo || userData.profile_photo ? (
               <Image
-                source={{ uri: userData.photo }}
+                source={{ uri: userData.photo || userData.profile_photo }}
                 style={styles.avatar}
                 resizeMode='cover'
+                onError={(error) => {
+                  console.log('❌ TEACHER PROFILE: Image load error:', error);
+                }}
+                onLoad={() => {
+                  console.log('✅ TEACHER PROFILE: Image loaded successfully');
+                }}
               />
             ) : (
               <View style={styles.avatarPlaceholder}>
@@ -330,6 +340,22 @@ export default function TeacherProfile({ route, navigation }) {
           <Text style={styles.userName}>{userData.name || 'Teacher'}</Text>
           <Text style={styles.userRole}>{formatUserPosition(userData)}</Text>
           <Text style={styles.userId}>ID: {userData.id || 'N/A'}</Text>
+
+          {/* Edit Profile Button */}
+          <TouchableOpacity
+            style={styles.editProfileButton}
+            onPress={handleEditProfile}
+            activeOpacity={0.7}
+          >
+            <FontAwesomeIcon
+              icon={faEdit}
+              size={16}
+              color={theme.colors.primary}
+            />
+            <Text style={styles.editProfileText}>
+              {t('editProfile') || 'Edit Profile'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Profile Information */}
@@ -609,6 +635,22 @@ const createStyles = (theme, fontSizes) =>
       fontSize: fontSizes.profileId,
       color: theme.colors.textSecondary,
       textAlign: 'center',
+    },
+    editProfileButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.primary + '15',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      marginTop: 16,
+      alignSelf: 'center',
+    },
+    editProfileText: {
+      fontSize: fontSizes.small,
+      color: theme.colors.primary,
+      fontWeight: '600',
+      marginLeft: 6,
     },
     profileSection: {
       backgroundColor: theme.colors.surface,
