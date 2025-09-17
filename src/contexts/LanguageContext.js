@@ -276,6 +276,10 @@ const translations = {
     contactUs: 'Contact Us',
     faq: 'FAQ',
 
+    // Swipe Hints
+    swipeDownToShow: 'Swipe down to see profile',
+    swipeUpToHide: 'Swipe up to hide profile',
+
     // Settings Screen
     darkThemeEnabled: 'Dark theme enabled',
     lightThemeEnabled: 'Light theme enabled',
@@ -1322,6 +1326,10 @@ const translations = {
     contactUs: 'ဆက်သွယ်ရန်',
     faq: 'မေးခွန်းများ',
 
+    // Swipe Hints
+    swipeDownToShow: 'ပရိုဖိုင်ကြည့်ရန် အောက်သို့ပွတ်ပါ',
+    swipeUpToHide: 'ပရိုဖိုင်ဖျောက်ရန် အပေါ်သို့ပွတ်ပါ',
+
     // Settings Screen
     darkThemeEnabled: 'မှောင်မိုက်အပြင်အဆင် ဖွင့်ထားသည်',
     lightThemeEnabled: 'အလင်းအပြင်အဆင် ဖွင့်ထားသည်',
@@ -2150,6 +2158,10 @@ const translations = {
     contactUs: '联系我们',
     faq: '常见问题',
 
+    // Swipe Hints
+    swipeDownToShow: '向下滑动查看个人资料',
+    swipeUpToHide: '向上滑动隐藏个人资料',
+
     // Settings Screen
     darkThemeEnabled: '深色主题已启用',
     lightThemeEnabled: '浅色主题已启用',
@@ -2941,6 +2953,10 @@ const translations = {
     aboutUs: 'เกี่ยวกับเรา',
     contactUs: 'ติดต่อเรา',
     faq: 'คำถามที่พบบ่อย',
+
+    // Swipe Hints
+    swipeDownToShow: 'เลื่อนลงเพื่อดูโปรไฟล์',
+    swipeUpToHide: 'เลื่อนขึ้นเพื่อซ่อนโปรไฟล์',
 
     // Settings Screen
     darkThemeEnabled: 'เปิดใช้งานธีมมืดแล้ว',
@@ -3759,6 +3775,10 @@ const translations = {
     aboutUs: 'អំពីយើង',
     contactUs: 'ទាក់ទងយើង',
     faq: 'សំណួរញឹកញាប់',
+
+    // Swipe Hints
+    swipeDownToShow: 'អូសចុះក្រោមដើម្បីមើលប្រវត្តិរូប',
+    swipeUpToHide: 'អូសឡើងលើដើម្បីលាក់ប្រវត្តិរូប',
 
     // Settings Screen
     darkThemeEnabled: 'បានបើកស្បែកងងឹត',

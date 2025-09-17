@@ -1075,7 +1075,7 @@ export const unifiedLogin = async (
           userType: userType,
           mobile_phone: data.mobile_phone,
           photo: data.photo || data.parent_photo || data.user_photo,
-          parent_photo: data.parent_info.parent_photo, // Keep original field for reference
+          // parent_photo: data.parent_info.parent_photo, // Keep original field for reference
           parent_info: data.parent_info, // Keep original field for reference
 
           // Branch information

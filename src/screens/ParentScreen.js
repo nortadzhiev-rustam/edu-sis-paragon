@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -39,6 +40,8 @@ import {
   faArrowLeft,
   faUser,
   faEdit,
+  faChevronDown,
+  faChevronUp,
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -201,6 +204,15 @@ export default function ParentScreen({ navigation }) {
   const notificationsLoadedRef = React.useRef(new Set());
   const animatedValues = React.useRef([]).current;
 
+  // Parent profile animation states
+  const [isProfileVisible, setIsProfileVisible] = useState(false);
+  const [showInitialHint, setShowInitialHint] = useState(true);
+  const profileTranslateY = useRef(new Animated.Value(-120)).current; // Start hidden (negative value)
+  const profileOpacity = useRef(new Animated.Value(0)).current;
+  const hintOpacity = useRef(new Animated.Value(1)).current; // Start visible when profile is hidden
+  const hintArrowBounce = useRef(new Animated.Value(0)).current; // For bouncing arrow animation
+  const contentTranslateY = useRef(new Animated.Value(-80)).current; // Start moved up when profile is hidden (affects all content)
+
   // Parent notifications hook
   const { selectStudent, refreshAllStudents } = useParentNotifications();
 
@@ -273,8 +285,45 @@ export default function ParentScreen({ navigation }) {
       loadStudents();
     });
 
+    // Start initial hint animation after component mounts
+    startInitialHintAnimation();
+
     return unsubscribe;
   }, [navigation]);
+
+  // Initial hint animation that shows bouncing and then hides
+  const startInitialHintAnimation = () => {
+    // Wait a bit for the screen to settle, then start bouncing animation
+    setTimeout(() => {
+      // Bouncing arrow animation for initial hint
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(hintArrowBounce, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(hintArrowBounce, {
+            toValue: 0,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ]),
+        { iterations: 3 } // Bounce 3 times
+      ).start(() => {
+        // After bouncing, hide the hint
+        setTimeout(() => {
+          Animated.timing(hintOpacity, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }).start(() => {
+            setShowInitialHint(false);
+          });
+        }, 1000); // Wait 1 second after bouncing, then hide
+      });
+    }, 1000); // Wait 1 second after component mount
+  };
 
   // Restore selected student when students are loaded
   useEffect(() => {
@@ -854,6 +903,75 @@ export default function ParentScreen({ navigation }) {
 
   // Student cleanup is now handled by the logoutService
 
+  // Animation functions for parent profile
+  const toggleProfileVisibility = () => {
+    const toValue = isProfileVisible ? -120 : 0;
+    const opacityValue = isProfileVisible ? 0 : 1;
+    const hintOpacityValue = isProfileVisible ? 0 : 1; // Show hint when profile is hidden
+    const contentToValue = isProfileVisible ? -80 : 0; // Move entire content up when profile is hidden, down when shown
+
+    setIsProfileVisible(!isProfileVisible);
+    setShowInitialHint(false); // Disable initial hint once user interacts
+
+    Animated.parallel([
+      // Profile animation
+      Animated.spring(profileTranslateY, {
+        toValue,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+      }),
+      Animated.timing(profileOpacity, {
+        toValue: opacityValue,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      // Hint animation
+      Animated.timing(hintOpacity, {
+        toValue: hintOpacityValue,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      // Entire content animation (children + menu sections)
+      Animated.spring(contentTranslateY, {
+        toValue: contentToValue,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 8,
+      }),
+    ]).start();
+  };
+
+  // Handle pan gesture for swipe to reveal/hide profile
+  const onGestureEvent = Animated.event(
+    [{ nativeEvent: { translationY: profileTranslateY } }],
+    { useNativeDriver: true }
+  );
+
+  const onHandlerStateChange = (event) => {
+    if (event.nativeEvent.state === State.END) {
+      const { translationY, velocityY } = event.nativeEvent;
+
+      // Determine if we should show or hide based on gesture
+      const shouldShow = translationY > 30 || velocityY > 500;
+      const shouldHide = translationY < -30 || velocityY < -500;
+
+      if (shouldShow && !isProfileVisible) {
+        toggleProfileVisibility();
+      } else if (shouldHide && isProfileVisible) {
+        toggleProfileVisibility();
+      } else {
+        // Snap back to current state
+        Animated.spring(profileTranslateY, {
+          toValue: isProfileVisible ? 0 : -120,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+        }).start();
+      }
+    }
+  };
+
   // Debug function to help troubleshoot parent photo issue
   const debugParentData = async () => {
     try {
@@ -992,63 +1110,92 @@ export default function ParentScreen({ navigation }) {
     });
 
     return (
-      <TouchableOpacity
-        style={styles.parentProfileSection}
-        onPress={() => navigation.navigate('ParentProfile')}
-        onLongPress={debugParentData} // Long press to debug parent data
-        activeOpacity={0.7}
+      <Animated.View
+        style={[
+          styles.parentProfileContainer,
+          {
+            height: isProfileVisible ? 'auto' : 0, // Collapse height when hidden
+            overflow: 'hidden', // Hide content when collapsed
+            marginTop: isProfileVisible ? 0 : 40,
+          },
+        ]}
       >
-        <View style={styles.parentProfileCard}>
-          <View style={styles.parentAvatarContainer}>
-            {parentPhoto ? (
-              <Image
-                source={{
-                  uri: parentPhoto.startsWith('http')
-                    ? parentPhoto
-                    : `${Config.API_DOMAIN}${parentPhoto}`,
-                }}
-                style={styles.parentAvatar}
-                resizeMode='cover'
-                onError={(error) => {
-                  console.log(
-                    '❌ PARENT PROFILE: Image load error:',
-                    error.nativeEvent.error
-                  );
-                  console.log(
-                    '🔗 PARENT PROFILE: Failed image URL:',
-                    parentPhoto.startsWith('http')
-                      ? parentPhoto
-                      : `${Config.API_DOMAIN}${parentPhoto}`
-                  );
-                }}
-                onLoad={() => {
-                  console.log('✅ PARENT PROFILE: Image loaded successfully');
-                }}
-              />
-            ) : (
-              <View style={styles.parentAvatarPlaceholder}>
-                <FontAwesomeIcon
-                  icon={faUser}
-                  size={18}
-                  color={theme.colors.primary}
-                />
+        {/* Animated Parent Profile */}
+        <Animated.View
+          style={[
+            styles.parentProfileSection,
+            {
+              transform: [{ translateY: profileTranslateY }],
+              opacity: profileOpacity,
+              marginBottom: isProfileVisible ? 0 : 12,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ParentProfile')}
+            onLongPress={debugParentData} // Long press to debug parent data
+            activeOpacity={0.7}
+            style={styles.parentProfileTouchable}
+          >
+            <View style={styles.parentProfileCard}>
+              <View style={styles.parentAvatarContainer}>
+                {parentPhoto ? (
+                  <Image
+                    source={{
+                      uri: parentPhoto.startsWith('http')
+                        ? parentPhoto
+                        : `${Config.API_DOMAIN}${parentPhoto}`,
+                    }}
+                    style={styles.parentAvatar}
+                    resizeMode='cover'
+                    onError={(error) => {
+                      console.log(
+                        '❌ PARENT PROFILE: Image load error:',
+                        error.nativeEvent.error
+                      );
+                      console.log(
+                        '🔗 PARENT PROFILE: Failed image URL:',
+                        parentPhoto.startsWith('http')
+                          ? parentPhoto
+                          : `${Config.API_DOMAIN}${parentPhoto}`
+                      );
+                    }}
+                    onLoad={() => {
+                      console.log(
+                        '✅ PARENT PROFILE: Image loaded successfully'
+                      );
+                    }}
+                  />
+                ) : (
+                  <View style={styles.parentAvatarPlaceholder}>
+                    <FontAwesomeIcon
+                      icon={faUser}
+                      size={18}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                )}
               </View>
-            )}
-          </View>
 
-          <View style={styles.parentInfo}>
-            <Text style={styles.parentName}>{parentName}</Text>
-            <Text style={styles.parentEmail}>Email: {currentUserData?.parent_info.email || currentUserData?.parent_info.parent_email}</Text>
-            <Text style={styles.parentRole}>{t('tapToViewProfile')}</Text>
-          </View>
+              <View style={styles.parentInfo}>
+                <Text style={styles.parentName}>{parentName}</Text>
+                <Text style={styles.parentEmail}>
+                  Email:{' '}
+                  {currentUserData?.parent_info?.email ||
+                    currentUserData?.parent_info?.parent_email}
+                </Text>
+                <Text style={styles.parentRole}>{t('tapToViewProfile')}</Text>
+              </View>
 
-          <FontAwesomeIcon
-            icon={faEdit}
-            size={14}
-            color={theme.colors.textSecondary}
-          />
-        </View>
-      </TouchableOpacity>
+              <FontAwesomeIcon
+                icon={faEdit}
+                size={14}
+                color={theme.colors.textSecondary}
+              />
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+      </Animated.View>
     );
   };
 
@@ -1246,229 +1393,302 @@ export default function ParentScreen({ navigation }) {
         {/* Parent Profile Section */}
         {renderParentProfile()}
 
-        <View style={styles.childrenSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {students.length > 1 ? t('yourChildren') : t('yourChild')}
-            </Text>
-            {students.length > 2 && (
-              <TouchableOpacity
-                style={styles.scrollIndicator}
-                onPress={() => {
-                  if (students.length > 2 && flatListRef.current) {
-                    // Scroll to the next item
-                    const currentIndex = selectedStudent
-                      ? students.findIndex((s) => s.id === selectedStudent.id)
-                      : 0;
-                    const nextIndex = (currentIndex + 1) % students.length;
-                    flatListRef.current.scrollToIndex({
-                      index: nextIndex,
-                      animated: true,
-                    });
-                  }
-                }}
-              >
-                <Text style={styles.scrollIndicatorText}>
-                  {t('scrollForMore')}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <Text>Loading student accounts...</Text>
-            </View>
-          ) : students.length === 0 ? (
-            <EmptyListComponent />
-          ) : (
-            <FlatList
-              ref={flatListRef}
-              data={students}
-              renderItem={renderStudentItem}
-              keyExtractor={(_, index) => `student-${index}`}
-              contentContainerStyle={[
-                styles.listContainer,
-                { paddingHorizontal: 24 }, // Shift content right for better centering
-              ]}
-              horizontal={true}
-              showsHorizontalScrollIndicator={false}
-              ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
-              snapToInterval={346} // Card width (330) + separator (16)
-              snapToAlignment='center'
-              decelerationRate='fast'
-              getItemLayout={(data, index) => ({
-                length: 346, // Card width + separator
-                offset: 346 * index,
-                index,
-              })}
-              onMomentumScrollEnd={(event) => {
-                const contentOffset = event.nativeEvent.contentOffset.x;
-                const index = Math.round(contentOffset / 346);
-                setCurrentIndex(
-                  Math.max(0, Math.min(index, students.length - 1))
-                );
-              }}
-              onScrollToIndexFailed={(info) => {
-                // Handle the failure by scrolling to a nearby item
-                setTimeout(() => {
-                  if (flatListRef.current && students.length > 0) {
-                    flatListRef.current.scrollToIndex({
-                      index: Math.min(
-                        info.highestMeasuredFrameIndex,
-                        students.length - 1
-                      ),
-                      animated: true,
-                    });
-                  }
-                }, 100);
-              }}
-            />
-          )}
-
-          {/* Dotted Pagination Indicator */}
-          {students.length > 1 && (
-            <View style={styles.paginationContainer}>
-              {students.map((_, index) => {
-                const animValue =
-                  animatedValues[index] || new Animated.Value(0);
-                const dotWidth = animValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [8, 24],
-                });
-                const dotOpacity = animValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.5, 1],
-                });
-
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    onPress={() => {
-                      setCurrentIndex(index);
-                      flatListRef.current?.scrollToIndex({
-                        index,
-                        animated: true,
-                      });
-                    }}
-                    style={styles.paginationDotTouchable}
-                  >
-                    <Animated.View
-                      style={[
-                        styles.paginationDot,
-                        {
-                          width: dotWidth,
-                          opacity: dotOpacity,
-                          backgroundColor:
-                            index === currentIndex
-                              ? theme.colors.primary
-                              : theme.colors.border,
-                        },
-                      ]}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-        </View>
-
-        <View style={styles.menuSection}>
-          <Text style={styles.sectionTitle}>{t('menu')}</Text>
-
-          <ScrollView
-            style={styles.menuScrollView}
-            contentContainerStyle={[
-              styles.actionTilesGrid,
-              isIPadDevice && styles.iPadActionTilesGrid,
-              isIPadDevice &&
-                isLandscape &&
-                styles.iPadLandscapeActionTilesGrid,
-              isTabletDevice && styles.tabletActionTilesGrid,
-              isTabletDevice &&
-                isLandscape &&
-                styles.tabletLandscapeActionTilesGrid,
-              { alignItems: 'center' }, // Centers the content horizontally within the scroll view
-            ]}
-            showsVerticalScrollIndicator={false}
+        {/* Swipe Hint - Positioned absolutely, moves with profile visibility */}
+        <Animated.View
+          style={[
+            styles.swipeHintFixed,
+            {
+              opacity: hintOpacity,
+              top: isProfileVisible ? 90 : -20, // Under profile when visible, under header when hidden
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={toggleProfileVisibility}
+            style={styles.swipeHintTouchable}
+            activeOpacity={0.7}
           >
-            {getMenuItems(t).map((item, index) => {
-              const menuItems = getMenuItems(t);
-              const totalItems = menuItems.length;
+            <Text style={styles.swipeHintText}>
+              {isProfileVisible
+                ? t('swipeUpToHide') || 'Swipe up to hide profile'
+                : t('swipeDownToShow') || 'Swipe down to see profile'}
+            </Text>
+            {/* Double Chevron Animation */}
+            <Animated.View
+              style={[
+                styles.doubleChevronContainer,
+                {
+                  transform: [
+                    {
+                      translateY: hintArrowBounce.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, showInitialHint ? 3 : 0], // Only bounce during initial hint
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <FontAwesomeIcon
+                icon={isProfileVisible ? faChevronUp : faChevronDown}
+                size={10}
+                color={theme.colors.textSecondary}
+                style={styles.chevronFirst}
+              />
+              <FontAwesomeIcon
+                icon={isProfileVisible ? faChevronUp : faChevronDown}
+                size={10}
+                color={theme.colors.textSecondary}
+                style={styles.chevronSecond}
+              />
+            </Animated.View>
+          </TouchableOpacity>
+        </Animated.View>
 
-              // Calculate columns per row based on device type
-              let itemsPerRow = 3; // Default for mobile
-              if (isIPadDevice && isLandscape) {
-                itemsPerRow = 6;
-              } else if (isTabletDevice && isLandscape) {
-                itemsPerRow = 6;
-              } else if (isIPadDevice) {
-                itemsPerRow = 4;
-              } else if (isTabletDevice) {
-                itemsPerRow = 4;
-              }
+        {/* Animated Content Section (Children + Menu) with Swipe Gesture */}
+        <PanGestureHandler
+          onGestureEvent={onGestureEvent}
+          onHandlerStateChange={onHandlerStateChange}
+        >
+          <Animated.View
+            style={[
+              styles.contentSection,
+              {
+                transform: [{ translateY: contentTranslateY }],
+                paddingTop: isProfileVisible ? 20 : 40,
+              },
+            ]}
+          >
+            {/* Children Section */}
+            <View style={styles.childrenSection}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  {students.length > 1 ? t('yourChildren') : t('yourChild')}
+                </Text>
+                {students.length > 2 && (
+                  <TouchableOpacity
+                    style={styles.scrollIndicator}
+                    onPress={() => {
+                      if (students.length > 2 && flatListRef.current) {
+                        // Scroll to the next item
+                        const currentIndex = selectedStudent
+                          ? students.findIndex(
+                              (s) => s.id === selectedStudent.id
+                            )
+                          : 0;
+                        const nextIndex = (currentIndex + 1) % students.length;
+                        flatListRef.current.scrollToIndex({
+                          index: nextIndex,
+                          animated: true,
+                        });
+                      }
+                    }}
+                  >
+                    <Text style={styles.scrollIndicatorText}>
+                      {t('scrollForMore')}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
 
-              // Check if this is the last item in an incomplete row
-              const isLastRow =
-                Math.floor(index / itemsPerRow) ===
-                Math.floor((totalItems - 1) / itemsPerRow);
-              const isLastInRow =
-                (index + 1) % itemsPerRow === 0 || index === totalItems - 1;
-              const isIncompleteRow = totalItems % itemsPerRow !== 0;
-              const shouldExpand = isLastRow && isLastInRow && isIncompleteRow;
-
-              // Calculate minimum height based on device type
-              let minHeight = (screenWidth - 30) / 3 - 8; // Default mobile
-              if (isIPadDevice && isLandscape) {
-                minHeight = (screenWidth - 100) / 6 - 6;
-              } else if (isTabletDevice && isLandscape) {
-                minHeight = (screenWidth - 90) / 6 - 8;
-              } else if (isIPadDevice) {
-                minHeight = (screenWidth - 80) / 4 - 8;
-              } else if (isTabletDevice) {
-                minHeight = (screenWidth - 70) / 4 - 10;
-              }
-
-              return (
-                <QuickActionTile
-                  key={item.id}
-                  title={item.title}
-                  subtitle='' // Parent menu items don't have subtitles
-                  icon={item.icon}
-                  backgroundColor={item.backgroundColor}
-                  iconColor={item.iconColor}
-                  onPress={
-                    item.disabled
-                      ? undefined
-                      : () => handleMenuItemPress(item.action)
-                  }
-                  disabled={item.disabled}
-                  badge={
-                    item.comingSoon ? (
-                      <ComingSoonBadge
-                        text={t('soon')}
-                        theme={theme}
-                        fontSizes={fontSizes}
-                      />
-                    ) : undefined
-                  }
-                  styles={styles}
-                  isLandscape={isLandscape}
-                  additionalStyle={
-                    shouldExpand
-                      ? {
-                          flex: 1,
-                          marginRight: 0,
-                          aspectRatio: undefined, // Remove aspect ratio constraint for expanding tiles
-                          height: minHeight, // Set exact height to match other tiles
-                        }
-                      : {}
-                  }
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <Text>Loading student accounts...</Text>
+                </View>
+              ) : students.length === 0 ? (
+                <EmptyListComponent />
+              ) : (
+                <FlatList
+                  ref={flatListRef}
+                  data={students}
+                  renderItem={renderStudentItem}
+                  keyExtractor={(_, index) => `student-${index}`}
+                  contentContainerStyle={[
+                    styles.listContainer,
+                    { paddingHorizontal: 24 }, // Shift content right for better centering
+                  ]}
+                  horizontal={true}
+                  showsHorizontalScrollIndicator={false}
+                  ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
+                  snapToInterval={346} // Card width (330) + separator (16)
+                  snapToAlignment='center'
+                  decelerationRate='fast'
+                  getItemLayout={(data, index) => ({
+                    length: 346, // Card width + separator
+                    offset: 346 * index,
+                    index,
+                  })}
+                  onMomentumScrollEnd={(event) => {
+                    const contentOffset = event.nativeEvent.contentOffset.x;
+                    const index = Math.round(contentOffset / 346);
+                    setCurrentIndex(
+                      Math.max(0, Math.min(index, students.length - 1))
+                    );
+                  }}
+                  onScrollToIndexFailed={(info) => {
+                    // Handle the failure by scrolling to a nearby item
+                    setTimeout(() => {
+                      if (flatListRef.current && students.length > 0) {
+                        flatListRef.current.scrollToIndex({
+                          index: Math.min(
+                            info.highestMeasuredFrameIndex,
+                            students.length - 1
+                          ),
+                          animated: true,
+                        });
+                      }
+                    }, 100);
+                  }}
                 />
-              );
-            })}
-          </ScrollView>
-        </View>
+              )}
+
+              {/* Dotted Pagination Indicator */}
+              {students.length > 1 && (
+                <View style={styles.paginationContainer}>
+                  {students.map((_, index) => {
+                    const animValue =
+                      animatedValues[index] || new Animated.Value(0);
+                    const dotWidth = animValue.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [8, 24],
+                    });
+                    const dotOpacity = animValue.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.5, 1],
+                    });
+
+                    return (
+                      <TouchableOpacity
+                        key={index}
+                        onPress={() => {
+                          setCurrentIndex(index);
+                          flatListRef.current?.scrollToIndex({
+                            index,
+                            animated: true,
+                          });
+                        }}
+                        style={styles.paginationDotTouchable}
+                      >
+                        <Animated.View
+                          style={[
+                            styles.paginationDot,
+                            {
+                              width: dotWidth,
+                              opacity: dotOpacity,
+                              backgroundColor:
+                                index === currentIndex
+                                  ? theme.colors.primary
+                                  : theme.colors.border,
+                            },
+                          ]}
+                        />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+
+            {/* Menu Section */}
+            <View style={styles.menuSection}>
+              <Text style={styles.sectionTitle}>{t('menu')}</Text>
+
+              <ScrollView
+                style={styles.menuScrollView}
+                contentContainerStyle={[
+                  styles.actionTilesGrid,
+                  isIPadDevice && styles.iPadActionTilesGrid,
+                  isIPadDevice &&
+                    isLandscape &&
+                    styles.iPadLandscapeActionTilesGrid,
+                  isTabletDevice && styles.tabletActionTilesGrid,
+                  isTabletDevice &&
+                    isLandscape &&
+                    styles.tabletLandscapeActionTilesGrid,
+                  { alignItems: 'center' }, // Centers the content horizontally within the scroll view
+                ]}
+                showsVerticalScrollIndicator={false}
+              >
+                {getMenuItems(t).map((item, index) => {
+                  const menuItems = getMenuItems(t);
+                  const totalItems = menuItems.length;
+
+                  // Calculate columns per row based on device type
+                  let itemsPerRow = 3; // Default for mobile
+                  if (isIPadDevice && isLandscape) {
+                    itemsPerRow = 6;
+                  } else if (isTabletDevice && isLandscape) {
+                    itemsPerRow = 6;
+                  } else if (isIPadDevice) {
+                    itemsPerRow = 4;
+                  } else if (isTabletDevice) {
+                    itemsPerRow = 4;
+                  }
+
+                  // Check if this is the last item in an incomplete row
+                  const isLastRow =
+                    Math.floor(index / itemsPerRow) ===
+                    Math.floor((totalItems - 1) / itemsPerRow);
+                  const isLastInRow =
+                    (index + 1) % itemsPerRow === 0 || index === totalItems - 1;
+                  const isIncompleteRow = totalItems % itemsPerRow !== 0;
+                  const shouldExpand =
+                    isLastRow && isLastInRow && isIncompleteRow;
+
+                  // Calculate minimum height based on device type
+                  let minHeight = (screenWidth - 30) / 3 - 8; // Default mobile
+                  if (isIPadDevice && isLandscape) {
+                    minHeight = (screenWidth - 100) / 6 - 6;
+                  } else if (isTabletDevice && isLandscape) {
+                    minHeight = (screenWidth - 90) / 6 - 8;
+                  } else if (isIPadDevice) {
+                    minHeight = (screenWidth - 80) / 4 - 8;
+                  } else if (isTabletDevice) {
+                    minHeight = (screenWidth - 70) / 4 - 10;
+                  }
+
+                  return (
+                    <QuickActionTile
+                      key={item.id}
+                      title={item.title}
+                      subtitle='' // Parent menu items don't have subtitles
+                      icon={item.icon}
+                      backgroundColor={item.backgroundColor}
+                      iconColor={item.iconColor}
+                      onPress={
+                        item.disabled
+                          ? undefined
+                          : () => handleMenuItemPress(item.action)
+                      }
+                      disabled={item.disabled}
+                      badge={
+                        item.comingSoon ? (
+                          <ComingSoonBadge
+                            text={t('soon')}
+                            theme={theme}
+                            fontSizes={fontSizes}
+                          />
+                        ) : undefined
+                      }
+                      styles={styles}
+                      isLandscape={isLandscape}
+                      additionalStyle={
+                        shouldExpand
+                          ? {
+                              flex: 1,
+                              marginRight: 0,
+                              aspectRatio: undefined, // Remove aspect ratio constraint for expanding tiles
+                              height: minHeight, // Set exact height to match other tiles
+                            }
+                          : {}
+                      }
+                    />
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </Animated.View>
+        </PanGestureHandler>
       </View>
     </SafeAreaView>
   );
@@ -1485,14 +1705,13 @@ const createStyles = (theme, fontSizes) =>
       backgroundColor: theme.colors.surface,
       borderRadius: 16,
       marginHorizontal: 16,
-      marginTop: 8,
       marginBottom: 8,
       elevation: 3,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.15,
       shadowRadius: 4,
-      overflow: 'hidden',
+
       zIndex: 1,
     },
     navigationHeader: {
@@ -1501,6 +1720,7 @@ const createStyles = (theme, fontSizes) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      borderRadius: 16,
     },
     // Legacy header style (keeping for compatibility)
     header: {
@@ -1595,7 +1815,6 @@ const createStyles = (theme, fontSizes) =>
     },
     // Parent Profile Styles
     parentProfileSection: {
-      marginBottom: 12,
       marginHorizontal: 8,
     },
     parentProfileCard: {
@@ -1731,6 +1950,7 @@ const createStyles = (theme, fontSizes) =>
     },
     menuScrollView: {
       flex: 1,
+      minHeight: 600,
     },
     sectionTitle: {
       fontSize: fontSizes.subtitle,
@@ -2256,10 +2476,62 @@ const createStyles = (theme, fontSizes) =>
       fontSize: Math.max(fontSizes.bodySmall - 3, 9),
       marginBottom: 1,
     },
-    parentEmail:{
+    parentEmail: {
       fontSize: 12,
       color: theme.colors.textSecondary,
       fontWeight: '500',
+    },
+    // Animated Parent Profile Styles
+    parentProfileContainer: {
+      marginTop: 40,
+      marginHorizontal: 8,
+    },
+    swipeHint: {
+      backgroundColor: 'transparent', // Transparent background
+      marginBottom: 4,
+    },
+    swipeHintFixed: {
+      backgroundColor: 'transparent', // Transparent background
+      position: 'absolute',
+      top: 0, // Right under the header
+      left: 0,
+      right: 0,
+      zIndex: 10, // Ensure it's above other content (in front of children)
+      paddingVertical: 8, // Vertical padding for better touch area
+    },
+    swipeHintTouchable: {
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      flexDirection: 'column', // Stack text and chevrons vertically
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    swipeHintText: {
+      fontSize: fontSizes.extraSmall, // Smaller text for subtle hint
+      color: theme.colors.textSecondary,
+      fontWeight: '400', // Lighter weight
+      marginBottom: 4, // Less space between text and chevrons
+      textAlign: 'center',
+      opacity: 0.8, // Slightly transparent for subtlety
+    },
+    doubleChevronContainer: {
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    chevronFirst: {
+      marginBottom: -2, // Overlap the chevrons slightly
+    },
+    chevronSecond: {
+      opacity: 0.7, // Make second chevron slightly transparent
+    },
+    parentProfileTouchable: {
+      width: '100%',
+    },
+    // Content section that includes both children and menu
+    contentSection: {
+      flex: 1,
+      paddingTop: 40, // Ensure content doesn't go behind header
     },
     // Tablet landscape-specific menu item text
     tabletLandscapeMenuItemText: {
