@@ -181,12 +181,17 @@ export const createParentPickupRequest = async (authCode, studentId = null) => {
 /**
  * Create a pickup request for guardian
  * @param {string} authCode - Guardian authentication code
+ * @param {string} qrToken - Guardian QR token (optional)
  * @returns {Promise<Object>} - API response
  */
-export const createGuardianPickupRequest = async (authCode) => {
+export const createGuardianPickupRequest = async (authCode, qrToken = null) => {
   try {
     console.log('🚗 PICKUP REQUEST: Creating guardian pickup request');
     console.log('🔑 PICKUP REQUEST: Auth code:', authCode);
+    console.log(
+      '🔑 PICKUP REQUEST: QR Token:',
+      qrToken ? 'provided' : 'not provided'
+    );
 
     // Get current location
     const currentLocation = await getCurrentLocation();
@@ -231,13 +236,20 @@ export const createGuardianPickupRequest = async (authCode) => {
     }
 
     // Real API call
+    const requestParams = {
+      authCode,
+      lat: currentLocation.latitude,
+      lon: currentLocation.longitude,
+    };
+
+    // Add qr_token if provided
+    if (qrToken) {
+      requestParams.qr_token = qrToken;
+    }
+
     const url = buildApiUrl(
       Config.API_ENDPOINTS.GUARDIAN_CREATE_PICKUP_REQUEST,
-      {
-        authCode,
-        lat: currentLocation.latitude,
-        lon: currentLocation.longitude,
-      }
+      requestParams
     );
 
     const response = await makeApiRequest(url);
@@ -256,12 +268,14 @@ export const createGuardianPickupRequest = async (authCode) => {
  * @param {string} authCode - Authentication code
  * @param {string} userType - User type ('parent' or 'guardian')
  * @param {number} studentId - Student ID (for parents with multiple children)
+ * @param {string} qrToken - QR token (for guardians, optional)
  * @returns {Promise<Object>} - API response
  */
 export const createPickupRequest = async (
   authCode,
   userType,
-  studentId = null
+  studentId = null,
+  qrToken = null
 ) => {
   try {
     console.log(
@@ -272,7 +286,7 @@ export const createPickupRequest = async (
     if (userType === 'parent') {
       return await createParentPickupRequest(authCode, studentId);
     } else if (userType === 'guardian') {
-      return await createGuardianPickupRequest(authCode);
+      return await createGuardianPickupRequest(authCode, qrToken);
     } else {
       throw new Error('Invalid user type. Must be "parent" or "guardian".');
     }

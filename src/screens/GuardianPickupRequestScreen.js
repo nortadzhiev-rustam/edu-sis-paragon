@@ -174,7 +174,10 @@ const GuardianPickupRequestScreen = () => {
     try {
       setLoading(true);
 
-      const response = await createGuardianPickupRequest(authCode);
+      const response = await createGuardianPickupRequest(
+        authCode,
+        guardian?.qr_token
+      );
 
       if (response.success) {
         Alert.alert('Pickup Request Created', response.message, [

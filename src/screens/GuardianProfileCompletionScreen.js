@@ -169,7 +169,8 @@ const GuardianProfileCompletionScreen = ({ navigation, route }) => {
     try {
       const response = await guardianService.uploadGuardianPhoto(
         authCode,
-        photo
+        photo,
+        guardian?.qr_token // Pass the guardian's qr_token
       );
       return response.success ? response.photo_path : null;
     } catch (error) {

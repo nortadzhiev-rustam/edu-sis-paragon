@@ -199,11 +199,13 @@ export default function AttendanceScreen({ navigation, route }) {
 
         if (response.ok) {
           const data = await response.json();
+          console.log('📊 ATTENDANCE: Direct API response:', data);
           if (data.success) {
-            setAttendanceData(data);
+            // Handle the new API response format
+            setAttendanceData(data.data);
           }
         } else {
-          // Handle error silently
+          console.warn('⚠️ ATTENDANCE: API request failed:', response.status);
         }
       }
     } catch (error) {
@@ -228,7 +230,11 @@ export default function AttendanceScreen({ navigation, route }) {
 
   // Get attendance statistics from API data
   const getAttendanceStats = () => {
-    if (!attendanceData?.summary_statistics) {
+    // Handle both old and new API response formats
+    const summaryData =
+      attendanceData?.summary_statistics || attendanceData?.summary;
+
+    if (!summaryData) {
       return {
         totalDays: 0,
         presentCount: 0,
@@ -239,14 +245,18 @@ export default function AttendanceScreen({ navigation, route }) {
       };
     }
 
-    const stats = attendanceData.summary_statistics;
     return {
-      totalDays: stats.total_school_days || 0,
-      presentCount: stats.total_present || 0,
-      absentCount: stats.total_absent || 0,
-      lateCount: stats.total_late || 0,
+      totalDays:
+        summaryData.total_school_days || summaryData.total_classes || 0,
+      presentCount:
+        summaryData.total_present || summaryData.present_classes || 0,
+      absentCount: summaryData.total_absent || summaryData.absent_classes || 0,
+      lateCount: summaryData.total_late || summaryData.late_classes || 0,
       excusedCount: 0, // Not provided in new API
-      attendanceRate: stats.overall_attendance_percentage || 0,
+      attendanceRate:
+        summaryData.overall_attendance_percentage ||
+        summaryData.overall_attendance_rate ||
+        0,
     };
   };
 
@@ -256,25 +266,36 @@ export default function AttendanceScreen({ navigation, route }) {
 
     switch (selectedView) {
       case 'absent':
-        return attendanceRecords.filter((item) => item.status === 'ABSENT');
+        return attendanceRecords.filter(
+          (item) =>
+            item.attendance_status === 'absent' || item.status === 'ABSENT'
+        );
       case 'late':
-        return attendanceRecords.filter((item) => item.status === 'LATE');
+        return attendanceRecords.filter(
+          (item) => item.attendance_status === 'late' || item.status === 'LATE'
+        );
       case 'daily':
-        return attendanceData?.daily_statistics || [];
+        // For daily view, we'll use subject_breakdown data or daily_statistics
+        return (
+          attendanceData?.daily_statistics ||
+          attendanceData?.subject_breakdown ||
+          []
+        );
       default:
         return attendanceRecords;
     }
   };
 
   const getStatusColor = (status) => {
-    switch (status?.toUpperCase()) {
-      case 'PRESENT':
+    const normalizedStatus = status?.toLowerCase();
+    switch (normalizedStatus) {
+      case 'present':
         return '#34C759';
-      case 'ABSENT':
+      case 'absent':
         return '#FF3B30';
-      case 'LATE':
+      case 'late':
         return '#FF9500';
-      case 'EXCUSED':
+      case 'excused':
         return '#007AFF';
       default:
         return '#8E8E93';
@@ -282,14 +303,15 @@ export default function AttendanceScreen({ navigation, route }) {
   };
 
   const getStatusIcon = (status) => {
-    switch (status?.toUpperCase()) {
-      case 'PRESENT':
+    const normalizedStatus = status?.toLowerCase();
+    switch (normalizedStatus) {
+      case 'present':
         return '✓';
-      case 'ABSENT':
+      case 'absent':
         return '✗';
-      case 'LATE':
+      case 'late':
         return '⏰';
-      case 'EXCUSED':
+      case 'excused':
         return '📝';
       default:
         return '?';
@@ -382,38 +404,39 @@ export default function AttendanceScreen({ navigation, route }) {
     </View>
   );
 
-  const renderAttendanceRow = ({ item }) => (
-    <View style={[styles.tableRow, isLandscape && styles.landscapeTableRow]}>
-      <Text style={[styles.cellText, styles.dateColumn]}>
-        {formatDate(item.date)}
-      </Text>
-      {isLandscape && (
-        <Text style={[styles.cellText, styles.weekdayColumn]}>
-          {item.weekday}
+  const renderAttendanceRow = ({ item }) => {
+    // Handle both old and new API response formats
+    const status = item.attendance_status || item.status;
+    const subject = item.subject_name || item.subject;
+    const grade = item.grade_name || item.grade;
+    const period = item.week_time || item.period;
+    const weekday = item.week_day || item.weekday;
+
+    return (
+      <View style={[styles.tableRow, isLandscape && styles.landscapeTableRow]}>
+        <Text style={[styles.cellText, styles.dateColumn]}>
+          {formatDate(item.date)}
         </Text>
-      )}
-      <Text style={[styles.cellText, styles.subjectColumn]} numberOfLines={2}>
-        {item.subject} {item.grade && `(${item.grade})`}
-      </Text>
-      {isLandscape && (
-        <Text style={[styles.cellText, styles.periodColumn]}>
-          {item.period}
+        {isLandscape && (
+          <Text style={[styles.cellText, styles.weekdayColumn]}>{weekday}</Text>
+        )}
+        <Text style={[styles.cellText, styles.subjectColumn]} numberOfLines={2}>
+          {subject} {grade && `(${grade})`}
         </Text>
-      )}
-      <View style={[styles.statusContainer, styles.statusColumn]}>
-        <Text
-          style={[styles.statusIcon, { color: getStatusColor(item.status) }]}
-        >
-          {getStatusIcon(item.status)}
-        </Text>
-        <Text
-          style={[styles.statusText, { color: getStatusColor(item.status) }]}
-        >
-          {item.status}
-        </Text>
+        {isLandscape && (
+          <Text style={[styles.cellText, styles.periodColumn]}>{period}</Text>
+        )}
+        <View style={[styles.statusContainer, styles.statusColumn]}>
+          <Text style={[styles.statusIcon, { color: getStatusColor(status) }]}>
+            {getStatusIcon(status)}
+          </Text>
+          <Text style={[styles.statusText, { color: getStatusColor(status) }]}>
+            {status}
+          </Text>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   // Render summary statistics cards
   const renderSummaryView = () => (
@@ -422,7 +445,7 @@ export default function AttendanceScreen({ navigation, route }) {
         {/* Total Days Card */}
         <View style={[styles.statCard, styles.totalDaysCard]}>
           <Text style={styles.statNumber}>{stats.totalDays}</Text>
-          <Text style={styles.statLabel}>Total Days</Text>
+          <Text style={styles.statLabel}>Total Classes</Text>
         </View>
 
         {/* Present Card */}
@@ -468,7 +491,7 @@ export default function AttendanceScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      {/* Daily Statistics Button */}
+      {/* Subject Breakdown Button */}
       <TouchableOpacity
         style={styles.dailyStatsButton}
         onPress={() => {
@@ -476,7 +499,7 @@ export default function AttendanceScreen({ navigation, route }) {
           setCurrentPage(1);
         }}
       >
-        <Text style={styles.dailyStatsButtonText}>View Daily Statistics</Text>
+        <Text style={styles.dailyStatsButtonText}>View Subject Breakdown</Text>
       </TouchableOpacity>
 
       {/* Attendance Rate */}
@@ -496,9 +519,9 @@ export default function AttendanceScreen({ navigation, route }) {
     <View
       style={[styles.tableHeader, isLandscape && styles.landscapeTableHeader]}
     >
-      <Text style={[styles.headerText, styles.dateColumn]}>Date</Text>
+      <Text style={[styles.headerText, styles.dateColumn]}>Subject</Text>
       {isLandscape && (
-        <Text style={[styles.headerText, styles.weekdayColumn]}>Day</Text>
+        <Text style={[styles.headerText, styles.weekdayColumn]}>Total</Text>
       )}
       <Text style={[styles.headerText, styles.subjectColumn]}>Present</Text>
       <Text style={[styles.headerText, styles.periodColumn]}>Absent</Text>
@@ -506,41 +529,51 @@ export default function AttendanceScreen({ navigation, route }) {
     </View>
   );
 
-  const renderDailyRow = ({ item }) => (
-    <View style={[styles.tableRow, isLandscape && styles.landscapeTableRow]}>
-      <Text style={[styles.cellText, styles.dateColumn]}>
-        {formatDate(item.date)}
-      </Text>
-      {isLandscape && (
-        <Text style={[styles.cellText, styles.weekdayColumn]}>
-          {item.weekday}
+  const renderDailyRow = ({ item }) => {
+    // Handle both daily statistics and subject breakdown formats
+    const subjectName = item.subject_name || item.subject || item.date;
+    const totalClasses = item.total_classes || item.total_count || 0;
+    const presentCount = item.present || item.present_count || 0;
+    const absentCount = item.absent || item.absent_count || 0;
+    const attendanceRate =
+      item.attendance_rate || item.attendance_percentage || 0;
+
+    return (
+      <View style={[styles.tableRow, isLandscape && styles.landscapeTableRow]}>
+        <Text style={[styles.cellText, styles.dateColumn]} numberOfLines={2}>
+          {subjectName}
         </Text>
-      )}
-      <Text style={[styles.cellText, styles.subjectColumn]}>
-        {item.present_count}
-      </Text>
-      <Text style={[styles.cellText, styles.periodColumn]}>
-        {item.absent_count}
-      </Text>
-      <View style={[styles.statusContainer, styles.statusColumn]}>
-        <Text
-          style={[
-            styles.statusText,
-            {
-              color:
-                item.attendance_percentage >= 80
-                  ? '#34C759'
-                  : item.attendance_percentage >= 60
-                  ? '#FF9500'
-                  : '#FF3B30',
-            },
-          ]}
-        >
-          {item.attendance_percentage}%
+        {isLandscape && (
+          <Text style={[styles.cellText, styles.weekdayColumn]}>
+            {totalClasses}
+          </Text>
+        )}
+        <Text style={[styles.cellText, styles.subjectColumn]}>
+          {presentCount}
         </Text>
+        <Text style={[styles.cellText, styles.periodColumn]}>
+          {absentCount}
+        </Text>
+        <View style={[styles.statusContainer, styles.statusColumn]}>
+          <Text
+            style={[
+              styles.statusText,
+              {
+                color:
+                  attendanceRate >= 80
+                    ? '#34C759'
+                    : attendanceRate >= 60
+                    ? '#FF9500'
+                    : '#FF3B30',
+              },
+            ]}
+          >
+            {attendanceRate}%
+          </Text>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderDailyView = () => (
     <View style={styles.tableWithPagination}>
@@ -557,7 +590,7 @@ export default function AttendanceScreen({ navigation, route }) {
           <FlatList
             data={paginatedData}
             renderItem={renderDailyRow}
-            keyExtractor={(item, index) => `daily-${index}`}
+            keyExtractor={(_, index) => `daily-${index}`}
             showsVerticalScrollIndicator={false}
             style={styles.tableBody}
             nestedScrollEnabled={true}
@@ -592,7 +625,7 @@ export default function AttendanceScreen({ navigation, route }) {
           <FlatList
             data={paginatedData}
             renderItem={renderAttendanceRow}
-            keyExtractor={(item, index) => `attendance-${index}`}
+            keyExtractor={(_, index) => `attendance-${index}`}
             showsVerticalScrollIndicator={false}
             style={styles.tableBody}
             nestedScrollEnabled={true}
@@ -681,7 +714,7 @@ export default function AttendanceScreen({ navigation, route }) {
               {selectedView === 'summary'
                 ? t('attendanceSummary')
                 : selectedView === 'daily'
-                ? t('dailyStatistics')
+                ? 'Subject Breakdown'
                 : selectedView === 'absent'
                 ? t('absentRecords')
                 : t('lateRecords')}
@@ -759,7 +792,6 @@ const createStyles = (theme) =>
       color: '#fff',
       fontSize: isIPad ? getResponsiveFontSizes().title : 20,
       fontWeight: 'bold',
-      marginLeft: 20,
     },
     notificationButton: {
       width: 36,

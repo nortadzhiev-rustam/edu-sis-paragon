@@ -41,7 +41,7 @@ import ProfileCompletenessIndicator from '../components/ProfileCompletenessIndic
 
 // Import services
 import profileService from '../services/profileService';
-import { getUserData } from '../services/authService';
+import { getUserData, saveUserData } from '../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TeacherProfileEditScreen = ({ navigation, route }) => {
@@ -284,6 +284,30 @@ const TeacherProfileEditScreen = ({ navigation, route }) => {
       const response = await profileService.updateProfile(authCode, formData);
 
       if (response.success) {
+        // Persist updated fields to AsyncStorage so other screens see changes immediately
+        try {
+          const mergedUserData = {
+            ...userData,
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            mobile_phone: formData.phone,
+            address: formData.address,
+            date_of_birth: formData.date_of_birth,
+            gender: formData.gender,
+          };
+          await saveUserData(mergedUserData, AsyncStorage);
+          setUserData(mergedUserData);
+          console.log(
+            '✅ TEACHER PROFILE EDIT: Persisted updated user data to AsyncStorage'
+          );
+        } catch (persistError) {
+          console.warn(
+            '⚠️ TEACHER PROFILE EDIT: Failed to persist updated user data:',
+            persistError
+          );
+        }
+
         Alert.alert('Success', 'Profile updated successfully!', [
           {
             text: 'OK',
@@ -329,10 +353,7 @@ const TeacherProfileEditScreen = ({ navigation, route }) => {
             photo: response.photo_url,
             profile_photo: response.photo_url,
           };
-          await AsyncStorage.setItem(
-            'teacherData',
-            JSON.stringify(updatedUserData)
-          );
+          await saveUserData(updatedUserData, AsyncStorage);
           console.log('✅ TEACHER PROFILE EDIT: Updated photo in AsyncStorage');
         } catch (storageError) {
           console.warn(
@@ -365,10 +386,7 @@ const TeacherProfileEditScreen = ({ navigation, route }) => {
         photo: null,
         profile_photo: null,
       };
-      await AsyncStorage.setItem(
-        'teacherData',
-        JSON.stringify(updatedUserData)
-      );
+      await saveUserData(updatedUserData, AsyncStorage);
       console.log('✅ TEACHER PROFILE EDIT: Removed photo from AsyncStorage');
     } catch (storageError) {
       console.warn(

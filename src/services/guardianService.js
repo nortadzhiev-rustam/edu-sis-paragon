@@ -304,9 +304,13 @@ export const generateQrCodeDataUrl = async (qrToken) => {
 /**
  * Upload guardian photo
  */
-export const uploadGuardianPhoto = async (authCode, photo) => {
+export const uploadGuardianPhoto = async (authCode, photo, qrToken = null) => {
   try {
     console.log('📸 GUARDIAN SERVICE: Uploading guardian photo');
+    console.log(
+      '📸 GUARDIAN SERVICE: QR Token:',
+      qrToken ? 'provided' : 'not provided'
+    );
 
     if (USE_MOCK_DATA) {
       // Simulate API delay
@@ -322,6 +326,9 @@ export const uploadGuardianPhoto = async (authCode, photo) => {
 
     const formData = new FormData();
     formData.append('auth_code', authCode);
+    if (qrToken) {
+      formData.append('qr_token', qrToken);
+    }
     formData.append('photo', {
       uri: photo.uri,
       type: photo.type,

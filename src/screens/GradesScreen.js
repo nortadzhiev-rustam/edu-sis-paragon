@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ScrollView,
   Dimensions,
   Platform,
   ActivityIndicator,
@@ -530,7 +529,7 @@ export default function GradesScreen({ navigation, route }) {
 
       // Get grade letter based on average
       const getGradeLetter = (avg) => {
-        if (!avg) return 'N/A';
+        if (avg === null || avg === undefined || isNaN(avg)) return 'N/A';
         if (avg >= 90) return 'A*';
         if (avg >= 80) return 'A';
         if (avg >= 70) return 'B';
@@ -540,6 +539,8 @@ export default function GradesScreen({ navigation, route }) {
       };
 
       const gradeLetter = getGradeLetter(average);
+      const hasValidAverage =
+        average !== null && average !== undefined && !isNaN(average);
 
       // Create dynamic styles (these are lightweight and subject-specific)
       const cardBackgroundStyle = { backgroundColor: `${subjectColor}08` };
@@ -549,7 +550,7 @@ export default function GradesScreen({ navigation, route }) {
       const typeDotStyle = { backgroundColor: subjectColor };
       const typeDotFadedStyle = { backgroundColor: `${subjectColor}60` };
       const progressFillStyle = {
-        width: `${Math.min(average || 0, 100)}%`,
+        width: `${hasValidAverage ? Math.min(average, 100) : 0}%`,
         backgroundColor: subjectColor,
       };
 
@@ -596,7 +597,14 @@ export default function GradesScreen({ navigation, route }) {
           <View style={styles.statsRow}>
             <View style={styles.gradeSection}>
               <View style={[styles.gradeCircle, gradeCircleStyle]}>
-                <Text style={[styles.gradeLetterText, coloredTextStyle]}>
+                <Text
+                  style={[
+                    styles.gradeLetterText,
+                    gradeLetter === 'N/A'
+                      ? { color: '#8E8E93' }
+                      : coloredTextStyle,
+                  ]}
+                >
                   {gradeLetter}
                 </Text>
               </View>
@@ -605,19 +613,26 @@ export default function GradesScreen({ navigation, route }) {
 
             <View style={styles.percentageSection}>
               <View style={styles.percentageDisplay}>
-                <Text style={[styles.percentageNumber, coloredTextStyle]}>
-                  {average || '--'}
+                <Text
+                  style={[
+                    styles.percentageNumber,
+                    hasValidAverage ? coloredTextStyle : { color: '#8E8E93' },
+                  ]}
+                >
+                  {hasValidAverage ? average : '--'}
                 </Text>
-                <Text style={[styles.percentageSymbol, coloredTextStyle]}>
-                  %
-                </Text>
+                {hasValidAverage && (
+                  <Text style={[styles.percentageSymbol, coloredTextStyle]}>
+                    %
+                  </Text>
+                )}
               </View>
               <Text style={styles.percentageLabel}>Average</Text>
             </View>
           </View>
 
           {/* Progress Bar */}
-          {average && (
+          {hasValidAverage && (
             <View style={styles.progressSection}>
               <View style={styles.progressInfo}>
                 <Text style={styles.progressLabel}>Progress</Text>
@@ -688,11 +703,6 @@ export default function GradesScreen({ navigation, route }) {
                 </Text>
               </View>
             </View>
-          </View>
-
-          {/* Floating Badge */}
-          <View style={[styles.floatingBadge, iconContainerStyle]}>
-            <FontAwesomeIcon icon={faTrophy} size={8} color='#fff' />
           </View>
         </TouchableOpacity>
       );
@@ -888,11 +898,14 @@ export default function GradesScreen({ navigation, route }) {
 
     // For summative grades, use enhanced data
     const calculatedGrade =
-      item.calculated_grade ||
-      parseFloat(item.percentage?.replace('%', '')) ||
-      0;
-    const letterGrade = item.letter_grade || getGradeLabel(calculatedGrade);
-    const gradeColor = getGradeColor(calculatedGrade);
+      item.score_percentage !== null && item.score_percentage !== undefined
+        ? parseFloat(item.score_percentage)
+        : null;
+    const letterGrade =
+      item.letter_grade ||
+      (calculatedGrade !== null ? getGradeLabel(calculatedGrade) : 'N/A');
+    const gradeColor =
+      calculatedGrade !== null ? getGradeColor(calculatedGrade) : '#8E8E93';
     const hasTemplate =
       item.template_info && item.grading_context?.has_template;
 
@@ -913,7 +926,7 @@ export default function GradesScreen({ navigation, route }) {
               <Text style={styles.gradeDate}>Strand: {item.strand}</Text>
             )}
             <Text style={styles.gradeDate}>Date: {item.date}</Text>
-            {hasTemplate && (
+            {hasTemplate && item.template_info?.template_name && (
               <Text style={styles.templateInfo}>
                 📋 {item.template_info.template_name}
               </Text>
@@ -923,7 +936,9 @@ export default function GradesScreen({ navigation, route }) {
             <View
               style={[
                 styles.gradeScoreContainer,
-                { backgroundColor: `${gradeColor}15` },
+                {
+                  backgroundColor: `${gradeColor}15`,
+                },
                 isLandscape && styles.landscapeScoreContainer,
               ]}
             >
@@ -934,7 +949,7 @@ export default function GradesScreen({ navigation, route }) {
                   isLandscape && styles.landscapeGradeScore,
                 ]}
               >
-                {item.score}
+                {calculatedGrade !== null ? `${calculatedGrade}%` : 'N/A'}
               </Text>
               <Text
                 style={[
@@ -943,9 +958,11 @@ export default function GradesScreen({ navigation, route }) {
                   isLandscape && styles.landscapeGradePercentage,
                 ]}
               >
-                {item.percentage}
+                {item.raw_score !== null && item.max_score !== null
+                  ? `${item.raw_score}/${item.max_score}`
+                  : 'Not Graded'}
               </Text>
-              {letterGrade && (
+              {letterGrade && letterGrade !== 'N/A' && (
                 <Text
                   style={[
                     styles.letterGrade,
@@ -1149,6 +1166,7 @@ export default function GradesScreen({ navigation, route }) {
           // Enhanced fields for better UI
           calculated_grade: calculatedGrade,
           letter_grade: letterGrade,
+          score_percentage: scorePercentage,
           comment: item.comment,
           template_info: item.template_info,
           grading_context: item.grading_context,
@@ -1480,18 +1498,6 @@ export default function GradesScreen({ navigation, route }) {
             </View>
           </View>
         </View>
-
-        {/* Enhanced Features Indicator */}
-        {hasEnhancedFeatures && (
-          <View style={styles.enhancedFeaturesIndicator}>
-            <Text style={styles.enhancedFeaturesText}>
-              🚀 Enhanced Grading v{grades.api_version || '2.0'} •
-              {hasEnhancedFeatures.weighted_calculations && ' ⚖️ Weighted'}
-              {hasEnhancedFeatures.letter_grades && ' 🔤 Letter Grades'}
-              {hasEnhancedFeatures.grade_analytics && ' 📈 Analytics'}
-            </Text>
-          </View>
-        )}
       </View>
     );
   };
@@ -1628,6 +1634,13 @@ export default function GradesScreen({ navigation, route }) {
           </View>
         </View>
 
+        {studentName && (
+          <View style={styles.studentContextBar}>
+            <Text style={styles.studentContextPrefix}>Student:</Text>
+            <Text style={styles.studentContextName}>{studentName}</Text>
+          </View>
+        )}
+
         {/* Tab Navigation Subheader - Only show when not in subject list and not landscape */}
         {!showSubjectList && !isLandscape && (
           <View style={styles.subHeader}>
@@ -1652,13 +1665,16 @@ export default function GradesScreen({ navigation, route }) {
             {/* Enhanced Statistics Overview */}
             {renderStatisticsOverview()}
 
-            <ScrollView
+            <FlatList
+              data={availableSubjects}
+              renderItem={({ item }) => renderSubjectCard(item)}
+              keyExtractor={(item) => item}
+              numColumns={2}
               style={styles.fullWidth}
               contentContainerStyle={styles.subjectGrid}
               showsVerticalScrollIndicator={false}
-            >
-              {availableSubjects.map((subject) => renderSubjectCard(subject))}
-            </ScrollView>
+              columnWrapperStyle={styles.subjectRow}
+            />
           </View>
         ) : (
           // Show grades table for selected subject
@@ -1708,6 +1724,27 @@ const createStyles = (theme) =>
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 16,
       paddingVertical: 16,
+    },
+    studentContextBar: {
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 6,
+    },
+    studentContextPrefix: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      marginRight: 4,
+    },
+    studentContextName: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.colors.text,
     },
     // Legacy header style (keeping for compatibility)
     header: {
@@ -1779,7 +1816,7 @@ const createStyles = (theme) =>
     content: {
       flex: 1,
       paddingHorizontal: 5,
-      paddingVertical: 10,
+      paddingVertical: 5,
     },
     landscapeContent: {
       paddingHorizontal: 20, // More padding in landscape for better use of space
@@ -1788,7 +1825,7 @@ const createStyles = (theme) =>
     subjectListContainer: {
       flex: 1,
       alignItems: 'center',
-      paddingTop: 10,
+      paddingTop: 5,
     },
     // Enhanced Header Section
     headerSection: {
@@ -1829,21 +1866,25 @@ const createStyles = (theme) =>
       maxWidth: 280,
     },
     subjectGrid: {
-      alignItems: 'center',
       width: '100%',
       padding: 10,
+    },
+    subjectRow: {
+      justifyContent: 'space-between',
+      paddingHorizontal: 5,
     },
     fullWidth: {
       width: '100%',
     },
 
-    // Modern Subject Card Styles - Ultra Compact Design
+    // Modern Subject Card Styles - Compact Design for 2-column layout
     modernSubjectCard: {
       backgroundColor: theme.colors.card,
-      width: '100%',
-      marginVertical: 3,
-      borderRadius: 12,
-      padding: 10,
+      width: '48%', // Slightly less than 50% to allow for spacing
+      marginVertical: 4,
+      marginHorizontal: 2,
+      borderRadius: 10,
+      padding: 8, // Reduced padding for smaller cards
       // Removed overflow: 'hidden' to prevent shadow clipping on Android
       // Only show border on iOS - Android elevation provides sufficient visual separation
       ...(Platform.OS === 'ios' && {
@@ -1859,12 +1900,12 @@ const createStyles = (theme) =>
       justifyContent: 'space-between',
     },
     subjectIconContainer: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 28, // Reduced size for smaller cards
+      height: 28,
+      borderRadius: 14,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: 8,
+      marginRight: 6, // Reduced margin
       // Enhanced shadow using platform-specific utilities
       ...createMediumShadow(theme),
     },
@@ -1872,7 +1913,7 @@ const createStyles = (theme) =>
       flex: 1,
     },
     modernSubjectTitle: {
-      fontSize: 14,
+      fontSize: 12, // Reduced font size for smaller cards
       fontWeight: '700',
       color: theme.colors.text,
       marginBottom: 1,
@@ -1904,7 +1945,7 @@ const createStyles = (theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 6,
+      marginBottom: 4, // Reduced margin for smaller cards
     },
     headerLeft: {
       flexDirection: 'row',
@@ -1919,15 +1960,15 @@ const createStyles = (theme) =>
       alignItems: 'center',
     },
     assessmentCount: {
-      fontSize: 9,
+      fontSize: 8, // Reduced font size
       color: theme.colors.textSecondary,
       fontWeight: '500',
-      marginLeft: 3,
+      marginLeft: 2, // Reduced margin
     },
     expandButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 28, // Reduced size for smaller cards
+      height: 28,
+      borderRadius: 14,
       backgroundColor: theme.colors.border,
       justifyContent: 'center',
       alignItems: 'center',
@@ -1938,17 +1979,17 @@ const createStyles = (theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-around',
-      marginBottom: 8,
-      paddingVertical: 4,
+      marginBottom: 6, // Reduced margin for smaller cards
+      paddingVertical: 3, // Reduced padding
     },
     gradeSection: {
       alignItems: 'center',
       flex: 1,
     },
     gradeCircle: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
+      width: 24, // Reduced size for smaller cards
+      height: 24,
+      borderRadius: 12,
       borderWidth: 1.5,
       backgroundColor: theme.colors.card,
       justifyContent: 'center',
@@ -1958,12 +1999,12 @@ const createStyles = (theme) =>
       ...createSmallShadow(theme),
     },
     gradeLetterText: {
-      fontSize: 12,
+      fontSize: 10, // Reduced font size for smaller cards
       fontWeight: '800',
       letterSpacing: 0.3,
     },
     gradeLabel: {
-      fontSize: 8,
+      fontSize: 7, // Reduced font size
       color: theme.colors.textSecondary,
       fontWeight: '500',
       textAlign: 'center',
@@ -1975,20 +2016,20 @@ const createStyles = (theme) =>
     percentageDisplay: {
       flexDirection: 'row',
       alignItems: 'baseline',
-      marginBottom: 6,
+      marginBottom: 4, // Reduced margin
     },
     percentageNumber: {
-      fontSize: 16,
+      fontSize: 14, // Reduced font size for smaller cards
       fontWeight: '800',
       letterSpacing: -0.3,
     },
     percentageSymbol: {
-      fontSize: 11,
+      fontSize: 10, // Reduced font size
       fontWeight: '600',
       marginLeft: 1,
     },
     percentageLabel: {
-      fontSize: 8,
+      fontSize: 7, // Reduced font size
       color: theme.colors.textSecondary,
       fontWeight: '500',
       textAlign: 'center',
@@ -2019,21 +2060,21 @@ const createStyles = (theme) =>
 
     // Progress Section
     progressSection: {
-      marginBottom: 8,
+      marginBottom: 6, // Reduced margin for smaller cards
     },
     progressInfo: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 4,
+      marginBottom: 3, // Reduced margin
     },
     progressLabel: {
-      fontSize: 9,
+      fontSize: 8, // Reduced font size
       color: theme.colors.textSecondary,
       fontWeight: '500',
     },
     progressValue: {
-      fontSize: 9,
+      fontSize: 8, // Reduced font size
       fontWeight: '600',
       color: theme.colors.text,
     },
@@ -2042,7 +2083,7 @@ const createStyles = (theme) =>
     },
     progressTrack: {
       width: '100%',
-      height: 4,
+      height: 3, // Reduced height for smaller cards
       backgroundColor: theme.colors.border,
       borderRadius: 2,
       overflow: 'hidden',
@@ -2054,26 +2095,26 @@ const createStyles = (theme) =>
 
     // Bottom Info Section
     bottomInfo: {
-      marginTop: 2,
+      marginTop: 1, // Reduced margin
     },
     typeBreakdown: {
       flexDirection: 'row',
       alignItems: 'center',
       flexWrap: 'wrap',
-      gap: 8,
+      gap: 6, // Reduced gap for smaller cards
     },
     typeItem: {
       flexDirection: 'row',
       alignItems: 'center',
     },
     typeDot: {
-      width: 5,
-      height: 5,
-      borderRadius: 2.5,
-      marginRight: 5,
+      width: 4, // Reduced size for smaller cards
+      height: 4,
+      borderRadius: 2,
+      marginRight: 4, // Reduced margin
     },
     typeText: {
-      fontSize: 10,
+      fontSize: 8, // Reduced font size for smaller cards
       color: theme.colors.textSecondary,
       fontWeight: '500',
     },
@@ -2081,11 +2122,11 @@ const createStyles = (theme) =>
     // Floating Badge
     floatingBadge: {
       position: 'absolute',
-      top: 32,
-      right: 56, // Move left to avoid overlapping with chevron button (32px width + 24px margin)
-      width: 24,
-      height: 24,
-      borderRadius: 12,
+      top: 28, // Adjusted position for smaller cards
+      right: 48, // Adjusted position for smaller expand button
+      width: 20, // Reduced size for smaller cards
+      height: 20,
+      borderRadius: 10,
       justifyContent: 'center',
       alignItems: 'center',
       // Enhanced shadow using platform-specific utilities
@@ -2528,16 +2569,16 @@ const createStyles = (theme) =>
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      marginTop: 4,
-      paddingTop: 4,
+      marginTop: 3, // Reduced margin for smaller cards
+      paddingTop: 3, // Reduced padding
       borderTopWidth: 1,
       borderTopColor: theme.colors.border + '40',
     },
     enhancedStatItem: {
-      marginHorizontal: 4,
+      marginHorizontal: 3, // Reduced margin for smaller cards
     },
     enhancedStatText: {
-      fontSize: 8,
+      fontSize: 7, // Reduced font size for smaller cards
       fontWeight: '600',
       color: theme.colors.textSecondary,
     },

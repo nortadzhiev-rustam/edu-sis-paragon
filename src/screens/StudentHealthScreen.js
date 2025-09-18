@@ -453,6 +453,13 @@ export default function StudentHealthScreen({ route, navigation }) {
           <View style={styles.headerRight} />
         </View>
 
+        {studentName && (
+          <View style={styles.studentContextBar}>
+            <Text style={styles.studentContextPrefix}>Student:</Text>
+            <Text style={styles.studentContextName}>{studentName}</Text>
+          </View>
+        )}
+
         {/* Tab Navigation Subheader */}
         <View style={styles.subHeader}>
           <View style={styles.tabContainer}>
@@ -658,6 +665,27 @@ const createStyles = (theme, fontSizes) =>
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 16,
       paddingBottom: 16,
+    },
+    studentContextBar: {
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 6,
+    },
+    studentContextPrefix: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      marginRight: 4,
+    },
+    studentContextName: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.colors.text,
     },
     // Legacy header style (keeping for compatibility)
     header: {

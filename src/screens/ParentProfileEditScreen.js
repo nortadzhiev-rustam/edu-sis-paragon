@@ -38,7 +38,7 @@ import ProfileCompletenessIndicator from '../components/ProfileCompletenessIndic
 
 // Import services
 import profileService from '../services/profileService';
-import { getUserData } from '../services/authService';
+import { getUserData, saveUserData } from '../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ParentProfileEditScreen = ({ navigation, route }) => {
@@ -208,6 +208,28 @@ const ParentProfileEditScreen = ({ navigation, route }) => {
       const response = await profileService.updateProfile(authCode, formData);
 
       if (response.success) {
+        // Persist updated fields to AsyncStorage so other screens see changes immediately
+        try {
+          const mergedUserData = {
+            ...userData,
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            mobile_phone: formData.phone,
+            address: formData.address,
+          };
+          await saveUserData(mergedUserData, AsyncStorage);
+          setUserData(mergedUserData);
+          console.log(
+            '✅ PARENT PROFILE EDIT: Persisted updated user data to AsyncStorage'
+          );
+        } catch (persistError) {
+          console.warn(
+            '⚠️ PARENT PROFILE EDIT: Failed to persist updated user data:',
+            persistError
+          );
+        }
+
         Alert.alert('Success', 'Profile updated successfully!', [
           {
             text: 'OK',
@@ -245,6 +267,22 @@ const ParentProfileEditScreen = ({ navigation, route }) => {
 
       if (response.success) {
         setProfilePhoto(response.photo_url);
+
+        try {
+          const updatedUserData = {
+            ...userData,
+            photo: response.photo_url,
+            profile_photo: response.photo_url,
+          };
+          await saveUserData(updatedUserData, AsyncStorage);
+          console.log('✅ PARENT PROFILE EDIT: Updated photo in AsyncStorage');
+        } catch (storageError) {
+          console.warn(
+            '⚠️ PARENT PROFILE EDIT: Failed to update AsyncStorage:',
+            storageError
+          );
+        }
+
         Alert.alert('Success', 'Profile photo updated successfully!');
         // Refresh completeness data
         loadProfileData(authCode);
@@ -259,8 +297,24 @@ const ParentProfileEditScreen = ({ navigation, route }) => {
     }
   };
 
-  const handlePhotoRemoved = () => {
+  const handlePhotoRemoved = async () => {
     setProfilePhoto(null);
+
+    try {
+      const updatedUserData = {
+        ...userData,
+        photo: null,
+        profile_photo: null,
+      };
+      await saveUserData(updatedUserData, AsyncStorage);
+      console.log('✅ PARENT PROFILE EDIT: Removed photo from AsyncStorage');
+    } catch (storageError) {
+      console.warn(
+        '⚠️ PARENT PROFILE EDIT: Failed to update AsyncStorage:',
+        storageError
+      );
+    }
+
     Alert.alert('Success', 'Profile photo removed successfully!');
   };
 

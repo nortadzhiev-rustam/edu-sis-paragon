@@ -733,6 +733,7 @@ const createStyles = (theme, fontSizes) =>
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
+      justifyContent: 'space-between'
     },
     // Compact Header Styles
     compactHeaderContainer: {
@@ -858,6 +859,8 @@ const createStyles = (theme, fontSizes) =>
     content: {
       flex: 1,
       padding: 10,
+      position: "absolute",
+      bottom: 0,
     },
     menuSection: {
       flex: 1,

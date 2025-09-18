@@ -613,6 +613,15 @@ export default function TimetableScreen({ navigation, route }) {
           <View style={styles.headerRight} />
         </View>
 
+        {route?.params?.studentName && (
+          <View style={styles.studentContextBar}>
+            <Text style={styles.studentContextPrefix}>Student:</Text>
+            <Text style={styles.studentContextName}>
+              {route.params.studentName}
+            </Text>
+          </View>
+        )}
+
         {/* Day Info Subheader */}
         <View style={styles.subHeader}>
           <View style={styles.modernDayHeader}>
@@ -733,6 +742,27 @@ const createStyles = (theme, fontSizes) =>
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 16,
       paddingBottom: 16,
+    },
+    studentContextBar: {
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 6,
+    },
+    studentContextPrefix: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      marginRight: 4,
+    },
+    studentContextName: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.colors.text,
     },
     headerCenter: {
       flexDirection: 'row',

@@ -356,11 +356,15 @@ const GuardianProfileEditScreen = ({ navigation, route }) => {
     try {
       setPhotoUploading(true);
 
-      const response = await guardianService.uploadGuardianPhoto(authCode, {
-        uri: photo.uri,
-        type: photo.mimeType || 'image/jpeg',
-        fileName: photo.fileName || 'guardian_photo.jpg',
-      });
+      const response = await guardianService.uploadGuardianPhoto(
+        authCode,
+        {
+          uri: photo.uri,
+          type: photo.mimeType || 'image/jpeg',
+          fileName: photo.fileName || 'guardian_photo.jpg',
+        },
+        guardian?.qr_token // Pass the guardian's qr_token
+      );
 
       if (response.success) {
         setProfilePhoto(response.photo_url);

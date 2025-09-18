@@ -207,6 +207,7 @@ export default function ParentScreen({ navigation }) {
   // Parent profile animation states
   const [isProfileVisible, setIsProfileVisible] = useState(false);
   const [showInitialHint, setShowInitialHint] = useState(true);
+  const [hintAutoHideTimeout, setHintAutoHideTimeout] = useState(null);
   const profileTranslateY = useRef(new Animated.Value(-120)).current; // Start hidden (negative value)
   const profileOpacity = useRef(new Animated.Value(0)).current;
   const hintOpacity = useRef(new Animated.Value(1)).current; // Start visible when profile is hidden
@@ -291,6 +292,32 @@ export default function ParentScreen({ navigation }) {
     return unsubscribe;
   }, [navigation]);
 
+  // Helper function to show hint temporarily
+  const showHintTemporarily = (duration = 2000) => {
+    // Clear any existing timeout
+    if (hintAutoHideTimeout) {
+      clearTimeout(hintAutoHideTimeout);
+    }
+
+    // Show hint
+    Animated.timing(hintOpacity, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    // Set timeout to hide hint
+    const timeout = setTimeout(() => {
+      Animated.timing(hintOpacity, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
+    }, duration);
+
+    setHintAutoHideTimeout(timeout);
+  };
+
   // Initial hint animation that shows bouncing and then hides
   const startInitialHintAnimation = () => {
     // Wait a bit for the screen to settle, then start bouncing animation
@@ -341,6 +368,15 @@ export default function ParentScreen({ navigation }) {
 
   // Note: In parent proxy system, notifications are loaded through main notification context
   // No need to load individual student notifications
+
+  // Cleanup hint timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hintAutoHideTimeout) {
+        clearTimeout(hintAutoHideTimeout);
+      }
+    };
+  }, [hintAutoHideTimeout]);
 
   const handleLogout = async () => {
     Alert.alert(t('logout'), t('confirmLogout'), [
@@ -907,8 +943,13 @@ export default function ParentScreen({ navigation }) {
   const toggleProfileVisibility = () => {
     const toValue = isProfileVisible ? -120 : 0;
     const opacityValue = isProfileVisible ? 0 : 1;
-    const hintOpacityValue = isProfileVisible ? 0 : 1; // Show hint when profile is hidden
     const contentToValue = isProfileVisible ? -80 : 0; // Move entire content up when profile is hidden, down when shown
+
+    // Clear any existing hint timeout
+    if (hintAutoHideTimeout) {
+      clearTimeout(hintAutoHideTimeout);
+      setHintAutoHideTimeout(null);
+    }
 
     setIsProfileVisible(!isProfileVisible);
     setShowInitialHint(false); // Disable initial hint once user interacts
@@ -926,12 +967,6 @@ export default function ParentScreen({ navigation }) {
         duration: 300,
         useNativeDriver: true,
       }),
-      // Hint animation
-      Animated.timing(hintOpacity, {
-        toValue: hintOpacityValue,
-        duration: 300,
-        useNativeDriver: true,
-      }),
       // Entire content animation (children + menu sections)
       Animated.spring(contentTranslateY, {
         toValue: contentToValue,
@@ -939,7 +974,20 @@ export default function ParentScreen({ navigation }) {
         tension: 80,
         friction: 8,
       }),
-    ]).start();
+    ]).start(() => {
+      // Show hint temporarily when profile is hidden
+      if (!isProfileVisible) {
+        // Profile was just hidden
+        showHintTemporarily(2000); // Show hint for 2 seconds
+      } else {
+        // Hide hint immediately when profile is shown
+        Animated.timing(hintOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      }
+    });
   };
 
   // Handle pan gesture for swipe to reveal/hide profile
@@ -1180,9 +1228,7 @@ export default function ParentScreen({ navigation }) {
               <View style={styles.parentInfo}>
                 <Text style={styles.parentName}>{parentName}</Text>
                 <Text style={styles.parentEmail}>
-                  Email:{' '}
-                  {currentUserData?.parent_info?.email ||
-                    currentUserData?.parent_info?.parent_email}
+                  ID: {currentUserData?.parent_info?.parent_id}
                 </Text>
                 <Text style={styles.parentRole}>{t('tapToViewProfile')}</Text>
               </View>
@@ -1246,8 +1292,7 @@ export default function ParentScreen({ navigation }) {
             </Text>
 
             <Text style={styles.studentEmail}>
-              Email:{' '}
-              {item.email || item.student_email || t('emailNotAvailable')}
+              Branch: {item.branch_name || t('notAvailable')}
             </Text>
           </View>
 
@@ -1455,7 +1500,7 @@ export default function ParentScreen({ navigation }) {
               styles.contentSection,
               {
                 transform: [{ translateY: contentTranslateY }],
-                paddingTop: isProfileVisible ? 20 : 40,
+                paddingTop: isProfileVisible ? 0 : 20,
               },
             ]}
           >
@@ -1851,13 +1896,14 @@ const createStyles = (theme, fontSizes) =>
       flex: 1,
     },
     parentName: {
-      fontSize: fontSizes.medium,
+      fontSize: fontSizes.body,
       fontWeight: 'bold',
       color: theme.colors.text,
       marginBottom: 2,
     },
     parentRole: {
-      fontSize: fontSizes.small,
+      marginTop: 3,
+      fontSize: fontSizes.caption,
       color: theme.colors.textSecondary,
       fontWeight: '500',
     },
@@ -1907,12 +1953,15 @@ const createStyles = (theme, fontSizes) =>
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 20,
+      marginRight: 8,
       ...createCustomShadow(theme, {
         height: 1,
         opacity: 0.1,
         radius: 4,
         elevation: 2,
       }),
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
     },
     scrollIndicatorText: {
       fontSize: fontSizes.extraSmall,
@@ -2133,7 +2182,7 @@ const createStyles = (theme, fontSizes) =>
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'flex-start', // Changed from space-between to support flex expansion
-      paddingBottom: 50, // Add padding for scrollable content
+      paddingBottom: 80, // Add padding for scrollable content
       paddingHorizontal: 3, // Add padding for scrollable content
     },
     // iPad-specific grid layout - 4 tiles per row, wraps to next row for additional tiles
@@ -2477,14 +2526,15 @@ const createStyles = (theme, fontSizes) =>
       marginBottom: 1,
     },
     parentEmail: {
-      fontSize: 12,
+      fontSize: fontSizes.body,
       color: theme.colors.textSecondary,
       fontWeight: '500',
     },
     // Animated Parent Profile Styles
     parentProfileContainer: {
       marginTop: 40,
-      marginHorizontal: 8,
+      paddingHorizontal: 8,
+      paddingBottom: 20,
     },
     swipeHint: {
       backgroundColor: 'transparent', // Transparent background
@@ -2507,7 +2557,7 @@ const createStyles = (theme, fontSizes) =>
       justifyContent: 'center',
     },
     swipeHintText: {
-      fontSize: fontSizes.extraSmall, // Smaller text for subtle hint
+      fontSize: fontSizes.badgeText, // Smaller text for subtle hint
       color: theme.colors.textSecondary,
       fontWeight: '400', // Lighter weight
       marginBottom: 4, // Less space between text and chevrons

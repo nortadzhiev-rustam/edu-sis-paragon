@@ -235,6 +235,8 @@ export default function LibraryScreen({ navigation, route }) {
         return 'Returned';
       case 'renewed':
         return 'Renewed';
+      case 'overdue':
+        return 'Overdue';
       default:
         return 'Unknown';
     }
@@ -251,6 +253,8 @@ export default function LibraryScreen({ navigation, route }) {
         return faCheckCircle;
       case 'renewed':
         return faRedo;
+      case 'overdue':
+        return faClock;
       default:
         return faBook;
     }

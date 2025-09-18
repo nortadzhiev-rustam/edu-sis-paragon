@@ -19,6 +19,7 @@ import {
   faIdCard,
   faMapMarkerAlt,
   faCalendarAlt,
+  faIdBadge,
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -112,22 +113,22 @@ const ParentProfileScreen = ({ navigation }) => {
 
   const renderProfileHeader = () => {
     const parentName =
-      currentUserData?.name || currentUserData?.user_name || 'Parent';
+      currentUserData?.parent_info.name || currentUserData?.parent_info.parent_name || 'Parent';
 
     // Check multiple possible photo field names to match ParentScreen.js
     const parentPhoto =
-      currentUserData?.photo ||
-      currentUserData?.parent_photo ||
-      currentUserData?.parent_info?.parent_photo ||
-      currentUserData?.user_photo;
+      currentUserData?.parent_info.photo ||
+      currentUserData?.parent_info.parent_photo ||
+      currentUserData?.parent_info.parent_info?.parent_photo ||
+      currentUserData?.parent_info.user_photo;
 
     // Debug logging to help identify the issue
     console.log('🖼️ PARENT PROFILE SCREEN: Photo debug info:', {
       hasCurrentUserData: !!currentUserData,
-      photo: currentUserData?.photo,
-      parent_photo: currentUserData?.parent_photo,
-      parent_info_photo: currentUserData?.parent_info?.parent_photo,
-      user_photo: currentUserData?.user_photo,
+      photo: currentUserData?.parent_info.photo,
+      parent_photo: currentUserData?.parent_info.parent_photo,
+      parent_info_photo: currentUserData?.parent_info.parent_info?.parent_photo,
+      user_photo: currentUserData?.parent_info.user_photo,
       finalParentPhoto: parentPhoto,
       currentUserDataKeys: currentUserData ? Object.keys(currentUserData) : [],
     });
@@ -190,12 +191,12 @@ const ParentProfileScreen = ({ navigation }) => {
   };
 
   const renderInfoSection = () => {
-    const parentEmail = currentUserData?.email || currentUserData?.parent_email;
-    const parentPhone = currentUserData?.phone || currentUserData?.parent_phone;
-    const authCode = currentUserData?.auth_code || currentUserData?.authCode;
-    const address = currentUserData?.address;
-    const joinDate = currentUserData?.created_at || currentUserData?.join_date;
-
+    const parentEmail = currentUserData?.parent_info.email || currentUserData?.parent_info.parent_email;
+    const parentPhone = currentUserData?.parent_info.phone || currentUserData?.parent_info.parent_phone;
+    const authCode = currentUserData?.parent_info.auth_code || currentUserData?.parent_info.authCode;
+    const address = currentUserData?.parent_info.address;
+    const joinDate = currentUserData?.parent_info.created_at || currentUserData?.parent_info.join_date;
+    const parentId = currentUserData?.parent_info.parent_id;
     return (
       <View style={styles.infoSection}>
         <Text style={styles.sectionTitle}>{t('contactInformation')}</Text>
@@ -268,6 +269,20 @@ const ParentProfileScreen = ({ navigation }) => {
               <Text style={styles.infoValue}>
                 {new Date(joinDate).toLocaleDateString()}
               </Text>
+            </View>
+          </View>
+        )}
+
+        {parentId && (
+          <View style={styles.infoItem}>
+            <FontAwesomeIcon
+              icon={faIdBadge}
+              size={16}
+              color={theme.colors.primary}
+            />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>{t('id')}</Text>
+              <Text style={styles.infoValue}>{parentId}</Text>
             </View>
           </View>
         )}
@@ -393,13 +408,13 @@ const createStyles = (theme, fontSizes) =>
       flex: 1,
     },
     parentName: {
-      fontSize: fontSizes.large,
+      fontSize: fontSizes.profileName,
       fontWeight: 'bold',
       color: theme.colors.text,
       marginBottom: 4,
     },
     parentRole: {
-      fontSize: fontSizes.medium,
+      fontSize: fontSizes.profileRole,
       color: theme.colors.primary,
       fontWeight: '600',
     },
