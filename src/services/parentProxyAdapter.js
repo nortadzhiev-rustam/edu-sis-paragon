@@ -395,11 +395,23 @@ export const adaptCalendarService = (originalService) => {
  * Utility function to detect if request should use parent proxy
  */
 export const shouldUseParentProxy = (navigationParams) => {
-  return !!(
-    navigationParams?.useParentProxy &&
-    navigationParams?.studentId &&
-    navigationParams?.parentData
-  );
+  const hasUseParentProxy = !!navigationParams?.useParentProxy;
+  const hasStudentId = !!navigationParams?.studentId;
+  const hasParentData = !!navigationParams?.parentData;
+
+  console.log('🔍 PARENT PROXY: Checking shouldUseParentProxy conditions:', {
+    hasUseParentProxy,
+    hasStudentId,
+    hasParentData,
+    studentId: navigationParams?.studentId,
+    useParentProxy: navigationParams?.useParentProxy,
+    parentData: navigationParams?.parentData ? 'present' : 'missing',
+  });
+
+  const shouldUse = hasUseParentProxy && hasStudentId && hasParentData;
+  console.log('🔍 PARENT PROXY: shouldUseParentProxy result:', shouldUse);
+
+  return shouldUse;
 };
 
 /**

@@ -219,23 +219,133 @@ const NotificationItem = ({ notification, onPress, userType }) => {
     try {
       let authCode = null;
       let studentName = null;
+      let parentAuthCode = null;
 
-      // First, check if notification has a specific authCode (for student notifications in parent context)
-      if (notification.studentAuthCode) {
-        authCode = notification.studentAuthCode;
+      console.log(
+        '📱 NOTIFICATION: Getting navigation params for notification:',
+        {
+          type: notification.type,
+          hasStudentAuthCode: !!notification.studentAuthCode,
+          userType: userType,
+        }
+      );
 
-        // Try to get student name from stored student accounts (for parent context)
-        try {
-          const savedStudents = await AsyncStorage.getItem('studentAccounts');
-          if (savedStudents) {
-            const students = JSON.parse(savedStudents);
-            const student = students.find((s) => s.authCode === authCode);
-            if (student) {
-              studentName = student.name;
+      // Debug: Log the full notification object to see its structure
+      console.log(
+        '📱 NOTIFICATION: Full notification object:',
+        JSON.stringify(notification, null, 2)
+      );
+
+      // Check if this is a parent viewing a child's notification
+      // Look for various ways the notification might contain student information
+      let parsedData = null;
+      try {
+        // Try to parse the data field which often contains student information as JSON string
+        if (notification.data && typeof notification.data === 'string') {
+          parsedData = JSON.parse(notification.data);
+        } else if (
+          notification._apiData?.data &&
+          typeof notification._apiData.data === 'string'
+        ) {
+          parsedData = JSON.parse(notification._apiData.data);
+        }
+      } catch (error) {
+        console.log(
+          '📱 NOTIFICATION: Could not parse notification data:',
+          error
+        );
+      }
+
+      const hasStudentInfo =
+        notification.studentAuthCode ||
+        notification.student_id ||
+        notification.studentId ||
+        notification._apiData?.student_id ||
+        notification._apiData?.studentId ||
+        parsedData?.student_id ||
+        parsedData?.studentId ||
+        (notification._apiData &&
+          (notification._apiData.student_name ||
+            notification._apiData.studentName)) ||
+        parsedData?.student_name;
+
+      console.log('📱 NOTIFICATION: Student info check:', {
+        hasStudentInfo,
+        studentAuthCode: notification.studentAuthCode,
+        student_id:
+          notification.student_id || notification._apiData?.student_id,
+        studentId: notification.studentId || notification._apiData?.studentId,
+        student_name:
+          notification._apiData?.student_name ||
+          notification._apiData?.studentName,
+        parsedData: parsedData,
+        userType,
+      });
+
+      // Check if this is a parent viewing a child's notification (either via studentAuthCode or parsed data)
+      if (
+        notification.studentAuthCode ||
+        (hasStudentInfo && userType === 'parent')
+      ) {
+        // This is a child's notification being viewed by a parent
+
+        // If we have studentAuthCode, use it; otherwise use parent's authCode for API calls
+        if (notification.studentAuthCode) {
+          authCode = notification.studentAuthCode;
+          console.log(
+            '📱 NOTIFICATION: Using student authCode from notification'
+          );
+        } else {
+          // For notifications with parsed student data, we'll use parent's authCode for API calls
+          try {
+            const userData = await AsyncStorage.getItem('userData');
+            if (userData) {
+              const user = JSON.parse(userData);
+              authCode = user.authCode || user.auth_code;
+              console.log(
+                '📱 NOTIFICATION: Using parent authCode for API calls'
+              );
             }
+          } catch (error) {
+            console.log('Could not get parent authCode for API calls:', error);
+          }
+        }
+
+        // Get parent's authCode for context
+        try {
+          const userData = await AsyncStorage.getItem('userData');
+          if (userData) {
+            const user = JSON.parse(userData);
+            parentAuthCode = user.authCode || user.auth_code;
           }
         } catch (error) {
-          console.log('Could not get student name:', error);
+          console.log('Could not get parent authCode:', error);
+        }
+
+        // Try to get student name from parsed data first, then from stored accounts
+        if (parsedData?.student_name) {
+          studentName = parsedData.student_name;
+          console.log(
+            '📱 NOTIFICATION: Found student name in parsed data:',
+            studentName
+          );
+        } else {
+          try {
+            const savedStudents = await AsyncStorage.getItem('studentAccounts');
+            if (savedStudents) {
+              const students = JSON.parse(savedStudents);
+              const student = students.find((s) => s.authCode === authCode);
+              if (student) {
+                studentName = student.name;
+                console.log(
+                  '📱 NOTIFICATION: Found student name for child notification:',
+                  studentName
+                );
+              }
+            }
+          } catch (error) {
+            console.log('Could not get student name:', error);
+          }
         }
       } else {
         // Get the current user's authCode from AsyncStorage
@@ -251,6 +361,191 @@ const NotificationItem = ({ notification, onPress, userType }) => {
       const params = {};
       if (authCode) params.authCode = authCode;
       if (studentName) params.studentName = studentName;
+
+      // Add userType context for proper screen behavior
+      if (userType) params.userType = userType;
+
+      // If this is a parent viewing a child's notification, add parent proxy parameters
+      // Check for various indicators that this is a child's notification
+      const isChildNotification =
+        (notification.studentAuthCode || hasStudentInfo) &&
+        userType === 'parent';
+
+      if (isChildNotification && parentAuthCode) {
+        // This is parent proxy access - parent viewing child's notification
+        params.authCode = parentAuthCode; // Use parent's authCode for API calls
+        params.studentName = studentName; // Child's name for display
+        params.useParentProxy = true; // Flag to indicate proxy access
+        params.parentData = { authCode: parentAuthCode }; // Parent data for context
+
+        // Extract student ID from notification or try to find it
+        let studentId = null;
+
+        // First try to get studentId from notification directly (check multiple possible fields)
+        if (notification.studentId) {
+          studentId = notification.studentId;
+          console.log(
+            '📱 NOTIFICATION: Found studentId in notification:',
+            studentId
+          );
+        } else if (notification.student_id) {
+          studentId = notification.student_id;
+          console.log(
+            '📱 NOTIFICATION: Found student_id in notification:',
+            studentId
+          );
+        } else if (parsedData?.student_id) {
+          studentId = parsedData.student_id;
+          console.log(
+            '📱 NOTIFICATION: Found student_id in parsed data:',
+            studentId
+          );
+        } else if (parsedData?.studentId) {
+          studentId = parsedData.studentId;
+          console.log(
+            '📱 NOTIFICATION: Found studentId in parsed data:',
+            studentId
+          );
+        } else if (notification._apiData?.student_id) {
+          studentId = notification._apiData.student_id;
+          console.log(
+            '📱 NOTIFICATION: Found student_id in _apiData:',
+            studentId
+          );
+        } else if (notification._apiData?.studentId) {
+          studentId = notification._apiData.studentId;
+          console.log(
+            '📱 NOTIFICATION: Found studentId in _apiData:',
+            studentId
+          );
+        } else {
+          // Try to find student ID from stored student accounts
+          try {
+            const savedStudents = await AsyncStorage.getItem('studentAccounts');
+            if (savedStudents) {
+              const students = JSON.parse(savedStudents);
+              console.log(
+                '📱 NOTIFICATION: Searching in saved students:',
+                students.length,
+                'students'
+              );
+              const student = students.find(
+                (s) => s.authCode === notification.studentAuthCode
+              );
+              if (student) {
+                studentId = student.student_id || student.studentId;
+                console.log(
+                  '📱 NOTIFICATION: Found student in saved accounts:',
+                  {
+                    name: student.name,
+                    studentId: studentId,
+                    authCode: student.authCode?.substring(0, 8) + '...',
+                  }
+                );
+              } else {
+                console.log(
+                  '📱 NOTIFICATION: No matching student found for authCode:',
+                  notification.studentAuthCode?.substring(0, 8) + '...'
+                );
+              }
+            } else {
+              console.log('📱 NOTIFICATION: No saved student accounts found');
+            }
+          } catch (error) {
+            console.log('Could not get student ID for parent proxy:', error);
+          }
+
+          // Last resort: try to extract student info from notification content
+          if (!studentId && userType === 'parent') {
+            console.log(
+              '📱 NOTIFICATION: Attempting to extract student info from notification content'
+            );
+
+            // First try to use student name from parsed data to find student ID
+            if (parsedData?.student_name) {
+              try {
+                const savedStudents = await AsyncStorage.getItem(
+                  'studentAccounts'
+                );
+                if (savedStudents) {
+                  const students = JSON.parse(savedStudents);
+                  const matchingStudent = students.find((student) => {
+                    return student.name === parsedData.student_name;
+                  });
+
+                  if (matchingStudent) {
+                    studentId =
+                      matchingStudent.student_id || matchingStudent.studentId;
+                    console.log(
+                      '📱 NOTIFICATION: Found student by exact name match from parsed data:',
+                      {
+                        name: matchingStudent.name,
+                        studentId: studentId,
+                      }
+                    );
+                  }
+                }
+              } catch (error) {
+                console.log(
+                  'Error trying to match student by parsed name:',
+                  error
+                );
+              }
+            }
+
+            // If still no studentId, try to find student name in notification title or body
+            if (!studentId) {
+              const notificationText =
+                `${notification.title} ${notification.body}`.toLowerCase();
+
+              try {
+                const savedStudents = await AsyncStorage.getItem(
+                  'studentAccounts'
+                );
+                if (savedStudents) {
+                  const students = JSON.parse(savedStudents);
+                  const matchingStudent = students.find((student) => {
+                    const studentName = (student.name || '').toLowerCase();
+                    return (
+                      studentName && notificationText.includes(studentName)
+                    );
+                  });
+
+                  if (matchingStudent) {
+                    studentId =
+                      matchingStudent.student_id || matchingStudent.studentId;
+                    console.log(
+                      '📱 NOTIFICATION: Found student by name matching in content:',
+                      {
+                        name: matchingStudent.name,
+                        studentId: studentId,
+                      }
+                    );
+                  }
+                }
+              } catch (error) {
+                console.log('Error trying to match student by name:', error);
+              }
+            }
+          }
+        }
+
+        if (studentId) {
+          params.studentId = studentId;
+          console.log(
+            '📱 NOTIFICATION: Set studentId for parent proxy:',
+            studentId
+          );
+        } else {
+          console.warn(
+            '📱 NOTIFICATION: Could not determine studentId for parent proxy - navigation may fail'
+          );
+        }
+
+        console.log('📱 NOTIFICATION: Parent proxy navigation params:', params);
+      }
+
+      console.log('📱 NOTIFICATION: Final navigation params created:', params);
 
       return params;
     } catch (error) {
@@ -270,7 +565,13 @@ const NotificationItem = ({ notification, onPress, userType }) => {
     try {
       const navigationParams = await getNavigationParams();
 
-      console.log('Navigating with params:', navigationParams); // Debug log
+      console.log('📱 NOTIFICATION: Navigating to screen:', type);
+      console.log('📱 NOTIFICATION: Navigation params:', navigationParams);
+      console.log('📱 NOTIFICATION: User type:', userType);
+      console.log(
+        '📱 NOTIFICATION: Notification has studentAuthCode:',
+        !!notification.studentAuthCode
+      );
 
       switch (type) {
         // Behavior notifications

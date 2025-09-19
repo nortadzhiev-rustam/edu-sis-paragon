@@ -217,11 +217,30 @@ const ParentProfileEditScreen = ({ navigation, route }) => {
             phone: formData.phone,
             mobile_phone: formData.phone,
             address: formData.address,
+            // Preserve current photo data in all possible field locations
+            photo: profilePhoto || userData.photo,
+            profile_photo: profilePhoto || userData.profile_photo,
+            parent_photo: profilePhoto || userData.parent_photo,
+            user_photo: profilePhoto || userData.user_photo,
+            // Also update parent_info if it exists
+            parent_info: userData.parent_info
+              ? {
+                  ...userData.parent_info,
+                  name: formData.name,
+                  email: formData.email,
+                  phone: formData.phone,
+                  address: formData.address,
+                  photo: profilePhoto || userData.parent_info.photo,
+                  parent_photo:
+                    profilePhoto || userData.parent_info.parent_photo,
+                  user_photo: profilePhoto || userData.parent_info.user_photo,
+                }
+              : userData.parent_info,
           };
           await saveUserData(mergedUserData, AsyncStorage);
           setUserData(mergedUserData);
           console.log(
-            '✅ PARENT PROFILE EDIT: Persisted updated user data to AsyncStorage'
+            '✅ PARENT PROFILE EDIT: Persisted updated user data to AsyncStorage with all photo fields'
           );
         } catch (persistError) {
           console.warn(
@@ -234,8 +253,8 @@ const ParentProfileEditScreen = ({ navigation, route }) => {
           {
             text: 'OK',
             onPress: () => {
-              // Refresh completeness data
-              loadProfileData(authCode);
+              // Navigate back to Parent Profile screen
+              navigation.goBack();
             },
           },
         ]);
@@ -273,9 +292,22 @@ const ParentProfileEditScreen = ({ navigation, route }) => {
             ...userData,
             photo: response.photo_url,
             profile_photo: response.photo_url,
+            parent_photo: response.photo_url,
+            user_photo: response.photo_url,
+            // Also update parent_info if it exists
+            parent_info: userData.parent_info
+              ? {
+                  ...userData.parent_info,
+                  photo: response.photo_url,
+                  parent_photo: response.photo_url,
+                  user_photo: response.photo_url,
+                }
+              : userData.parent_info,
           };
           await saveUserData(updatedUserData, AsyncStorage);
-          console.log('✅ PARENT PROFILE EDIT: Updated photo in AsyncStorage');
+          console.log(
+            '✅ PARENT PROFILE EDIT: Updated photo in AsyncStorage with all possible field names'
+          );
         } catch (storageError) {
           console.warn(
             '⚠️ PARENT PROFILE EDIT: Failed to update AsyncStorage:',
@@ -305,9 +337,22 @@ const ParentProfileEditScreen = ({ navigation, route }) => {
         ...userData,
         photo: null,
         profile_photo: null,
+        parent_photo: null,
+        user_photo: null,
+        // Also update parent_info if it exists
+        parent_info: userData.parent_info
+          ? {
+              ...userData.parent_info,
+              photo: null,
+              parent_photo: null,
+              user_photo: null,
+            }
+          : userData.parent_info,
       };
       await saveUserData(updatedUserData, AsyncStorage);
-      console.log('✅ PARENT PROFILE EDIT: Removed photo from AsyncStorage');
+      console.log(
+        '✅ PARENT PROFILE EDIT: Removed photo from AsyncStorage with all possible field names'
+      );
     } catch (storageError) {
       console.warn(
         '⚠️ PARENT PROFILE EDIT: Failed to update AsyncStorage:',

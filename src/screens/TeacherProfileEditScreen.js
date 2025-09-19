@@ -312,8 +312,8 @@ const TeacherProfileEditScreen = ({ navigation, route }) => {
           {
             text: 'OK',
             onPress: () => {
-              // Refresh completeness data
-              loadProfileData(authCode);
+              // Navigate back to Teacher Profile screen
+              navigation.goBack();
             },
           },
         ]);
@@ -352,9 +352,12 @@ const TeacherProfileEditScreen = ({ navigation, route }) => {
             ...userData,
             photo: response.photo_url,
             profile_photo: response.photo_url,
+            user_photo: response.photo_url,
           };
           await saveUserData(updatedUserData, AsyncStorage);
-          console.log('✅ TEACHER PROFILE EDIT: Updated photo in AsyncStorage');
+          console.log(
+            '✅ TEACHER PROFILE EDIT: Updated photo in AsyncStorage with all photo fields'
+          );
         } catch (storageError) {
           console.warn(
             '⚠️ TEACHER PROFILE EDIT: Failed to update AsyncStorage:',
@@ -385,9 +388,12 @@ const TeacherProfileEditScreen = ({ navigation, route }) => {
         ...userData,
         photo: null,
         profile_photo: null,
+        user_photo: null,
       };
       await saveUserData(updatedUserData, AsyncStorage);
-      console.log('✅ TEACHER PROFILE EDIT: Removed photo from AsyncStorage');
+      console.log(
+        '✅ TEACHER PROFILE EDIT: Removed photo from AsyncStorage with all photo fields'
+      );
     } catch (storageError) {
       console.warn(
         '⚠️ TEACHER PROFILE EDIT: Failed to update AsyncStorage:',

@@ -40,7 +40,6 @@ const NotificationScreen = ({ navigation, route }) => {
     clearAll,
     markAsRead,
     markAllAPINotificationsAsRead,
-    markAllStudentNotificationsAsRead,
     currentStudentAuthCode,
     studentNotifications,
     studentUnreadCounts,
@@ -420,11 +419,15 @@ const NotificationScreen = ({ navigation, route }) => {
       let apiResponse;
 
       // Use appropriate API method based on user type and context
-      if (userType === 'parent' && currentStudentAuthCode) {
-        // In parent context, mark student notifications as read
-        apiResponse = await markAllStudentNotificationsAsRead(
-          currentStudentAuthCode
+      if (userType === 'parent') {
+        // For parents, always use the parent's authCode to mark all notifications as read
+        // The API should handle marking all notifications for all children of this parent
+        console.log(
+          '📱 NOTIFICATION: Parent marking all notifications as read with authCode:',
+          authCode
         );
+        // Pass the parent's authCode explicitly to ensure it's used instead of auto-detected authCode
+        apiResponse = await markAllAPINotificationsAsRead(authCode);
       } else {
         // For teachers and students, mark their own notifications as read
         apiResponse = await markAllAPINotificationsAsRead();
@@ -719,6 +722,15 @@ const NotificationScreen = ({ navigation, route }) => {
       userType
     );
     console.log('📱 NOTIFICATION: Notification type:', item.type);
+    console.log('📱 NOTIFICATION: Notification data structure:', {
+      id: item.id,
+      type: item.type,
+      title: item.title,
+      hasStudentAuthCode: !!item.studentAuthCode,
+      studentAuthCode: item.studentAuthCode,
+      studentId: item.studentId,
+      body: item.body?.substring(0, 50) + '...',
+    });
     return (
       <NotificationItem
         notification={item}

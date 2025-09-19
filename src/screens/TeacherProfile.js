@@ -31,6 +31,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { getUserData } from '../services/authService';
 import { performLogout } from '../services/logoutService';
 import { borderRadius } from '../utils/commonStyles';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function TeacherProfile({ route, navigation }) {
   const { theme } = useTheme();
@@ -46,6 +47,14 @@ export default function TeacherProfile({ route, navigation }) {
   useEffect(() => {
     loadUserData();
   }, []);
+
+  // Refresh data when screen comes into focus (e.g., returning from edit screen)
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('🔄 TEACHER PROFILE: Screen focused, refreshing data...');
+      loadUserData();
+    }, [])
+  );
 
   const loadCurrentBranchId = async () => {
     try {
@@ -315,9 +324,14 @@ export default function TeacherProfile({ route, navigation }) {
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
-            {userData.photo || userData.profile_photo ? (
+            {userData.photo || userData.profile_photo || userData.user_photo ? (
               <Image
-                source={{ uri: userData.photo || userData.profile_photo }}
+                source={{
+                  uri:
+                    userData.photo ||
+                    userData.profile_photo ||
+                    userData.user_photo,
+                }}
                 style={styles.avatar}
                 resizeMode='cover'
                 onError={(error) => {

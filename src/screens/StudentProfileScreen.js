@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,15 +13,48 @@ import { faArrowLeft, faEdit } from '@fortawesome/free-solid-svg-icons';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getResponsiveHeaderFontSize } from '../utils/commonStyles';
+import { useFocusEffect } from '@react-navigation/native';
+import { getUserData } from '../services/authService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function StudentProfileScreen({ route, navigation }) {
   const { theme } = useTheme();
   const { t, currentLanguage } = useLanguage();
   const fontSizes = getLanguageFontSizes(currentLanguage);
 
-  const student = route.params?.student || {};
+  const [student, setStudent] = useState(route.params?.student || {});
 
   const styles = createStyles(theme, fontSizes);
+
+  // Refresh student data when screen comes into focus (e.g., returning from edit screen)
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('🔄 STUDENT PROFILE: Screen focused, refreshing data...');
+      loadStudentData();
+    }, [])
+  );
+
+  const loadStudentData = async () => {
+    try {
+      console.log('🔍 STUDENT PROFILE: Loading student data...');
+
+      // Get updated student data from AsyncStorage
+      const studentData = await getUserData('student', AsyncStorage);
+
+      if (studentData && studentData.userType === 'student') {
+        console.log('✅ STUDENT PROFILE: Updated student data loaded');
+        setStudent(studentData);
+      } else {
+        // Fallback to route params if no updated data
+        console.log('⚠️ STUDENT PROFILE: Using route params as fallback');
+        setStudent(route.params?.student || {});
+      }
+    } catch (error) {
+      console.error('❌ STUDENT PROFILE: Error loading student data:', error);
+      // Fallback to route params on error
+      setStudent(route.params?.student || {});
+    }
+  };
 
   // Debug logging for photo URI
   console.log('📸 STUDENT PROFILE: Student data received:', {
@@ -32,9 +65,12 @@ export default function StudentProfileScreen({ route, navigation }) {
     normalizedPhoto: student.photo,
   });
 
-  const photoUri = student?.personal_info?.profile_photo
-    ? student.personal_info.profile_photo
-    : student.photo || null;
+  const photoUri =
+    student?.personal_info?.profile_photo ||
+    student?.photo ||
+    student?.profile_photo ||
+    student?.user_photo ||
+    null;
 
   console.log('📸 STUDENT PROFILE: Final photo URI:', photoUri);
 

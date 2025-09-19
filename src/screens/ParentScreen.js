@@ -281,9 +281,12 @@ export default function ParentScreen({ navigation }) {
     // Load saved student accounts
     loadStudents();
 
-    // Add listener for when we come back from adding a student
+    // Add listener for when we come back from adding a student or editing profile
     const unsubscribe = navigation.addListener('focus', () => {
+      console.log('🔄 PARENT SCREEN: Screen focused, refreshing data...');
       loadStudents();
+      // Also refresh parent profile data in case it was updated
+      loadParentProfileData();
     });
 
     // Start initial hint animation after component mounts
@@ -643,6 +646,42 @@ export default function ParentScreen({ navigation }) {
         break;
       default:
         break;
+    }
+  };
+
+  // Load parent profile data separately to refresh after profile edits
+  const loadParentProfileData = async () => {
+    try {
+      console.log('🔄 PARENT: Refreshing parent profile data...');
+
+      // Use the same logic as loadStudents but only update currentUserData
+      const parentData = await getUserData('parent', AsyncStorage);
+      const studentData = await getUserData('student', AsyncStorage);
+
+      let parsedUserData = null;
+      if (parentData && parentData.userType === 'parent') {
+        parsedUserData = parentData;
+        console.log('✅ PARENT: Refreshed parent-specific data');
+      } else if (studentData && studentData.userType === 'student') {
+        parsedUserData = studentData;
+        console.log('✅ PARENT: Refreshed student-specific data');
+      } else {
+        // Fallback to generic userData for backward compatibility
+        const userData = await AsyncStorage.getItem('userData');
+        if (userData) {
+          parsedUserData = JSON.parse(userData);
+          console.log('⚠️ PARENT: Refreshed generic userData as fallback');
+        }
+      }
+
+      if (parsedUserData) {
+        console.log(
+          '🔄 PARENT: Updated currentUserData with refreshed profile data'
+        );
+        setCurrentUserData(parsedUserData);
+      }
+    } catch (error) {
+      console.error('❌ PARENT: Error refreshing parent profile data:', error);
     }
   };
 
@@ -1143,8 +1182,12 @@ export default function ParentScreen({ navigation }) {
     const parentPhoto =
       currentUserData?.photo ||
       currentUserData?.parent_photo ||
+      currentUserData?.profile_photo ||
+      currentUserData?.user_photo ||
+      currentUserData?.parent_info?.photo ||
       currentUserData?.parent_info?.parent_photo ||
-      currentUserData?.user_photo;
+      currentUserData?.parent_info?.parent_info?.parent_photo ||
+      currentUserData?.parent_info?.user_photo;
 
     // Debug logging to help identify the issue
     console.log('🖼️ PARENT PROFILE: Photo debug info:', {
@@ -2182,7 +2225,7 @@ const createStyles = (theme, fontSizes) =>
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'flex-start', // Changed from space-between to support flex expansion
-      paddingBottom: 100, // Add padding for scrollable content
+      paddingBottom: 170, // Add padding for scrollable content
       paddingHorizontal: 3, // Add padding for scrollable content
     },
     // iPad-specific grid layout - 4 tiles per row, wraps to next row for additional tiles

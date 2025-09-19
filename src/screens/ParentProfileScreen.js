@@ -26,6 +26,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { createMediumShadow } from '../utils/commonStyles';
 import { Config } from '../config/env';
 import { getUserData } from '../services/authService';
+import { useFocusEffect } from '@react-navigation/native';
 
 const ParentProfileScreen = ({ navigation }) => {
   const { theme } = useTheme();
@@ -39,6 +40,16 @@ const ParentProfileScreen = ({ navigation }) => {
   useEffect(() => {
     loadParentData();
   }, []);
+
+  // Refresh data when screen comes into focus (e.g., returning from edit screen)
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log(
+        '🔄 PARENT PROFILE SCREEN: Screen focused, refreshing data...'
+      );
+      loadParentData();
+    }, [])
+  );
 
   const loadParentData = async () => {
     try {
@@ -113,24 +124,38 @@ const ParentProfileScreen = ({ navigation }) => {
 
   const renderProfileHeader = () => {
     const parentName =
-      currentUserData?.parent_info.name || currentUserData?.parent_info.parent_name || 'Parent';
+      currentUserData?.parent_info.name ||
+      currentUserData?.parent_info.parent_name ||
+      'Parent';
 
-    // Check multiple possible photo field names to match ParentScreen.js
+    // Check multiple possible photo field names to match ParentScreen.js and handle all possible photo locations
     const parentPhoto =
-      currentUserData?.parent_info.photo ||
-      currentUserData?.parent_info.parent_photo ||
-      currentUserData?.parent_info.parent_info?.parent_photo ||
-      currentUserData?.parent_info.user_photo;
+      currentUserData?.parent_info?.photo ||
+      currentUserData?.parent_info?.parent_photo ||
+      currentUserData?.parent_info?.parent_info?.parent_photo ||
+      currentUserData?.parent_info?.user_photo ||
+      currentUserData?.photo ||
+      currentUserData?.parent_photo ||
+      currentUserData?.profile_photo ||
+      currentUserData?.user_photo;
 
     // Debug logging to help identify the issue
     console.log('🖼️ PARENT PROFILE SCREEN: Photo debug info:', {
       hasCurrentUserData: !!currentUserData,
-      photo: currentUserData?.parent_info.photo,
-      parent_photo: currentUserData?.parent_info.parent_photo,
-      parent_info_photo: currentUserData?.parent_info.parent_info?.parent_photo,
-      user_photo: currentUserData?.parent_info.user_photo,
+      'parent_info.photo': currentUserData?.parent_info?.photo,
+      'parent_info.parent_photo': currentUserData?.parent_info?.parent_photo,
+      'parent_info.parent_info.parent_photo':
+        currentUserData?.parent_info?.parent_info?.parent_photo,
+      'parent_info.user_photo': currentUserData?.parent_info?.user_photo,
+      'currentUserData.photo': currentUserData?.photo,
+      'currentUserData.parent_photo': currentUserData?.parent_photo,
+      'currentUserData.profile_photo': currentUserData?.profile_photo,
+      'currentUserData.user_photo': currentUserData?.user_photo,
       finalParentPhoto: parentPhoto,
       currentUserDataKeys: currentUserData ? Object.keys(currentUserData) : [],
+      parentInfoKeys: currentUserData?.parent_info
+        ? Object.keys(currentUserData.parent_info)
+        : [],
     });
 
     const photoUri = parentPhoto?.startsWith('http')
@@ -191,11 +216,19 @@ const ParentProfileScreen = ({ navigation }) => {
   };
 
   const renderInfoSection = () => {
-    const parentEmail = currentUserData?.parent_info.email || currentUserData?.parent_info.parent_email;
-    const parentPhone = currentUserData?.parent_info.phone || currentUserData?.parent_info.parent_phone;
-    const authCode = currentUserData?.parent_info.auth_code || currentUserData?.parent_info.authCode;
+    const parentEmail =
+      currentUserData?.parent_info.email ||
+      currentUserData?.parent_info.parent_email;
+    const parentPhone =
+      currentUserData?.parent_info.phone ||
+      currentUserData?.parent_info.parent_phone;
+    const authCode =
+      currentUserData?.parent_info.auth_code ||
+      currentUserData?.parent_info.authCode;
     const address = currentUserData?.parent_info.address;
-    const joinDate = currentUserData?.parent_info.created_at || currentUserData?.parent_info.join_date;
+    const joinDate =
+      currentUserData?.parent_info.created_at ||
+      currentUserData?.parent_info.join_date;
     const parentId = currentUserData?.parent_info.parent_id;
     return (
       <View style={styles.infoSection}>

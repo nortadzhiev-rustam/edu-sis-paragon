@@ -463,21 +463,101 @@ export default function GradesScreen({ navigation, route }) {
   const getSubjectAverage = (subject) => {
     if (!grades) return null;
 
+    console.log(`📊 GRADES: Calculating average for ${subject}`);
+    console.log(`📊 GRADES: Available grades data:`, grades);
+
     const subjectGrades = [];
 
     // Use enhanced calculated_grade field for summative assessments
     if (grades.summative) {
-      grades.summative.forEach((grade) => {
+      console.log(`📊 GRADES: Processing ${subject} grades from API data`);
+      grades.summative.forEach((grade, index) => {
         if (grade.subject_name === subject && grade.is_graded === 1) {
-          // Prefer calculated_grade from enhanced API, fallback to score_percentage
-          const gradeValue =
+          // Calculate percentage from raw score and max score if needed
+          let gradeValue;
+
+          // First try to get the percentage directly
+          if (
             grade.calculated_grade !== null &&
             grade.calculated_grade !== undefined
-              ? grade.calculated_grade
-              : grade.score_percentage || grade.percentage;
+          ) {
+            // Check if calculated_grade looks like a raw score instead of percentage
+            // If calculated_grade is very low but we have raw_score/max_score that would give a higher percentage,
+            // then calculated_grade is probably the raw score, not the percentage
+            if (
+              grade.raw_score !== null &&
+              grade.max_score !== null &&
+              grade.max_score > 0
+            ) {
+              const calculatedPercentage =
+                (grade.raw_score / grade.max_score) * 100;
+              // If calculated_grade is much lower than the calculated percentage, it's probably a raw score
+              if (grade.calculated_grade < calculatedPercentage * 0.5) {
+                console.log(
+                  `📊 GRADES: calculated_grade (${grade.calculated_grade}) seems to be raw score, using calculated percentage (${calculatedPercentage})`
+                );
+                gradeValue = calculatedPercentage;
+              } else {
+                gradeValue = grade.calculated_grade;
+              }
+            } else {
+              gradeValue = grade.calculated_grade;
+            }
+          } else if (
+            grade.score_percentage !== null &&
+            grade.score_percentage !== undefined
+          ) {
+            gradeValue = grade.score_percentage;
+          } else if (
+            grade.percentage !== null &&
+            grade.percentage !== undefined
+          ) {
+            gradeValue = grade.percentage;
+          } else if (
+            grade.raw_score !== null &&
+            grade.raw_score !== undefined &&
+            grade.max_score !== null &&
+            grade.max_score !== undefined &&
+            grade.max_score > 0
+          ) {
+            // Calculate percentage from raw score and max score
+            gradeValue = (grade.raw_score / grade.max_score) * 100;
+          } else {
+            gradeValue = null;
+          }
+
+          console.log(
+            `📊 GRADES: Grade ${index + 1} - ${
+              grade.assessment_name || grade.title || 'Unknown'
+            }`
+          );
+          console.log(
+            `📊 GRADES: Raw data - calculated_grade: ${grade.calculated_grade}, score_percentage: ${grade.score_percentage}, raw_score: ${grade.raw_score}/${grade.max_score}`
+          );
+          console.log(
+            `📊 GRADES: Final grade value: ${gradeValue}%, weight: ${
+              grade.type_percentage || 'N/A'
+            }`
+          );
+          console.log('---');
 
           if (gradeValue !== null && gradeValue !== undefined) {
-            subjectGrades.push(gradeValue);
+            // Try to get weight from type_percentage, fallback to max_score as weight
+            const weight = grade.type_percentage || grade.max_score || null;
+
+            subjectGrades.push({
+              grade: gradeValue,
+              weight: weight, // Weight from assessment type or max score
+              maxScore: grade.max_score || 100, // Max score for this assessment
+              rawScore: grade.raw_score || null,
+              title: grade.assessment_name || grade.title || 'Unknown',
+            });
+
+            console.log(
+              `📊 GRADES: Added grade - ${
+                grade.assessment_name || grade.title
+              }: ${gradeValue}% (weight: ${weight})`
+            );
           }
         }
       });
@@ -487,9 +567,91 @@ export default function GradesScreen({ navigation, route }) {
     // as they use a different scale (tt1-tt4 with 1-4 ratings)
 
     if (subjectGrades.length === 0) return null;
-    return Math.round(
-      subjectGrades.reduce((a, b) => a + b, 0) / subjectGrades.length
+
+    // Check if we have weight information for ALL grades in this subject
+    const hasAllWeights = subjectGrades.every(
+      (g) => g.weight !== null && g.weight !== undefined
     );
+
+    console.log(`📊 GRADES: ${subject} - Has all weights: ${hasAllWeights}`);
+    console.log(`📊 GRADES: ${subject} - Grade details:`, subjectGrades);
+
+    if (hasAllWeights) {
+      const totalWeight = subjectGrades.reduce((sum, g) => sum + g.weight, 0);
+
+      // Check if weight system is complete (should total 100% or close to it)
+      const isWeightSystemComplete = totalWeight >= 95 && totalWeight <= 105; // Allow 5% tolerance
+
+      console.log(`📊 GRADES: Total weight for ${subject}: ${totalWeight}%`);
+      console.log(
+        `📊 GRADES: Weight system complete: ${isWeightSystemComplete}`
+      );
+
+      if (isWeightSystemComplete) {
+        // Use weighted average calculation when weight system is complete
+        console.log(`📊 GRADES: Using weighted calculation for ${subject}`);
+        console.log(
+          '📊 GRADES: Grade data:',
+          subjectGrades.map((g) => `${g.grade}% (weight: ${g.weight}%)`)
+        );
+
+        const totalWeightedScore = subjectGrades.reduce(
+          (sum, g) => sum + g.grade * g.weight,
+          0
+        );
+
+        console.log(`📊 GRADES: Total weighted score: ${totalWeightedScore}`);
+
+        if (totalWeight === 0) {
+          // Fallback to simple average if weights sum to 0
+          const average =
+            subjectGrades.reduce((a, b) => a + b.grade, 0) /
+            subjectGrades.length;
+          console.log(
+            `📊 GRADES: Weighted calculation failed (total weight = 0), using simple average: ${Math.round(
+              average
+            )}%`
+          );
+          return Math.round(average);
+        }
+
+        // Calculate weighted average: (sum of grade * weight) / total weight
+        const weightedAverage = totalWeightedScore / totalWeight;
+        console.log(
+          `📊 GRADES: Weighted average for ${subject}: ${Math.round(
+            weightedAverage
+          )}%`
+        );
+        return Math.round(weightedAverage);
+      } else {
+        // Weight system is incomplete, use simple average
+        console.log(
+          `📊 GRADES: Weight system incomplete for ${subject} (${totalWeight}% total), using simple average`
+        );
+        const average =
+          subjectGrades.reduce((a, b) => a + b.grade, 0) / subjectGrades.length;
+        console.log(
+          `📊 GRADES: Simple average for ${subject}: ${Math.round(average)}%`
+        );
+        return Math.round(average);
+      }
+    } else {
+      // Use simple average calculation when not all weights are available
+      console.log(
+        `📊 GRADES: Using simple average for ${subject} (missing weight data)`
+      );
+      console.log(
+        '📊 GRADES: Grade data:',
+        subjectGrades.map((g) => `${g.grade}%`)
+      );
+
+      const average =
+        subjectGrades.reduce((a, b) => a + b.grade, 0) / subjectGrades.length;
+      console.log(
+        `📊 GRADES: Simple average for ${subject}: ${Math.round(average)}%`
+      );
+      return Math.round(average);
+    }
   };
 
   const renderSubjectCard = useCallback(
@@ -515,6 +677,25 @@ export default function GradesScreen({ navigation, route }) {
       const weightedAssessments = subjectSummative.filter(
         (g) => g.grading_context?.is_weighted
       ).length;
+
+      // Check if this subject uses weighted calculation
+      const hasWeightData = subjectSummative.every(
+        (g) => g.type_percentage !== null && g.type_percentage !== undefined
+      );
+
+      // Check if weight system is complete
+      const totalSubjectWeight = subjectSummative.reduce(
+        (sum, g) => sum + (g.type_percentage || 0),
+        0
+      );
+      const isWeightSystemComplete =
+        hasWeightData && totalSubjectWeight >= 95 && totalSubjectWeight <= 105;
+
+      const calculationMethod = isWeightSystemComplete
+        ? 'Weighted'
+        : hasWeightData
+        ? 'Incomplete Weights'
+        : 'Simple Average';
       const gradedSummative = subjectSummative.filter(
         (g) => g.is_graded === 1
       ).length;
@@ -531,8 +712,7 @@ export default function GradesScreen({ navigation, route }) {
       // Get grade letter based on average
       const getGradeLetter = (avg) => {
         if (avg === null || avg === undefined || isNaN(avg)) return 'N/A';
-        if (avg >= 90) return 'A*';
-        if (avg >= 80) return 'A';
+        if (avg >= 85) return 'A';
         if (avg >= 70) return 'B';
         if (avg >= 60) return 'C';
         if (avg >= 50) return 'D';
@@ -628,7 +808,14 @@ export default function GradesScreen({ navigation, route }) {
                   </Text>
                 )}
               </View>
-              <Text style={styles.percentageLabel}>Average</Text>
+              <Text style={styles.percentageLabel}>
+                Average{' '}
+                {isWeightSystemComplete
+                  ? '(Weighted)'
+                  : hasWeightData
+                  ? '(Incomplete)'
+                  : '(Simple)'}
+              </Text>
             </View>
           </View>
 
@@ -1177,18 +1364,91 @@ export default function GradesScreen({ navigation, route }) {
         };
       });
     } else {
-      // Fallback dummy data for testing with different max scores
+      // Fallback dummy data for testing with different max scores and weights
       summativeData = [
         {
           id: 1,
           date: '2025-03-19',
           subject: 'Mathematics',
           strand: 'Geometry',
-          title: 'Geometry Exam',
-          score: '93/100', // 93% of 100 = 93/100
-          percentage: '93%',
-          type: 'Major',
+          title: 'Quiz 1',
+          score: '9/10', // 90% of 10 = 9/10
+          percentage: '90%',
+          type: 'Quiz',
           teacher: 'Su Su Htwe',
+          // Enhanced fields for weighted calculation testing
+          calculated_grade: 90,
+          score_percentage: 90,
+          raw_score: 9,
+          max_score: 10,
+          type_percentage: 10, // 10% weight
+        },
+        {
+          id: 2,
+          date: '2025-03-18',
+          subject: 'Mathematics',
+          strand: 'Algebra',
+          title: 'Quiz 2',
+          score: '5/10', // 50% of 10 = 5/10
+          percentage: '50%',
+          type: 'Quiz',
+          teacher: 'Su Su Htwe',
+          // Enhanced fields for weighted calculation testing
+          calculated_grade: 50,
+          score_percentage: 50,
+          raw_score: 5,
+          max_score: 10,
+          type_percentage: 10, // 10% weight
+        },
+        {
+          id: 3,
+          date: '2025-03-17',
+          subject: 'Mathematics',
+          strand: 'Calculus',
+          title: 'Midterm Exam',
+          score: '40/40', // 100% of 40 = 40/40
+          percentage: '100%',
+          type: 'Exam',
+          teacher: 'Su Su Htwe',
+          // Enhanced fields for weighted calculation testing
+          calculated_grade: 100,
+          score_percentage: 100,
+          raw_score: 40,
+          max_score: 40,
+          type_percentage: 40, // 40% weight
+        },
+        {
+          id: 4,
+          date: '2025-03-16',
+          subject: 'Mathematics',
+          strand: 'Statistics',
+          title: 'Final Project',
+          score: '40/40', // 100% of 40 = 40/40
+          percentage: '100%',
+          type: 'Project',
+          teacher: 'Su Su Htwe',
+          // Enhanced fields for weighted calculation testing
+          calculated_grade: 100,
+          score_percentage: 100,
+          raw_score: 40,
+          max_score: 40,
+          type_percentage: 40, // 40% weight
+        },
+        {
+          id: 5,
+          date: '2025-03-19',
+          subject: 'English',
+          strand: 'Literature',
+          title: 'Essay Writing',
+          score: '46/50', // 92% of 50 = 46/50
+          percentage: '92%',
+          type: 'Assignment',
+          teacher: 'Ms. Johnson',
+          // Enhanced fields - no weights for simple average testing
+          calculated_grade: 92,
+          score_percentage: 92,
+          raw_score: 46,
+          max_score: 50,
         },
         {
           id: 2,
@@ -1669,11 +1929,10 @@ export default function GradesScreen({ navigation, route }) {
               data={availableSubjects}
               renderItem={({ item }) => renderSubjectCard(item)}
               keyExtractor={(item) => item}
-              numColumns={2}
+              numColumns={1}
               style={styles.fullWidth}
               contentContainerStyle={styles.subjectGrid}
               showsVerticalScrollIndicator={false}
-              columnWrapperStyle={styles.subjectRow}
             />
           </View>
         ) : (
@@ -1728,7 +1987,7 @@ const createStyles = (theme) =>
     studentContextBar: {
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 16,
-      paddingTop: 10,
+      paddingVertical: 10,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
       flexDirection: 'row',
@@ -1736,7 +1995,7 @@ const createStyles = (theme) =>
       alignItems: 'center',
       gap: 6,
     },
-   
+
     studentContextName: {
       fontSize: fontSize.xxl,
       fontWeight: '900',
@@ -1863,7 +2122,8 @@ const createStyles = (theme) =>
     },
     subjectGrid: {
       width: '100%',
-      padding: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
     },
     subjectRow: {
       justifyContent: 'space-between',
@@ -1876,11 +2136,11 @@ const createStyles = (theme) =>
     // Modern Subject Card Styles - Compact Design for 2-column layout
     modernSubjectCard: {
       backgroundColor: theme.colors.card,
-      width: '48%', // Slightly less than 50% to allow for spacing
-      marginVertical: 4,
-      marginHorizontal: 2,
-      borderRadius: 10,
-      padding: 8, // Reduced padding for smaller cards
+      width: '100%', // Full width for single column layout
+      marginVertical: 6,
+      marginHorizontal: 0,
+      borderRadius: 12,
+      padding: 16, // Increased padding for better spacing in full width
       // Removed overflow: 'hidden' to prevent shadow clipping on Android
       // Only show border on iOS - Android elevation provides sufficient visual separation
       ...(Platform.OS === 'ios' && {
@@ -1968,6 +2228,8 @@ const createStyles = (theme) =>
       backgroundColor: theme.colors.border,
       justifyContent: 'center',
       alignItems: 'center',
+      ...theme.shadows.small,
+      elevation: 3,
     },
 
     // Stats Row Section

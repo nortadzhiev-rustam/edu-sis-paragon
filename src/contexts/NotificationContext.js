@@ -186,9 +186,92 @@ export const NotificationProvider = ({ children }) => {
       let targetNotification = null;
       let isStudentNotification = false;
       let studentAuthCode = null;
+      let isParentViewingChildNotification = false;
 
       // Check main notifications first
       targetNotification = notifications.find((n) => n.id === notificationId);
+
+      // If found in main notifications, check if it's a parent viewing child's notification
+      if (targetNotification) {
+        // Check if this notification contains child information (parent viewing child's notification)
+        let parsedData = null;
+        try {
+          if (
+            targetNotification.data &&
+            typeof targetNotification.data === 'string'
+          ) {
+            parsedData = JSON.parse(targetNotification.data);
+          } else if (
+            targetNotification._apiData?.data &&
+            typeof targetNotification._apiData.data === 'string'
+          ) {
+            parsedData = JSON.parse(targetNotification._apiData.data);
+          }
+        } catch (error) {
+          console.log(
+            'Could not parse notification data for mark as read:',
+            error
+          );
+        }
+
+        // Check if this is a parent viewing a child's notification
+        const hasChildInfo =
+          targetNotification.studentAuthCode ||
+          parsedData?.student_id ||
+          parsedData?.studentId ||
+          (parsedData?.notification_for === 'parent' &&
+            parsedData?.student_name);
+
+        // Get current user type
+        try {
+          const userData = await AsyncStorage.getItem('userData');
+          if (userData) {
+            const user = JSON.parse(userData);
+            const currentUserType = user.userType;
+
+            if (currentUserType === 'parent' && hasChildInfo) {
+              isParentViewingChildNotification = true;
+              // Try to get the child's authCode if available
+              if (targetNotification.studentAuthCode) {
+                studentAuthCode = targetNotification.studentAuthCode;
+              } else if (parsedData?.student_name) {
+                // Try to find child's authCode by matching student name
+                try {
+                  const savedStudents = await AsyncStorage.getItem(
+                    'studentAccounts'
+                  );
+                  if (savedStudents) {
+                    const students = JSON.parse(savedStudents);
+                    const matchingStudent = students.find(
+                      (student) => student.name === parsedData.student_name
+                    );
+                    if (matchingStudent) {
+                      studentAuthCode = matchingStudent.authCode;
+                      console.log(
+                        '📱 NOTIFICATION: Found child authCode by name matching'
+                      );
+                    }
+                  }
+                } catch (error) {
+                  console.log('Error finding child authCode by name:', error);
+                }
+              }
+              console.log(
+                '📱 NOTIFICATION: Parent marking child notification as read',
+                {
+                  notificationId,
+                  hasChildInfo,
+                  studentAuthCode:
+                    studentAuthCode?.substring(0, 8) + '...' || 'not found',
+                  parsedData,
+                }
+              );
+            }
+          }
+        } catch (error) {
+          console.log('Could not get user data for mark as read:', error);
+        }
+      }
 
       // If not found in main notifications, check student notifications
       if (!targetNotification) {
@@ -229,8 +312,18 @@ export const NotificationProvider = ({ children }) => {
               originalNotificationId,
               studentAuthCode
             );
+          } else if (isParentViewingChildNotification && studentAuthCode) {
+            // For parent viewing child notifications, use child's authCode if available
+            console.log(
+              '📱 NOTIFICATION: Using child authCode for mark as read'
+            );
+            apiResponse = await markAPINotificationRead(
+              originalNotificationId,
+              studentAuthCode
+            );
           } else {
             // For regular notifications, use the standard API call
+            console.log('📱 NOTIFICATION: Using standard mark as read');
             apiResponse = await markAPINotificationRead(originalNotificationId);
           }
 
@@ -388,9 +481,13 @@ export const NotificationProvider = ({ children }) => {
   };
 
   // Mark all API notifications as read
-  const markAllAPINotificationsAsRead = async () => {
+  const markAllAPINotificationsAsRead = async (specificAuthCode = null) => {
     try {
-      const response = await markAllAPINotificationsRead();
+      console.log(
+        '📱 NOTIFICATION CONTEXT: Marking all notifications as read with authCode:',
+        specificAuthCode || 'auto-detect'
+      );
+      const response = await markAllAPINotificationsRead(specificAuthCode);
       if (response?.success) {
         // Update local state
         await refreshNotifications();

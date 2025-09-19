@@ -253,8 +253,8 @@ const StudentProfileEditScreen = ({ navigation, route }) => {
           {
             text: 'OK',
             onPress: () => {
-              // Refresh completeness data
-              loadProfileData(authCode);
+              // Navigate back to Student Profile screen
+              navigation.goBack();
             },
           },
         ]);
@@ -292,9 +292,19 @@ const StudentProfileEditScreen = ({ navigation, route }) => {
             ...userData,
             photo: response.photo_url,
             profile_photo: response.photo_url,
+            user_photo: response.photo_url,
+            // Also update personal_info if it exists
+            personal_info: userData.personal_info
+              ? {
+                  ...userData.personal_info,
+                  profile_photo: response.photo_url,
+                }
+              : userData.personal_info,
           };
           await saveUserData(updatedUserData, AsyncStorage);
-          console.log('✅ STUDENT PROFILE EDIT: Updated photo in AsyncStorage');
+          console.log(
+            '✅ STUDENT PROFILE EDIT: Updated photo in AsyncStorage with all photo fields'
+          );
         } catch (storageError) {
           console.warn(
             '⚠️ STUDENT PROFILE EDIT: Failed to update AsyncStorage:',
@@ -324,9 +334,19 @@ const StudentProfileEditScreen = ({ navigation, route }) => {
         ...userData,
         photo: null,
         profile_photo: null,
+        user_photo: null,
+        // Also update personal_info if it exists
+        personal_info: userData.personal_info
+          ? {
+              ...userData.personal_info,
+              profile_photo: null,
+            }
+          : userData.personal_info,
       };
       await saveUserData(updatedUserData, AsyncStorage);
-      console.log('✅ STUDENT PROFILE EDIT: Removed photo from AsyncStorage');
+      console.log(
+        '✅ STUDENT PROFILE EDIT: Removed photo from AsyncStorage with all photo fields'
+      );
     } catch (storageError) {
       console.warn(
         '⚠️ STUDENT PROFILE EDIT: Failed to update AsyncStorage:',
