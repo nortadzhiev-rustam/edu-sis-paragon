@@ -335,7 +335,7 @@ export const validatePickupRequest = async (authCode) => {
         canRequest: false,
         reason: 'too_far_from_campus',
         message: locationValidation.message,
-        distance: formatDistance(locationValidation.distance),
+        distance: locationValidation.distance, // Keep as number for formatting in UI
         threshold: locationValidation.threshold,
         schoolLocation,
       };
@@ -361,7 +361,7 @@ export const validatePickupRequest = async (authCode) => {
       canRequest: true,
       reason: 'eligible',
       message: 'You are eligible to make a pickup request',
-      distance: formatDistance(locationValidation.distance),
+      distance: locationValidation.distance, // Keep as number for formatting in UI
       location: currentLocation,
       schoolLocation,
     };

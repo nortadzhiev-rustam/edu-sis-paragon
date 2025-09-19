@@ -2182,7 +2182,7 @@ const createStyles = (theme, fontSizes) =>
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'flex-start', // Changed from space-between to support flex expansion
-      paddingBottom: 80, // Add padding for scrollable content
+      paddingBottom: 100, // Add padding for scrollable content
       paddingHorizontal: 3, // Add padding for scrollable content
     },
     // iPad-specific grid layout - 4 tiles per row, wraps to next row for additional tiles

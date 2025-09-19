@@ -43,7 +43,7 @@ import {
   getResponsiveSpacing,
 } from '../utils/deviceDetection';
 import { lockOrientationForDevice } from '../utils/orientationLock';
-import { createCustomShadow } from '../utils/commonStyles';
+import { createCustomShadow, fontSize } from '../utils/commonStyles';
 import { getDemoStudentAttendanceData } from '../services/demoModeService';
 
 // Import Parent Proxy Access System
@@ -809,13 +809,14 @@ const createStyles = (theme) =>
       borderBottomColor: theme.colors.border,
     },
     studentName: {
-      fontSize: 24,
-      fontWeight: 'bold',
+      fontSize: fontSize.xxl,
+      fontWeight: '900',
       color: theme.colors.text,
       marginBottom: 5,
     },
     sectionSubtitle: {
-      fontSize: 16,
+      fontSize: fontSize.lg,
+      fontWeight: "600",
       color: theme.colors.textSecondary,
     },
     content: {

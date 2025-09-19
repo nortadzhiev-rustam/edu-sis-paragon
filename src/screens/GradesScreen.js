@@ -51,6 +51,7 @@ import {
   createSmallShadow,
   createMediumShadow,
   createCardShadow,
+  fontSize,
 } from '../utils/commonStyles';
 import { getDemoStudentGradesData } from '../services/demoModeService';
 
@@ -1636,7 +1637,6 @@ export default function GradesScreen({ navigation, route }) {
 
         {studentName && (
           <View style={styles.studentContextBar}>
-            <Text style={styles.studentContextPrefix}>Student:</Text>
             <Text style={styles.studentContextName}>{studentName}</Text>
           </View>
         )}
@@ -1728,22 +1728,18 @@ const createStyles = (theme) =>
     studentContextBar: {
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingTop: 10,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
       flexDirection: 'row',
-      justifyContent: 'center',
+      justifyContent: 'flex-start',
       alignItems: 'center',
       gap: 6,
     },
-    studentContextPrefix: {
-      fontSize: 13,
-      color: theme.colors.textSecondary,
-      marginRight: 4,
-    },
+   
     studentContextName: {
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: fontSize.xxl,
+      fontWeight: '900',
       color: theme.colors.text,
     },
     // Legacy header style (keeping for compatibility)

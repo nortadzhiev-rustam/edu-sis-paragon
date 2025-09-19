@@ -36,12 +36,11 @@ import {
   faHeartbeat,
   faLeaf,
   faBook,
-  faBell,
 } from '@fortawesome/free-solid-svg-icons';
 import timetableData from '../data/dummyTimetable.json';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { createCustomShadow, createMediumShadow } from '../utils/commonStyles';
+import { createCustomShadow, createMediumShadow, fontSize } from '../utils/commonStyles';
 import { useNotifications } from '../contexts/NotificationContext';
 import NotificationBadge from '../components/NotificationBadge';
 import { useFocusEffect } from '@react-navigation/native';
@@ -615,7 +614,7 @@ export default function TimetableScreen({ navigation, route }) {
 
         {route?.params?.studentName && (
           <View style={styles.studentContextBar}>
-            <Text style={styles.studentContextPrefix}>Student:</Text>
+            
             <Text style={styles.studentContextName}>
               {route.params.studentName}
             </Text>
@@ -747,21 +746,21 @@ const createStyles = (theme, fontSizes) =>
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 16,
       paddingVertical: 10,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
       flexDirection: 'row',
-      justifyContent: 'center',
+      justifyContent: 'flex-start',
       alignItems: 'center',
       gap: 6,
     },
     studentContextPrefix: {
-      fontSize: 13,
+      
       color: theme.colors.textSecondary,
       marginRight: 4,
     },
     studentContextName: {
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: fontSize.xxl,
+      fontWeight: '900',
       color: theme.colors.text,
     },
     headerCenter: {

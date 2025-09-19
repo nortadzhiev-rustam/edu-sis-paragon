@@ -47,7 +47,11 @@ import { useScreenOrientation } from '../hooks/useScreenOrientation';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getHtmlPreview } from '../utils/htmlUtils';
-import { createSmallShadow, createMediumShadow } from '../utils/commonStyles';
+import {
+  createSmallShadow,
+  createMediumShadow,
+  fontSize,
+} from '../utils/commonStyles';
 import { getDemoStudentHomeworkData } from '../services/demoModeService';
 import { getStudentHomeworkList } from '../services/homeworkService';
 
@@ -940,7 +944,7 @@ const createStyles = (theme) =>
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.15,
       shadowRadius: 4,
-      overflow: 'hidden',
+
       zIndex: 1,
     },
     navigationHeader: {
@@ -949,11 +953,15 @@ const createStyles = (theme) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
     },
     subHeader: {
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 16,
       paddingVertical: 16,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
     },
     // Legacy header style (keeping for compatibility)
     header: {
@@ -986,13 +994,14 @@ const createStyles = (theme) =>
       borderBottomColor: theme.colors.border,
     },
     studentName: {
-      fontSize: 24,
-      fontWeight: 'bold',
+      fontSize: fontSize.xxl,
+      fontWeight: '900',
       color: theme.colors.text,
       marginBottom: 5,
     },
     sectionSubtitle: {
-      fontSize: 16,
+      fontSize: fontSize.lg,
+      fontWeight: '600',
       color: theme.colors.textSecondary,
     },
     content: {

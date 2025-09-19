@@ -26,7 +26,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { createMediumShadow } from '../utils/commonStyles';
+import { createMediumShadow, fontSize } from '../utils/commonStyles';
 import { getDemoStudentBPSData } from '../services/demoModeService';
 
 // Import Parent Proxy Access System
@@ -411,15 +411,13 @@ export default function BehaviorScreen({ navigation, route }) {
           <View style={styles.headerRight} />
         </View>
 
-        {studentName && (
-          <View style={styles.studentContextBar}>
-            <Text style={styles.studentContextPrefix}>Student:</Text>
-            <Text style={styles.studentContextName}>{studentName}</Text>
-          </View>
-        )}
-
         {/* View Context Subheader */}
         <View style={styles.subHeader}>
+          {studentName && (
+            <View style={styles.studentContextBar}>
+              <Text style={styles.studentContextName}>{studentName}</Text>
+            </View>
+          )}
           <Text style={styles.viewContextText}>
             {selectedView === 'summary'
               ? t('overviewStatistics')
@@ -857,22 +855,17 @@ const createStyles = (theme) =>
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 16,
       paddingVertical: 12,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
+
       borderBottomEndRadius: 16,
       borderBottomStartRadius: 16,
     },
     studentContextBar: {
       backgroundColor: theme.colors.surface,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
+
+      marginBottom: 5,
+
       flexDirection: 'row',
-      justifyContent: 'center',
+      justifyContent: 'flex-start',
       alignItems: 'center',
       gap: 6,
     },
@@ -882,8 +875,8 @@ const createStyles = (theme) =>
       marginRight: 4,
     },
     studentContextName: {
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: fontSize.xxl,
+      fontWeight: '900',
       color: theme.colors.text,
     },
     // Legacy header style (keeping for compatibility)
@@ -921,9 +914,9 @@ const createStyles = (theme) =>
     },
     // Subheader styles
     viewContextText: {
-      fontSize: 16,
+      fontSize: fontSize.lg,
       fontWeight: '600',
-      color: theme.colors.text,
+      color: theme.colors.textSecondary,
     },
 
     content: {

@@ -199,6 +199,27 @@ export const getCurrentLocation = async () => {
  * @returns {number} - Distance in meters
  */
 export const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  // Validate input coordinates
+  if (
+    lat1 === null ||
+    lat1 === undefined ||
+    isNaN(lat1) ||
+    lon1 === null ||
+    lon1 === undefined ||
+    isNaN(lon1) ||
+    lat2 === null ||
+    lat2 === undefined ||
+    isNaN(lat2) ||
+    lon2 === null ||
+    lon2 === undefined ||
+    isNaN(lon2)
+  ) {
+    console.warn(
+      '❌ LOCATION: Invalid coordinates provided to calculateDistance'
+    );
+    return NaN;
+  }
+
   const R = 6371000; // Earth's radius in meters
   const dLat = toRadians(lat2 - lat1);
   const dLon = toRadians(lon2 - lon1);
@@ -212,6 +233,12 @@ export const calculateDistance = (lat1, lon1, lat2, lon2) => {
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distance = R * c;
+
+  // Validate the result
+  if (isNaN(distance)) {
+    console.warn('❌ LOCATION: Distance calculation resulted in NaN');
+    return NaN;
+  }
 
   return Math.round(distance); // Return distance in meters, rounded
 };
@@ -256,6 +283,23 @@ export const validatePickupLocation = (
     schoolCoords.longitude
   );
 
+  // Handle invalid distance calculation
+  if (isNaN(distance)) {
+    return {
+      isValid: false,
+      distance: null,
+      threshold,
+      schoolInfo: schoolLocation
+        ? {
+            branch_name: schoolLocation.branch_name,
+            address: schoolLocation.address,
+          }
+        : null,
+      message:
+        'Unable to calculate distance to campus. Please check your location.',
+    };
+  }
+
   const isValid = distance <= threshold;
 
   return {
@@ -284,14 +328,20 @@ export const validatePickupLocation = (
  * @returns {string} - Formatted distance string
  */
 export const formatDistance = (distance) => {
-  if (distance === null || distance === undefined) {
+  if (distance === null || distance === undefined || isNaN(distance)) {
     return 'Unknown distance';
   }
 
-  if (distance < 1000) {
-    return `${distance}m`;
+  // Ensure distance is a number
+  const numDistance = Number(distance);
+  if (isNaN(numDistance)) {
+    return 'Unknown distance';
+  }
+
+  if (numDistance < 1000) {
+    return `${Math.round(numDistance)}m`;
   } else {
-    return `${(distance / 1000).toFixed(1)}km`;
+    return `${(numDistance / 1000).toFixed(1)}km`;
   }
 };
 

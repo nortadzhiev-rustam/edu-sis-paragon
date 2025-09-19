@@ -188,6 +188,8 @@ export default function LibraryScreen({ navigation, route }) {
     switch (status?.toLowerCase()) {
       case 'current':
         return '#007AFF';
+      case 'normal':
+        return '#007AFF';
       case 'overdue':
         return '#FF3B30';
       case 'returned_late':
@@ -227,6 +229,8 @@ export default function LibraryScreen({ navigation, route }) {
   // Get status label
   const getStatusLabel = (status) => {
     switch (status?.toLowerCase()) {
+      case 'normal':
+        return 'Current';
       case 'current':
         return 'Current';
       case 'returned_late':
@@ -245,6 +249,8 @@ export default function LibraryScreen({ navigation, route }) {
   // Get status icon
   const getStatusIcon = (status) => {
     switch (status?.toLowerCase()) {
+      case 'normal':
+        return faBookOpen;
       case 'current':
         return faBookOpen;
       case 'returned_late':

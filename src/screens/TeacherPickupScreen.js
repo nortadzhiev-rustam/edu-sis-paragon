@@ -98,11 +98,25 @@ const TeacherPickupScreen = ({ navigation, route }) => {
 
       const guardian = res.guardian;
       const pickupPerson = res.pickup_person;
-      const pendingRequests = res.pending_requests || [];
 
-      // Get the first pending request (or handle multiple requests)
-      const pending = pendingRequests.length > 0 ? pendingRequests[0] : null;
-      const student = pending?.student;
+      // Handle both API response formats:
+      // - New format: res.pending_request (singular) + res.student (direct)
+      // - Old format: res.pending_requests (plural array) with student inside
+      let pending = null;
+      let student = null;
+      let pendingRequests = [];
+
+      if (res.pending_request) {
+        // New API format
+        pending = res.pending_request;
+        student = res.student;
+        pendingRequests = [pending];
+      } else if (res.pending_requests && res.pending_requests.length > 0) {
+        // Old API format
+        pendingRequests = res.pending_requests;
+        pending = pendingRequests[0];
+        student = pending?.student;
+      }
 
       console.log(
         '📱 PICKUP: Guardian data:',
@@ -123,7 +137,9 @@ const TeacherPickupScreen = ({ navigation, route }) => {
       console.log('📱 PICKUP: Validation debugging:');
       console.log('  - res.guardian exists:', !!guardian);
       console.log('  - res.pickup_person exists:', !!pickupPerson);
+      console.log('  - res.pending_request exists:', !!res.pending_request);
       console.log('  - res.pending_requests exists:', !!res.pending_requests);
+      console.log('  - res.student exists:', !!res.student);
       console.log('  - pending request exists:', !!pending);
       console.log('  - student exists:', !!student);
 
@@ -164,6 +180,12 @@ const TeacherPickupScreen = ({ navigation, route }) => {
           guardian?.card_id ||
           guardian?.pickup_card_id ||
           guardian?.guardian_card_id;
+
+        console.log('📱 PICKUP: Guardian ID check:', {
+          'pickupPerson.card_id': pickupPerson?.card_id,
+          'guardian.card_id': guardian?.card_id,
+          hasGuardianId: hasGuardianId,
+        });
 
         if (!hasGuardianId) {
           console.log('📱 PICKUP: Missing guardian card ID');

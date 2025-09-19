@@ -549,7 +549,6 @@ export default function StudentScreen({ navigation }) {
                   showAllStudents={false}
                 />
               </TouchableOpacity>
-              
 
               <TouchableOpacity
                 style={styles.headerActionButton}
@@ -733,7 +732,7 @@ const createStyles = (theme, fontSizes) =>
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
-      justifyContent: 'space-between'
+      justifyContent: 'space-between',
     },
     // Compact Header Styles
     compactHeaderContainer: {
@@ -747,7 +746,7 @@ const createStyles = (theme, fontSizes) =>
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.15,
       shadowRadius: 4,
-      
+
       zIndex: 1,
     },
     navigationHeader: {
@@ -859,7 +858,7 @@ const createStyles = (theme, fontSizes) =>
     content: {
       flex: 1,
       padding: 10,
-      position: "absolute",
+      position: 'absolute',
       bottom: 0,
     },
     menuSection: {
@@ -914,7 +913,7 @@ const createStyles = (theme, fontSizes) =>
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'flex-start', // Changed from space-between to support flex expansion
-      paddingBottom: 50, // Add padding for scrollable content
+      paddingBottom: 10,
       paddingHorizontal: 5, // Add padding for scrollable content
     },
 
