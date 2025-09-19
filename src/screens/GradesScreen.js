@@ -2229,7 +2229,7 @@ const createStyles = (theme) =>
       justifyContent: 'center',
       alignItems: 'center',
       ...theme.shadows.small,
-      elevation: 3,
+      elevation: 2,
     },
 
     // Stats Row Section
