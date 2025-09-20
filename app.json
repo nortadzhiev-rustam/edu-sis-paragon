@@ -3,9 +3,8 @@
     "name": "Paragon ISC",
     "slug": "edu-sis-paragon",
     "version": "1.0.0",
-    "orientation": "default",
-    "icon": "./assets/app_logo.png",
-    "darkIcon": "./assets/app_logo_dark.png",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "plugins": [
@@ -30,14 +29,11 @@
       [
         "expo-build-properties",
         {
-          "ios": {
-            "useFrameworks": "static"
-          },
           "android": {
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 35,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
             "minSdkVersion": 24,
-            "buildToolsVersion": "35.0.0"
+            "buildToolsVersion": "36.0.0"
           }
         }
       ]
@@ -54,6 +50,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "icon": "./assets/paragon-app-logo.icon",
       "bundleIdentifier": "com.edunovaasia.paragon",
       "buildNumber": "1",
       "runtimeVersion": "1.0.0",
@@ -79,22 +76,21 @@
         ],
         "ITSAppUsesNonExemptEncryption": false
       },
+      "entitlements": {
+        "aps-environment": "production"
+      },
+
       "appleTeamId": "Z93ADA39QK"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/app_logo.png",
-        "backgroundColor": "#ffffff",
-        "darkForegroundImage": "./assets/app_logo_dark.png",
-        "darkBackgroundColor": "#000000"
+        "backgroundColor": "#ffffff"
       },
       "package": "com.edunovaasia.paragon",
       "runtimeVersion": "1.0.0",
       "googleServicesFile": "./google-services.json",
-      "screenOrientation": "portrait",
-      "compileSdkVersion": 35,
-      "targetSdkVersion": 35,
-      "minSdkVersion": 24,
+
       "versionCode": 2
     },
     "web": {

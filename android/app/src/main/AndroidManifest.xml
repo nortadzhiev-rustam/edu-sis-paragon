@@ -18,9 +18,8 @@
   </queries>
   <application android:name=".MainApplication" android:label="@string/app_name"
     android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"
-    android:allowBackup="true" android:theme="@style/AppTheme" android:supportsRtl="true">
-    <meta-data android:name="com.google.android.geo.API_KEY"
-      android:value="AIzaSyBOnJtLzOS_TnY3MM0-UYH0ssvbunNN8jM" />
+    android:allowBackup="true" android:theme="@style/AppTheme" android:supportsRtl="true"
+    android:enableOnBackInvokedCallback="false">
     <meta-data android:name="com.google.firebase.messaging.default_notification_color"
       android:resource="@color/notification_icon_color" tools:replace="android:resource" />
     <meta-data android:name="expo.modules.notifications.default_notification_color"
@@ -37,7 +36,7 @@
       android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode"
       android:launchMode="singleTask" android:windowSoftInputMode="adjustResize"
       android:theme="@style/Theme.App.SplashScreen" android:exported="true"
-      android:screenOrientation="unspecified">
+      android:screenOrientation="portrait">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />
@@ -46,8 +45,7 @@
         <action android:name="android.intent.action.VIEW" />
         <category android:name="android.intent.category.DEFAULT" />
         <category android:name="android.intent.category.BROWSABLE" />
-        <data android:scheme="com.edunovaasia.paragon" />
-        <data android:scheme="exp+edu-sis-paragan" />
+        <data android:scheme="exp+edu-sis-paragon" />
       </intent-filter>
     </activity>
   </application>

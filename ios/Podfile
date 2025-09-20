@@ -4,12 +4,11 @@ require File.join(File.dirname(`node --print "require.resolve('react-native/pack
 require 'json'
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
-ENV['RCT_NEW_ARCH_ENABLED'] = podfile_properties['newArchEnabled'] == 'true' ? '1' : '0'
-ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] = podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR']
-
+ENV['RCT_NEW_ARCH_ENABLED'] ||= '0' if podfile_properties['newArchEnabled'] == 'false'
+ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] ||= podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR']
+ENV['RCT_USE_RN_DEP'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
-install! 'cocoapods',
-  :deterministic_uuids => false
 
 prepare_react_native_project!
 
@@ -20,10 +19,8 @@ target 'ParagonISC' do
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
   else
     config_command = [
-      'node',
-      '--no-warnings',
-      '--eval',
-      'require(require.resolve(\'expo-modules-autolinking\', { paths: [require.resolve(\'expo/package.json\')] }))(process.argv.slice(1))',
+      'npx',
+      'expo-modules-autolinking',
       'react-native-config',
       '--json',
       '--platform',
@@ -44,6 +41,16 @@ target 'ParagonISC' do
     :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false',
   )
 
+  # Force RNFirebase pods to use modular headers
+  pod 'RNFBApp', :path => '../node_modules/@react-native-firebase/app', :modular_headers => true
+  pod 'RNFBMessaging', :path => '../node_modules/@react-native-firebase/messaging', :modular_headers => true
+
+  # Ensure GoogleUtilities & Firebase Core pods expose modules for Swift when using static libraries
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseCoreExtension', :modular_headers => true
+  pod 'FirebaseInstallations', :modular_headers => true
+
   post_install do |installer|
     react_native_post_install(
       installer,
@@ -52,13 +59,25 @@ target 'ParagonISC' do
       :ccache_enabled => podfile_properties['apple.ccacheEnabled'] == 'true',
     )
 
-    # This is necessary for Xcode 14, because it signs resource bundles by default
-    # when building for devices.
-    installer.target_installation_results.pod_target_installation_results
-      .each do |pod_name, target_installation_result|
-      target_installation_result.resource_bundle_targets.each do |resource_bundle_target|
-        resource_bundle_target.build_configurations.each do |config|
-          config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+    # Allow non-modular headers inside framework modules to avoid RNFirebase v23 iOS build errors
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
+    end
+
+    # Ensure RNFirebase pods can see React headers explicitly
+    installer.pods_project.targets.each do |target|
+      if ['RNFBApp', 'RNFBMessaging'].include?(target.name)
+        target.build_configurations.each do |config|
+          config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
+          existing = config.build_settings['HEADER_SEARCH_PATHS']
+          react_headers = ['"${PODS_ROOT}/Headers/Public/React-Core"', '"${PODS_ROOT}/Headers/Public/React-Core/React"']
+          if existing.nil?
+            config.build_settings['HEADER_SEARCH_PATHS'] = ['$(inherited)'] + react_headers
+          else
+            config.build_settings['HEADER_SEARCH_PATHS'] = Array(existing) + react_headers
+          end
         end
       end
     end
