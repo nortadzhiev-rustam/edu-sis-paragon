@@ -175,7 +175,6 @@ src/**/*keys.js
 src/**/*keys.json
 src/**/*-key.*
 src/**/*_key.*
-src/**/*password*
 src/**/*-password*
 src/**/*_password*
 src/**/*token*
