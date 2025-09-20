@@ -57,6 +57,14 @@
           ]
         },
         {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "srgb:0.97487,0.99008,1.00000,1.00000"
+              }
+            }
+          ],
           "glass" : false,
           "image-name" : "Remove background project 2.png",
           "name" : "Remove background project 2",
