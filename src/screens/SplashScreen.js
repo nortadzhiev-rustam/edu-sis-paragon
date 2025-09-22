@@ -143,7 +143,7 @@ const createStyles = (theme) => {
       justifyContent: 'center',
     },
     logo: {
-      width: isIPadDevice ? Math.min(width * 0.4, 400) : width * 1,
+      width: isIPadDevice ? Math.min(width * 0.4, 400) : width * 0.7,
       height: isIPadDevice ? Math.min(height * 0.4, 400) : height * 0.5,
       // Add subtle shadow for better visibility in both themes
       ...Platform.select({

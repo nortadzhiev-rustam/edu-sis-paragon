@@ -212,6 +212,7 @@ export default function ParentScreen({ navigation }) {
   const profileOpacity = useRef(new Animated.Value(0)).current;
   const hintOpacity = useRef(new Animated.Value(1)).current; // Start visible when profile is hidden
   const hintArrowBounce = useRef(new Animated.Value(0)).current; // For bouncing arrow animation
+  const hintBounceAnimRef = useRef(null); // Holds current bounce animation loop instance
   const contentTranslateY = useRef(new Animated.Value(-80)).current; // Start moved up when profile is hidden (affects all content)
 
   // Parent notifications hook
@@ -295,27 +296,64 @@ export default function ParentScreen({ navigation }) {
     return unsubscribe;
   }, [navigation]);
 
-  // Helper function to show hint temporarily
+  // Helpers to manage chevron bounce animation for the hint
+  const stopHintBounce = () => {
+    if (hintBounceAnimRef.current) {
+      try {
+        hintBounceAnimRef.current.stop();
+      } catch (e) {}
+      hintBounceAnimRef.current = null;
+    }
+    hintArrowBounce.setValue(0);
+  };
+
+  const startHintBounce = (iterations) => {
+    // iterations: number | undefined (undefined = infinite)
+    stopHintBounce();
+    const seq = Animated.sequence([
+      Animated.timing(hintArrowBounce, {
+        toValue: 1,
+        duration: 700,
+        useNativeDriver: true,
+      }),
+      Animated.timing(hintArrowBounce, {
+        toValue: 0,
+        duration: 700,
+        useNativeDriver: true,
+      }),
+    ]);
+    const loop = iterations
+      ? Animated.loop(seq, { iterations })
+      : Animated.loop(seq);
+    hintBounceAnimRef.current = loop;
+    loop.start();
+  };
+
+  // Helper function to show hint temporarily (with bouncing chevrons)
   const showHintTemporarily = (duration = 2000) => {
     // Clear any existing timeout
     if (hintAutoHideTimeout) {
       clearTimeout(hintAutoHideTimeout);
     }
 
-    // Show hint
+    // Show hint and start chevron bounce
     Animated.timing(hintOpacity, {
       toValue: 1,
-      duration: 300,
+      duration: 250,
       useNativeDriver: true,
-    }).start();
+    }).start(() => {
+      startHintBounce(); // start infinite bounce while hint is visible
+    });
 
-    // Set timeout to hide hint
+    // Set timeout to hide hint and stop bounce
     const timeout = setTimeout(() => {
       Animated.timing(hintOpacity, {
         toValue: 0,
-        duration: 500,
+        duration: 400,
         useNativeDriver: true,
-      }).start();
+      }).start(() => {
+        stopHintBounce();
+      });
     }, duration);
 
     setHintAutoHideTimeout(timeout);
@@ -325,33 +363,19 @@ export default function ParentScreen({ navigation }) {
   const startInitialHintAnimation = () => {
     // Wait a bit for the screen to settle, then start bouncing animation
     setTimeout(() => {
-      // Bouncing arrow animation for initial hint
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(hintArrowBounce, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(hintArrowBounce, {
-            toValue: 0,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ]),
-        { iterations: 3 } // Bounce 3 times
-      ).start(() => {
-        // After bouncing, hide the hint
-        setTimeout(() => {
-          Animated.timing(hintOpacity, {
-            toValue: 0,
-            duration: 500,
-            useNativeDriver: true,
-          }).start(() => {
-            setShowInitialHint(false);
-          });
-        }, 1000); // Wait 1 second after bouncing, then hide
-      });
+      // Start limited bounce for initial hint (3 cycles), then hide
+      startHintBounce(3);
+      // After bouncing, hide the hint (add a short pause before hiding)
+      setTimeout(() => {
+        Animated.timing(hintOpacity, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }).start(() => {
+          stopHintBounce();
+          setShowInitialHint(false);
+        });
+      }, 1000 + 3 * 1400);
     }, 1000); // Wait 1 second after component mount
   };
 
@@ -980,18 +1004,21 @@ export default function ParentScreen({ navigation }) {
 
   // Animation functions for parent profile
   const toggleProfileVisibility = () => {
-    const toValue = isProfileVisible ? -120 : 0;
-    const opacityValue = isProfileVisible ? 0 : 1;
-    const contentToValue = isProfileVisible ? -80 : 0; // Move entire content up when profile is hidden, down when shown
+    const wasVisible = isProfileVisible;
+    const willBeVisible = !wasVisible;
+    const toValue = wasVisible ? -120 : 0;
+    const opacityValue = wasVisible ? 0 : 1;
+    const contentToValue = wasVisible ? -80 : 0; // Move entire content up when profile is hidden, down when shown
 
-    // Clear any existing hint timeout
+    // Clear any existing hint timeout and stop any bounce
     if (hintAutoHideTimeout) {
       clearTimeout(hintAutoHideTimeout);
       setHintAutoHideTimeout(null);
     }
-
-    setIsProfileVisible(!isProfileVisible);
     setShowInitialHint(false); // Disable initial hint once user interacts
+
+    // Update visibility state immediately
+    setIsProfileVisible(willBeVisible);
 
     Animated.parallel([
       // Profile animation
@@ -1014,18 +1041,8 @@ export default function ParentScreen({ navigation }) {
         friction: 8,
       }),
     ]).start(() => {
-      // Show hint temporarily when profile is hidden
-      if (!isProfileVisible) {
-        // Profile was just hidden
-        showHintTemporarily(2000); // Show hint for 2 seconds
-      } else {
-        // Hide hint immediately when profile is shown
-        Animated.timing(hintOpacity, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }).start();
-      }
+      // Show hint briefly after transition (text and chevron direction adapt automatically)
+      showHintTemporarily(2000);
     });
   };
 
@@ -1510,7 +1527,7 @@ export default function ParentScreen({ navigation }) {
                     {
                       translateY: hintArrowBounce.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [0, showInitialHint ? 3 : 0], // Only bounce during initial hint
+                        outputRange: [0, isProfileVisible ? -3 : 3], // Bounce direction matches profile state
                       }),
                     },
                   ],
