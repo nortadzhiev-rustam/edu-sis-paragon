@@ -70,7 +70,7 @@ export default function HomeScreen({ navigation }) {
   const { t, currentLanguage } = useLanguage();
   const fontSizes = getLanguageFontSizes(currentLanguage);
   const logoSource = useThemeLogo();
-
+  const schoolLogo = useSchoolLogo();
   // iOS fallback state to ensure content appears
   const [contentVisible, setContentVisible] = React.useState(
     Platform.OS !== 'ios'
@@ -1062,6 +1062,21 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
           </View>
+            {/* copyright with version and logo */}
+            <View style={styles.copyrightContainer}>
+            <Text style={styles.copyright}>
+              © {new Date().getFullYear()} Powered by{' '}
+            </Text>
+            <Animated.Image
+              source={schoolLogo}
+              style={styles.copyrightLogo}
+              resizeMode='contain'
+            />
+            {/* <Text style={styles.copyright}>
+              {' '}
+              {t('version')} {Config.APP.VERSION}
+            </Text> */}
+          </View>
         </Animated.View>
       </View>
     </SafeAreaView>
@@ -1273,5 +1288,23 @@ const createStyles = (
       marginBottom: 10,
       paddingHorizontal: 20,
       fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    },
+    copyrightContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 10,
+      paddingHorizontal: 10,
+      flexWrap: 'wrap', // Allow wrapping on small screens
+    },
+    copyright: {
+      fontSize: 16,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    copyrightLogo: {
+      height: 80,
+      width: 80, // Add width to maintain aspect ratio
+      marginHorizontal: 2,
     },
   });
