@@ -47,23 +47,38 @@ const QuickActionTile = ({
     if (isTabletDevice && isLandscape) return 35;
     if (isIPadDevice) return 35;
     if (isTabletDevice) return 35;
+    // Check if we're using phone-specific styles (smaller tiles)
+    if (additionalStyle?.width && additionalStyle.width < 180) return 20;
     return 28;
   };
 
+  // Check if we're using phone-specific small tiles
+  const isPhoneSmallTile =
+    additionalStyle?.width && additionalStyle.width < 180;
+
   // Get tile container styles - use existing responsive styles from parent component
   const getTileStyles = () => [
-    styles?.actionTile || styles?.menuItem, // Use actionTile for TeacherScreen, menuItem for ParentScreen
+    // Use phone-specific styles for small tiles, otherwise use regular styles
+    isPhoneSmallTile
+      ? styles?.phoneActionTile || styles?.actionTile || styles?.menuItem
+      : styles?.actionTile || styles?.menuItem, // Use actionTile for TeacherScreen, menuItem for ParentScreen
     // Only apply backgroundColor if using actionTile style (TeacherScreen)
-    styles?.actionTile && {
+    (styles?.actionTile || styles?.phoneActionTile) && {
       backgroundColor: disabled ? '#B0B0B0' : backgroundColor,
     },
     disabled && (styles?.disabledTile || styles?.disabledMenuItem),
-    isIPadDevice && (styles?.iPadActionTile || styles?.iPadMenuItem),
-    isIPadDevice &&
+    !isPhoneSmallTile &&
+      isIPadDevice &&
+      (styles?.iPadActionTile || styles?.iPadMenuItem),
+    !isPhoneSmallTile &&
+      isIPadDevice &&
       isLandscape &&
       (styles?.iPadLandscapeActionTile3Col || styles?.iPadLandscapeMenuItem),
-    isTabletDevice && (styles?.tabletActionTile || styles?.tabletMenuItem),
-    isTabletDevice &&
+    !isPhoneSmallTile &&
+      isTabletDevice &&
+      (styles?.tabletActionTile || styles?.tabletMenuItem),
+    !isPhoneSmallTile &&
+      isTabletDevice &&
       isLandscape &&
       (styles?.tabletLandscapeActionTile3Col ||
         styles?.tabletLandscapeMenuItem),
@@ -72,17 +87,25 @@ const QuickActionTile = ({
 
   // Get icon container styles - support both tile and menu icon containers
   const getIconContainerStyles = () => [
-    // Try tile icon containers first (for TeacherScreen)
-    styles?.tileIconContainer || styles?.menuIconContainer,
-    isIPadDevice &&
+    // Use phone-specific styles for small tiles
+    isPhoneSmallTile
+      ? styles?.phoneTileIconContainer ||
+        styles?.tileIconContainer ||
+        styles?.menuIconContainer
+      : styles?.tileIconContainer || styles?.menuIconContainer,
+    !isPhoneSmallTile &&
+      isIPadDevice &&
       (styles?.iPadTileIconContainer || styles?.iPadMenuIconContainer),
-    isIPadDevice &&
+    !isPhoneSmallTile &&
+      isIPadDevice &&
       isLandscape &&
       (styles?.iPadLandscapeTileIconContainer3Col ||
         styles?.iPadLandscapeMenuIconContainer),
-    isTabletDevice &&
+    !isPhoneSmallTile &&
+      isTabletDevice &&
       (styles?.tabletTileIconContainer || styles?.tabletMenuIconContainer),
-    isTabletDevice &&
+    !isPhoneSmallTile &&
+      isTabletDevice &&
       isLandscape &&
       (styles?.tabletLandscapeTileIconContainer3Col ||
         styles?.tabletLandscapeMenuIconContainer),
@@ -90,20 +113,38 @@ const QuickActionTile = ({
 
   // Get title styles - use existing responsive styles from TeacherScreen
   const getTitleStyles = () => [
-    styles?.tileTitle,
-    isIPadDevice && styles?.iPadTileTitle,
-    isIPadDevice && isLandscape && styles?.iPadLandscapeTileTitle3Col,
-    isTabletDevice && styles?.tabletTileTitle,
-    isTabletDevice && isLandscape && styles?.tabletLandscapeTileTitle3Col,
+    // Use phone-specific styles for small tiles
+    isPhoneSmallTile
+      ? styles?.phoneTileTitle || styles?.tileTitle
+      : styles?.tileTitle,
+    !isPhoneSmallTile && isIPadDevice && styles?.iPadTileTitle,
+    !isPhoneSmallTile &&
+      isIPadDevice &&
+      isLandscape &&
+      styles?.iPadLandscapeTileTitle3Col,
+    !isPhoneSmallTile && isTabletDevice && styles?.tabletTileTitle,
+    !isPhoneSmallTile &&
+      isTabletDevice &&
+      isLandscape &&
+      styles?.tabletLandscapeTileTitle3Col,
   ];
 
   // Get subtitle styles - use existing responsive styles from TeacherScreen
   const getSubtitleStyles = () => [
-    styles?.tileSubtitle,
-    isIPadDevice && styles?.iPadTileSubtitle,
-    isIPadDevice && isLandscape && styles?.iPadLandscapeTileSubtitle3Col,
-    isTabletDevice && styles?.tabletTileSubtitle,
-    isTabletDevice && isLandscape && styles?.tabletLandscapeTileSubtitle3Col,
+    // Use phone-specific styles for small tiles
+    isPhoneSmallTile
+      ? styles?.phoneTileSubtitle || styles?.tileSubtitle
+      : styles?.tileSubtitle,
+    !isPhoneSmallTile && isIPadDevice && styles?.iPadTileSubtitle,
+    !isPhoneSmallTile &&
+      isIPadDevice &&
+      isLandscape &&
+      styles?.iPadLandscapeTileSubtitle3Col,
+    !isPhoneSmallTile && isTabletDevice && styles?.tabletTileSubtitle,
+    !isPhoneSmallTile &&
+      isTabletDevice &&
+      isLandscape &&
+      styles?.tabletLandscapeTileSubtitle3Col,
   ];
 
   return (
