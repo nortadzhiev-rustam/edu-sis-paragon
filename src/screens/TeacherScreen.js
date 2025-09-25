@@ -64,11 +64,19 @@ import {
   getDemoTeacherClassesData,
 } from '../services/demoModeService';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 export default function TeacherScreen({ route, navigation }) {
   const { theme } = useTheme();
   const { t, currentLanguage } = useLanguage();
+
+  // Dynamic screen dimensions that update with orientation changes
+  const [screenDimensions, setScreenDimensions] = useState(() => {
+    const { width, height } = Dimensions.get('window');
+    return { width, height };
+  });
+
+  // Extract dimensions for easier use
+  const { width: screenWidth, height: screenHeight } = screenDimensions;
+
   const { refreshNotifications, clearAll: clearNotifications } =
     useNotifications();
   const { cleanup: cleanupMessaging } = useMessaging();
@@ -272,7 +280,7 @@ export default function TeacherScreen({ route, navigation }) {
   const [accessibleBranches, setAccessibleBranches] = useState([]);
   const [branchSwitching, setBranchSwitching] = useState(false);
 
-  const styles = createStyles(theme, fontSizes);
+  const styles = createStyles(theme, fontSizes, screenWidth, screenHeight);
 
   // Fetch teacher timetable data
   const fetchTeacherTimetable = async () => {
@@ -670,6 +678,15 @@ export default function TeacherScreen({ route, navigation }) {
       currentBranchInfo?.branch_name
     );
   }, [selectedBranchId, currentBranchInfo]);
+
+  // Listen for orientation changes
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setScreenDimensions({ width: window.width, height: window.height });
+    });
+
+    return () => subscription?.remove();
+  }, []);
 
   // Get current branch data (prioritize teacher classes data, fallback to timetable)
   const getCurrentBranch = () => {
@@ -1750,23 +1767,34 @@ export default function TeacherScreen({ route, navigation }) {
                 isIPadDevice && styles.iPadActionTilesGrid,
                 isIPadDevice &&
                   isLandscape &&
-                  styles.iPadLandscapeActionTilesGrid,
+                  styles.iPadLandscapeActionTilesGrid3Col,
                 isTabletDevice && styles.tabletActionTilesGrid,
                 isTabletDevice &&
                   isLandscape &&
-                  styles.tabletLandscapeActionTilesGrid,
+                  styles.tabletLandscapeActionTilesGrid3Col,
               ]}
             >
               {getQuickActions().map((action, index) => {
                 const quickActions = getQuickActions();
                 const totalItems = quickActions.length;
 
-                // Calculate columns per row based on device type
+                // Helper function to calculate items per row for landscape tablets/iPads
+                const getLandscapeItemsPerRow = (totalItems) => {
+                  if (totalItems <= 6) {
+                    return 3; // 3x2 layout for 6 or fewer items
+                  } else if (totalItems <= 9) {
+                    return 3; // 3x3 layout for 7-9 items
+                  } else {
+                    return 4; // 4 per row for more items
+                  }
+                };
+
+                // Calculate columns per row based on device type and total items
                 let itemsPerRow = 2; // Default for mobile (TeacherScreen uses 2 per row)
                 if (isIPadDevice && isLandscape) {
-                  itemsPerRow = 6;
+                  itemsPerRow = getLandscapeItemsPerRow(totalItems);
                 } else if (isTabletDevice && isLandscape) {
-                  itemsPerRow = 6;
+                  itemsPerRow = getLandscapeItemsPerRow(totalItems);
                 } else if (isIPadDevice) {
                   itemsPerRow = 4;
                 } else if (isTabletDevice) {
@@ -1780,17 +1808,22 @@ export default function TeacherScreen({ route, navigation }) {
                 const isLastInRow =
                   (index + 1) % itemsPerRow === 0 || index === totalItems - 1;
                 const isIncompleteRow = totalItems % itemsPerRow !== 0;
+                // Disable expansion for iPad/tablet in both orientations to maintain consistent tile sizes
                 const shouldExpand =
-                  isLastRow && isLastInRow && isIncompleteRow;
+                  isLastRow &&
+                  isLastInRow &&
+                  isIncompleteRow &&
+                  !isIPadDevice &&
+                  !isTabletDevice;
 
-                // Calculate minimum height based on device type
+                // Calculate minimum height based on device type and actual itemsPerRow
                 let minHeight = (screenWidth - 52) / 2; // Default mobile (2 per row, accounting for margins and gap)
                 if (isIPadDevice && isLandscape) {
-                  minHeight = (screenWidth - 80) / 6 - 6;
+                  minHeight = (screenWidth - 80) / itemsPerRow - 12;
                 } else if (isTabletDevice && isLandscape) {
-                  minHeight = (screenWidth - 80) / 6 - 12;
+                  minHeight = (screenWidth - 80) / itemsPerRow - 12;
                 } else if (isIPadDevice) {
-                  minHeight = (screenWidth - 80) / 4 - 12;
+                  20;
                 } else if (isTabletDevice) {
                   minHeight = (screenWidth - 80) / 4 - 12;
                 }
@@ -1832,7 +1865,7 @@ export default function TeacherScreen({ route, navigation }) {
   );
 }
 
-const createStyles = (theme, fontSizes) =>
+const createStyles = (theme, fontSizes, screenWidth, screenHeight) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -2211,7 +2244,7 @@ const createStyles = (theme, fontSizes) =>
     // iPad-specific grid layout - 4 tiles per row, wraps to next row for additional tiles
     iPadActionTilesGrid: {
       flexWrap: 'wrap',
-      justifyContent: 'flex-start',
+      justifyContent: 'center',
       gap: Math.max(12, (screenWidth - 80 - ((screenWidth - 80) / 4) * 4) / 3), // Dynamic gap calculation
     },
     // Tablet-specific grid layout - 4 tiles per row, wraps to next row for additional tiles
@@ -2220,17 +2253,37 @@ const createStyles = (theme, fontSizes) =>
       justifyContent: 'flex-start',
       gap: Math.max(12, (screenWidth - 80 - ((screenWidth - 80) / 4) * 4) / 3), // Dynamic gap calculation
     },
-    // iPad landscape-specific grid layout - 6 tiles per row, wraps for additional tiles
+    // iPad landscape-specific grid layout - 6 tiles per row (legacy), wraps for additional tiles
     iPadLandscapeActionTilesGrid: {
       flexWrap: 'wrap',
       justifyContent: 'flex-start',
       gap: Math.max(6, (screenWidth - 80 - ((screenWidth - 80) / 6) * 6) / 5), // Dynamic gap for 6 tiles
     },
-    // Tablet landscape-specific grid layout - 6 tiles per row, wraps for additional tiles
+    // iPad landscape-specific grid layout - 3 tiles per row for better balance (current)
+    iPadLandscapeActionTilesGrid3Col: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-evenly',
+      alignItems: 'flex-start',
+      gap: 16,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+    },
+    // Tablet landscape-specific grid layout - 6 tiles per row (legacy), wraps for additional tiles
     tabletLandscapeActionTilesGrid: {
       flexWrap: 'wrap',
       justifyContent: 'flex-start',
       gap: Math.max(12, (screenWidth - 80 - ((screenWidth - 80) / 6) * 6) / 5), // Dynamic gap for 6 tiles
+    },
+    // Tablet landscape-specific grid layout - 3 tiles per row for better balance (current)
+    tabletLandscapeActionTilesGrid3Col: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'flex-start200200300',
+      alignItems: 'flex-start',
+      gap: 16,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
     },
     actionTile: {
       width: (screenWidth - 52) / 2, // 2 tiles per row with margins and gap
@@ -2250,7 +2303,7 @@ const createStyles = (theme, fontSizes) =>
       width: (screenWidth - 80) / 4 - 2, // Optimized for 4 tiles per row with wrapping support
       minWidth: (screenWidth - 80) / 4 - 2, // Minimum width for flex expansion
       aspectRatio: 1, // Square tiles
-      borderRadius: 16,
+      borderRadius: 24,
       padding: 12,
       ...createCustomShadow(theme, {
         height: 3,
@@ -2264,7 +2317,7 @@ const createStyles = (theme, fontSizes) =>
       width: (screenWidth - 70) / 4 - 2, // Optimized for 4 tiles per row with wrapping support
       minWidth: (screenWidth - 70) / 4 - 2, // Minimum width for flex expansion
       aspectRatio: 1, // Square tiles
-      borderRadius: 18,
+      borderRadius: 24,
       padding: 14,
       ...createCustomShadow(theme, {
         height: 4,
@@ -2273,7 +2326,7 @@ const createStyles = (theme, fontSizes) =>
         elevation: 6,
       }),
     },
-    // iPad landscape-specific action tile - optimized for 6 per row
+    // iPad landscape-specific action tile - optimized for 6 per row (legacy)
     iPadLandscapeActionTile: {
       width: (screenWidth - 100) / 6 - 2, // 6 tiles per row in landscape with wrapping support
       minWidth: (screenWidth - 100) / 6 - 2, // Minimum width for flex expansion
@@ -2287,12 +2340,42 @@ const createStyles = (theme, fontSizes) =>
         elevation: 3,
       }),
     },
-    // Tablet landscape-specific action tile - optimized for 6 per row
+    // iPad landscape-specific action tile - optimized for 3 per row (current)
+    iPadLandscapeActionTile3Col: {
+      width: 300, // Fixed width for consistent sizing
+      height: 300, // Fixed height instead of aspectRatio
+      minWidth: 300,
+      maxWidth: 300,
+      borderRadius: 14,
+      padding: 10,
+      ...createCustomShadow(theme, {
+        height: 2,
+        opacity: 0.12,
+        radius: 6,
+        elevation: 3,
+      }),
+    },
+    // Tablet landscape-specific action tile - optimized for 6 per row (legacy)
     tabletLandscapeActionTile: {
       width: (screenWidth - 90) / 6 - 2, // 6 tiles per row in landscape with wrapping support
       minWidth: (screenWidth - 90) / 6 - 2, // Minimum width for flex expansion
       aspectRatio: 1, // Square tiles
       borderRadius: 16,
+      padding: 12,
+      ...createCustomShadow(theme, {
+        height: 3,
+        opacity: 0.15,
+        radius: 8,
+        elevation: 4,
+      }),
+    },
+    // Tablet landscape-specific action tile - optimized for 3 per row (current)
+    tabletLandscapeActionTile3Col: {
+      width: 210, // Fixed width for consistent sizing
+      height: 210, // Fixed height instead of aspectRatio
+      minWidth: 210,
+      maxWidth: 210,
+      borderRadius: 24,
       padding: 12,
       ...createCustomShadow(theme, {
         height: 3,
@@ -2314,30 +2397,44 @@ const createStyles = (theme, fontSizes) =>
     },
     // iPad-specific tile icon container - smaller
     iPadTileIconContainer: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
       marginBottom: 8,
     },
     // Tablet-specific tile icon container
     tabletTileIconContainer: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
       marginBottom: 10,
     },
-    // iPad landscape-specific tile icon container - even smaller for 6 per row
+    // iPad landscape-specific tile icon container - even smaller for 6 per row (legacy)
     iPadLandscapeTileIconContainer: {
       width: 30,
       height: 30,
       borderRadius: 15,
       marginBottom: 6,
     },
-    // Tablet landscape-specific tile icon container
+    // iPad landscape-specific tile icon container - optimized for 3 per row (current)
+    iPadLandscapeTileIconContainer3Col: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      marginBottom: 8,
+    },
+    // Tablet landscape-specific tile icon container (legacy)
     tabletLandscapeTileIconContainer: {
       width: 34,
       height: 34,
       borderRadius: 17,
+      marginBottom: 8,
+    },
+    // Tablet landscape-specific tile icon container - optimized for 3 per row (current)
+    tabletLandscapeTileIconContainer3Col: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
       marginBottom: 8,
     },
     tileTitle: {
@@ -2355,23 +2452,23 @@ const createStyles = (theme, fontSizes) =>
     },
     // iPad-specific tile text styles - smaller
     iPadTileTitle: {
-      fontSize: Math.max(fontSizes.tileTitle - 2, 12),
+      fontSize: Math.max(fontSizes.tileTitle - 2, 20),
       marginBottom: 2,
     },
     iPadTileSubtitle: {
-      fontSize: Math.max(fontSizes.tileSubtitle - 1, 10),
+      fontSize: Math.max(fontSizes.tileSubtitle - 1, 14),
       marginBottom: 4,
     },
     // Tablet-specific tile text styles
     tabletTileTitle: {
-      fontSize: Math.max(fontSizes.tileTitle - 1, 13),
+      fontSize: Math.max(fontSizes.tileTitle - 1, 20),
       marginBottom: 3,
     },
     tabletTileSubtitle: {
-      fontSize: Math.max(fontSizes.tileSubtitle - 0.5, 11),
+      fontSize: Math.max(fontSizes.tileSubtitle - 0.5, 14),
       marginBottom: 6,
     },
-    // iPad landscape-specific tile text styles - even smaller for 6 per row
+    // iPad landscape-specific tile text styles - even smaller for 6 per row (legacy)
     iPadLandscapeTileTitle: {
       fontSize: Math.max(fontSizes.tileTitle - 3, 10),
       marginBottom: 1,
@@ -2380,13 +2477,31 @@ const createStyles = (theme, fontSizes) =>
       fontSize: Math.max(fontSizes.tileSubtitle - 2, 8),
       marginBottom: 2,
     },
-    // Tablet landscape-specific tile text styles
+    // iPad landscape-specific tile text styles - optimized for 3 per row (current)
+    iPadLandscapeTileTitle3Col: {
+      fontSize: Math.max(fontSizes.tileTitle - 1, 20),
+      marginBottom: 2,
+    },
+    iPadLandscapeTileSubtitle3Col: {
+      fontSize: Math.max(fontSizes.tileSubtitle - 1, 16),
+      marginBottom: 3,
+    },
+    // Tablet landscape-specific tile text styles (legacy)
     tabletLandscapeTileTitle: {
       fontSize: Math.max(fontSizes.tileTitle - 2, 11),
       marginBottom: 2,
     },
     tabletLandscapeTileSubtitle: {
       fontSize: Math.max(fontSizes.tileSubtitle - 1.5, 9),
+      marginBottom: 3,
+    },
+    // Tablet landscape-specific tile text styles - optimized for 3 per row (current)
+    tabletLandscapeTileTitle3Col: {
+      fontSize: Math.max(fontSizes.tileTitle - 1, 20),
+      marginBottom: 2,
+    },
+    tabletLandscapeTileSubtitle3Col: {
+      fontSize: Math.max(fontSizes.tileSubtitle - 1, 16),
       marginBottom: 3,
     },
     tileBadge: {

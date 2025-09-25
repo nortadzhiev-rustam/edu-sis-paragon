@@ -32,18 +32,21 @@ const QuickActionTile = ({
   styles, // Use styles from parent component
   disabled = false,
   badge,
-  isLandscape = false,
+  isLandscape = false, // This will be passed from parent component
   additionalStyle = {},
 }) => {
   const isIPadDevice = isIPad();
   const isTabletDevice = isTablet();
 
+  // Use the passed isLandscape prop instead of detecting internally
+  // This ensures immediate updates when orientation changes
+
   // Calculate responsive icon size
   const getIconSize = () => {
-    if (isIPadDevice && isLandscape) return 16;
-    if (isTabletDevice && isLandscape) return 18;
-    if (isIPadDevice) return 20;
-    if (isTabletDevice) return 24;
+    if (isIPadDevice && isLandscape) return 35;
+    if (isTabletDevice && isLandscape) return 35;
+    if (isIPadDevice) return 35;
+    if (isTabletDevice) return 35;
     return 28;
   };
 
@@ -58,39 +61,49 @@ const QuickActionTile = ({
     isIPadDevice && (styles?.iPadActionTile || styles?.iPadMenuItem),
     isIPadDevice &&
       isLandscape &&
-      (styles?.iPadLandscapeActionTile || styles?.iPadLandscapeMenuItem),
+      (styles?.iPadLandscapeActionTile3Col || styles?.iPadLandscapeMenuItem),
     isTabletDevice && (styles?.tabletActionTile || styles?.tabletMenuItem),
     isTabletDevice &&
       isLandscape &&
-      (styles?.tabletLandscapeActionTile || styles?.tabletLandscapeMenuItem),
+      (styles?.tabletLandscapeActionTile3Col ||
+        styles?.tabletLandscapeMenuItem),
     additionalStyle,
   ];
 
-  // Get icon container styles - use existing responsive styles from TeacherScreen
+  // Get icon container styles - support both tile and menu icon containers
   const getIconContainerStyles = () => [
-    styles?.tileIconContainer,
-    isIPadDevice && styles?.iPadTileIconContainer,
-    isIPadDevice && isLandscape && styles?.iPadLandscapeTileIconContainer,
-    isTabletDevice && styles?.tabletTileIconContainer,
-    isTabletDevice && isLandscape && styles?.tabletLandscapeTileIconContainer,
+    // Try tile icon containers first (for TeacherScreen)
+    styles?.tileIconContainer || styles?.menuIconContainer,
+    isIPadDevice &&
+      (styles?.iPadTileIconContainer || styles?.iPadMenuIconContainer),
+    isIPadDevice &&
+      isLandscape &&
+      (styles?.iPadLandscapeTileIconContainer3Col ||
+        styles?.iPadLandscapeMenuIconContainer),
+    isTabletDevice &&
+      (styles?.tabletTileIconContainer || styles?.tabletMenuIconContainer),
+    isTabletDevice &&
+      isLandscape &&
+      (styles?.tabletLandscapeTileIconContainer3Col ||
+        styles?.tabletLandscapeMenuIconContainer),
   ];
 
   // Get title styles - use existing responsive styles from TeacherScreen
   const getTitleStyles = () => [
     styles?.tileTitle,
     isIPadDevice && styles?.iPadTileTitle,
-    isIPadDevice && isLandscape && styles?.iPadLandscapeTileTitle,
+    isIPadDevice && isLandscape && styles?.iPadLandscapeTileTitle3Col,
     isTabletDevice && styles?.tabletTileTitle,
-    isTabletDevice && isLandscape && styles?.tabletLandscapeTileTitle,
+    isTabletDevice && isLandscape && styles?.tabletLandscapeTileTitle3Col,
   ];
 
   // Get subtitle styles - use existing responsive styles from TeacherScreen
   const getSubtitleStyles = () => [
     styles?.tileSubtitle,
     isIPadDevice && styles?.iPadTileSubtitle,
-    isIPadDevice && isLandscape && styles?.iPadLandscapeTileSubtitle,
+    isIPadDevice && isLandscape && styles?.iPadLandscapeTileSubtitle3Col,
     isTabletDevice && styles?.tabletTileSubtitle,
-    isTabletDevice && isLandscape && styles?.tabletLandscapeTileSubtitle,
+    isTabletDevice && isLandscape && styles?.tabletLandscapeTileSubtitle3Col,
   ];
 
   return (

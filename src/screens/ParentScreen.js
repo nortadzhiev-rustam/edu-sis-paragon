@@ -71,8 +71,6 @@ import {
 
 import { useFocusEffect } from '@react-navigation/native';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 // Menu items configuration
 const getMenuItems = (t) => [
   {
@@ -190,6 +188,15 @@ export default function ParentScreen({ navigation }) {
   const { t, currentLanguage } = useLanguage();
   const fontSizes = getLanguageFontSizes(currentLanguage);
 
+  // Dynamic screen dimensions that update with orientation changes
+  const [screenDimensions, setScreenDimensions] = useState(() => {
+    const { width, height } = Dimensions.get('window');
+    return { width, height };
+  });
+
+  // Extract dimensions for easier use
+  const { width: screenWidth, height: screenHeight } = screenDimensions;
+
   // Device and orientation detection
   const isIPadDevice = isIPad();
   const isTabletDevice = isTablet();
@@ -218,7 +225,7 @@ export default function ParentScreen({ navigation }) {
   // Parent notifications hook
   const { selectStudent, refreshAllStudents } = useParentNotifications();
 
-  const styles = createStyles(theme, fontSizes);
+  const styles = createStyles(theme, fontSizes, screenWidth, screenHeight);
 
   // Initialize animated values when students change
   useEffect(() => {
@@ -404,6 +411,15 @@ export default function ParentScreen({ navigation }) {
       }
     };
   }, [hintAutoHideTimeout]);
+
+  // Listen for orientation changes
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setScreenDimensions({ width: window.width, height: window.height });
+    });
+
+    return () => subscription?.remove();
+  }, []);
 
   const handleLogout = async () => {
     Alert.alert(t('logout'), t('confirmLogout'), [
@@ -1500,6 +1516,7 @@ export default function ParentScreen({ navigation }) {
 
         {/* Swipe Hint - Positioned absolutely, moves with profile visibility */}
         <Animated.View
+          pointerEvents='box-none'
           style={[
             styles.swipeHintFixed,
             {
@@ -1737,8 +1754,13 @@ export default function ParentScreen({ navigation }) {
                   const isLastInRow =
                     (index + 1) % itemsPerRow === 0 || index === totalItems - 1;
                   const isIncompleteRow = totalItems % itemsPerRow !== 0;
+                  // Disable expansion for iPad/tablet in both orientations to maintain consistent tile sizes
                   const shouldExpand =
-                    isLastRow && isLastInRow && isIncompleteRow;
+                    isLastRow &&
+                    isLastInRow &&
+                    isIncompleteRow &&
+                    !isIPadDevice &&
+                    !isTabletDevice;
 
                   // Calculate minimum height based on device type
                   let minHeight = (screenWidth - 30) / 3 - 8; // Default mobile
@@ -1799,7 +1821,7 @@ export default function ParentScreen({ navigation }) {
   );
 }
 
-const createStyles = (theme, fontSizes) =>
+const createStyles = (theme, fontSizes, screenWidth, screenHeight) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -2139,7 +2161,7 @@ const createStyles = (theme, fontSizes) =>
       backgroundColor: theme.colors.primary,
     },
     selectedStudentText: {
-      color: theme.colors.primary,
+      color: theme.colors.text,
     },
     selectedBadge: {
       position: 'absolute',
@@ -2182,7 +2204,7 @@ const createStyles = (theme, fontSizes) =>
     studentName: {
       fontSize: fontSizes.medium,
       fontWeight: '700',
-      color: theme.colors.text,
+      color: theme.colors.textSecondary,
       marginBottom: 4,
     },
     studentDetails: {
@@ -2192,7 +2214,7 @@ const createStyles = (theme, fontSizes) =>
     },
     studentClass: {
       fontSize: fontSizes.small,
-      color: theme.colors.primary,
+      color: theme.colors.textSecondary,
       fontWeight: '600',
       marginBottom: 2,
     },
@@ -2308,7 +2330,7 @@ const createStyles = (theme, fontSizes) =>
       width: (screenWidth - 70) / 4 - 10, // Optimized for 4 tiles per row with wrapping support
       minWidth: (screenWidth - 70) / 4 - 10, // Minimum width for flex expansion
       aspectRatio: 1, // Square tiles
-      borderRadius: 18,
+      borderRadius: 24,
       padding: 14,
       marginHorizontal: 5,
       marginBottom: 10,
@@ -2324,7 +2346,7 @@ const createStyles = (theme, fontSizes) =>
       width: (screenWidth - 100) / 6 - 6, // 6 tiles per row in landscape with wrapping support
       minWidth: (screenWidth - 100) / 6 - 6, // Minimum width for flex expansion
       aspectRatio: 1, // Square tiles
-      borderRadius: 14,
+      borderRadius: 24,
       padding: 10,
       marginHorizontal: 3,
       marginBottom: 6,
@@ -2340,7 +2362,7 @@ const createStyles = (theme, fontSizes) =>
       width: (screenWidth - 90) / 6 - 8, // 6 tiles per row in landscape with wrapping support
       minWidth: (screenWidth - 90) / 6 - 8, // Minimum width for flex expansion
       aspectRatio: 1, // Square tiles
-      borderRadius: 16,
+      borderRadius: 24,
       padding: 12,
       marginHorizontal: 4,
       marginBottom: 8,
@@ -2355,9 +2377,9 @@ const createStyles = (theme, fontSizes) =>
       opacity: 0.7,
     },
     tileIconContainer: {
-      width: 44, // Smaller icon container for 3-per-row layout
-      height: 44,
-      borderRadius: 22,
+      width: 50, // Smaller icon container for 3-per-row layout
+      height: 50,
+      borderRadius: 25,
       backgroundColor: 'rgba(255, 255, 255, 0.25)',
       justifyContent: 'center',
       alignItems: 'center',
@@ -2425,12 +2447,12 @@ const createStyles = (theme, fontSizes) =>
       marginBottom: 8,
     },
     // Tablet-specific tile icon container
-    tabletTileIconContainer: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      marginBottom: 10,
-    },
+    // tabletTileIconContainer: {
+    //   width: 70,
+    //   height: 70,
+    //   borderRadius: 21,
+    //   marginBottom: 10,
+    // },
     // iPad landscape-specific tile icon container - even smaller for 6 per row
     iPadLandscapeTileIconContainer: {
       width: 30,
@@ -2484,7 +2506,7 @@ const createStyles = (theme, fontSizes) =>
       width: (screenWidth - 70) / 4 - 10, // Optimized for 4 items per row with wrapping support
       minWidth: 150, // Minimum width to ensure items don't get too small
       aspectRatio: 1, // Square items
-      borderRadius: 11,
+      borderRadius: 18,
       padding: 13,
       marginHorizontal: 5,
       marginBottom: 10,
@@ -2500,7 +2522,7 @@ const createStyles = (theme, fontSizes) =>
       width: (screenWidth - 100) / 6 - 6, // 6 items per row in landscape with wrapping support
       minWidth: 120, // Minimum width for landscape items
       aspectRatio: 1, // Square items
-      borderRadius: 8,
+      borderRadius: 18,
       padding: 10,
       marginHorizontal: 3,
       marginBottom: 6,
@@ -2516,7 +2538,7 @@ const createStyles = (theme, fontSizes) =>
       width: (screenWidth - 90) / 6 - 8, // 6 items per row in landscape with wrapping support
       minWidth: 110, // Minimum width for landscape items
       aspectRatio: 1, // Square items
-      borderRadius: 9,
+      borderRadius: 18,
       padding: 11,
       marginHorizontal: 4,
       marginBottom: 8,
@@ -2528,39 +2550,47 @@ const createStyles = (theme, fontSizes) =>
       }),
     },
     menuIconContainer: {
-      width: 45,
-      height: 45,
-      borderRadius: 22.5,
+      width: 70,
+      height: 70,
+      borderRadius: 35,
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: 8,
     },
     // iPad-specific menu icon container - smaller
     iPadMenuIconContainer: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      justifyContent: 'center',
+      alignItems: 'center',
       marginBottom: 8,
     },
     // Tablet-specific menu icon container
     tabletMenuIconContainer: {
-      width: 45,
-      height: 45,
-      borderRadius: 22.5,
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      justifyContent: 'center',
+      alignItems: 'center',
       marginBottom: 9,
     },
     // iPad landscape-specific menu icon container - even smaller for 6 per row
     iPadLandscapeMenuIconContainer: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      justifyContent: 'center',
+      alignItems: 'center',
       marginBottom: 6,
     },
     // Tablet landscape-specific menu icon container
     tabletLandscapeMenuIconContainer: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      justifyContent: 'center',
+      alignItems: 'center',
       marginBottom: 7,
     },
     menuItemText: {
