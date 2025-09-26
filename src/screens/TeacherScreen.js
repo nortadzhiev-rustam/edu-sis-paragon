@@ -1419,9 +1419,9 @@ export default function TeacherScreen({ route, navigation }) {
               styles={styles}
               isLandscape={isLandscape}
               additionalStyle={{
-                width: (screenWidth - 100) / 2, // 2 tiles per row: more conservative with extra buffer
-                height: ((screenWidth - 100) / 2) * 0.9, // Slightly shorter than square
-                marginBottom: 8, // Add some vertical spacing
+                width: (screenWidth - 85) / 2, // 2 tiles per row: balanced size
+                height: ((screenWidth - 85) / 2) * 0.9, // Slightly shorter than square
+                marginBottom: Math.max(4, Math.min(8, screenHeight * 0.01)), // Smaller dynamic vertical spacing
               }}
             />
           ))}
@@ -2444,7 +2444,7 @@ const createStyles = (theme, fontSizes, screenWidth, screenHeight) =>
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'flex-start', // Changed from space-between to support flex expansion
-      gap: 15,
+      gap: Math.max(4, Math.min(8, screenHeight * 0.01)), // Even smaller dynamic gap: 4-8px based on screen height
     },
     // iPad-specific grid layout - 4 tiles per row, wraps to next row for additional tiles
     iPadActionTilesGrid: {
@@ -2948,47 +2948,61 @@ const createStyles = (theme, fontSizes, screenWidth, screenHeight) =>
     // Quick Actions Pagination Styles (for phones only)
     phoneQuickActionsWrapper: {
       justifyContent: 'flex-start',
-      minHeight: ((screenWidth - 100) / 2) * 0.9 * 3 + 24 + 40, // Height for 3 rows + gaps + padding
+      minHeight:
+        ((screenWidth - 85) / 2) * 0.9 * 3 +
+        Math.max(4, Math.min(8, screenHeight * 0.01)) * 2 +
+        40, // Height for 3 rows + even smaller dynamic gaps + padding
     },
     quickActionPageContainer: {
       width: screenWidth,
-      paddingHorizontal: 16,
+      paddingHorizontal: 0, // Remove padding to prevent double padding
+      marginHorizontal: 0, // Remove margin to prevent double padding
     },
     // Phone-specific grid layout (2 columns, 3 rows)
     phoneActionTilesGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      justifyContent: 'flex-start', // Even distribution with smaller gaps
-      paddingHorizontal: 15, // More padding to prevent edge clipping
+      justifyContent: 'flex-start', // Use space-between for consistent spacing
+      paddingHorizontal: 15, // Single layer of padding
     },
     // Phone-specific tile styles (2 columns)
     phoneActionTile: {
-      width: (screenWidth - 100) / 2, // 2 tiles per row: more conservative with extra buffer
-      height: ((screenWidth - 100) / 2) * 0.9, // Slightly shorter than square
-      borderRadius: 16, // Smaller border radius
-      padding: 12, // Less padding
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 8,
+      width: (screenWidth - 85) / 2, // 2 tiles per row: balanced size
+      height: ((screenWidth - 85) / 2) * 0.9, // Slightly shorter than square
+      borderRadius: '15%', // Smaller border radius
+      padding: 15, // Less padding
+      justifyContent: 'flex-start',
+      alignItems: 'center',
+      marginLeft: 5,
     },
     phoneTileIconContainer: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: 'rgba(255, 255, 255, 0.25)',
+      justifyContent: 'center',
+      alignItems: 'center',
       marginBottom: 6,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.3)',
+      
     },
     phoneTileTitle: {
-      fontSize: Math.max(fontSizes.tileTitle - 4, 18),
+      fontSize: Math.max(fontSizes.tileTitle - 4, 16),
       fontWeight: '700',
       color: '#fff',
       marginBottom: 2,
       letterSpacing: 0.2,
+      marginTop: 5,
+      textAlign: 'center',
     },
     phoneTileSubtitle: {
-      fontSize: Math.max(fontSizes.tileSubtitle - 3, 14),
+      fontSize: Math.max(fontSizes.tileSubtitle - 3, 12),
       color: 'rgba(255, 255, 255, 0.8)',
       fontWeight: '500',
       marginBottom: 4,
+      marginTop: 5,
+      textAlign: 'center',
     },
     paginationContainer: {
       flexDirection: 'row',

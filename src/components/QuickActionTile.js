@@ -48,7 +48,7 @@ const QuickActionTile = ({
     if (isIPadDevice) return 35;
     if (isTabletDevice) return 35;
     // Check if we're using phone-specific styles (smaller tiles)
-    if (additionalStyle?.width && additionalStyle.width < 180) return 20;
+    if (additionalStyle?.width && additionalStyle.width < 180) return 30;
     return 28;
   };
 
