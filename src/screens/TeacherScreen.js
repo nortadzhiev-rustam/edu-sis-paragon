@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,8 +11,6 @@ import {
   RefreshControl,
   Dimensions,
   Modal,
-  FlatList,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -281,11 +279,6 @@ export default function TeacherScreen({ route, navigation }) {
   const [currentBranchInfo, setCurrentBranchInfo] = useState(null);
   const [accessibleBranches, setAccessibleBranches] = useState([]);
   const [branchSwitching, setBranchSwitching] = useState(false);
-
-  // Quick Actions pagination state (only for phones)
-  const [currentQuickActionPage, setCurrentQuickActionPage] = useState(0);
-  const quickActionsFlatListRef = useRef(null);
-  const quickActionAnimatedValues = useRef([]).current;
 
   const styles = createStyles(theme, fontSizes, screenWidth, screenHeight);
 
@@ -1363,112 +1356,6 @@ export default function TeacherScreen({ route, navigation }) {
     return filteredActions;
   };
 
-  // State for quick action pages to prevent unnecessary re-renders (only for phones)
-  const [quickActionPages, setQuickActionPages] = useState([]);
-
-  // Helper function to calculate quick action pages
-  const calculateQuickActionPages = () => {
-    if (isIPadDevice || isTabletDevice) {
-      return []; // No pagination needed for tablets/iPads
-    }
-
-    try {
-      const actions = getQuickActions();
-      const itemsPerPage = 6; // 2x3 layout
-      const pages = [];
-
-      for (let i = 0; i < actions.length; i += itemsPerPage) {
-        pages.push(actions.slice(i, i + itemsPerPage));
-      }
-
-      return pages;
-    } catch (error) {
-      console.error('Error getting quick action pages:', error);
-      return [];
-    }
-  };
-
-  // Update quick action pages when dependencies change
-  useEffect(() => {
-    const newPages = calculateQuickActionPages();
-    setQuickActionPages(newPages);
-  }, [
-    selectedBranchId,
-    isIPadDevice,
-    isTabletDevice,
-    userData.authCode,
-    currentBranchInfo,
-  ]);
-
-  // Render a single page of quick actions (only for phones)
-  const renderQuickActionPage = ({ item: pageActions }) => {
-    return (
-      <View style={styles.quickActionPageContainer}>
-        <View style={[styles.actionTilesGrid, styles.phoneActionTilesGrid]}>
-          {pageActions.map((action) => (
-            <QuickActionTile
-              key={action.id}
-              title={action.title}
-              subtitle={action.subtitle}
-              icon={action.icon}
-              backgroundColor={action.backgroundColor}
-              iconColor={action.iconColor}
-              disabled={action.disabled}
-              badge={action.badge}
-              onPress={action.onPress}
-              styles={styles}
-              isLandscape={isLandscape}
-              additionalStyle={{
-                width: (screenWidth - 85) / 2, // 2 tiles per row: balanced size
-                height: ((screenWidth - 85) / 2) * 0.9, // Slightly shorter than square
-                marginBottom: Math.max(4, Math.min(8, screenHeight * 0.01)), // Smaller dynamic vertical spacing
-              }}
-            />
-          ))}
-        </View>
-      </View>
-    );
-  };
-
-  // Initialize animated values for quick actions pagination (only for phones)
-  useEffect(() => {
-    if (!isIPadDevice && !isTabletDevice) {
-      // Initialize animated values for each page
-      while (quickActionAnimatedValues.length < quickActionPages.length) {
-        // Initialize first dot as active (1), others as inactive (0)
-        const initialValue = quickActionAnimatedValues.length === 0 ? 1 : 0;
-        quickActionAnimatedValues.push(new Animated.Value(initialValue));
-      }
-      // Remove excess animated values
-      if (quickActionAnimatedValues.length > quickActionPages.length) {
-        quickActionAnimatedValues.splice(quickActionPages.length);
-      }
-    }
-  }, [
-    quickActionPages,
-    isIPadDevice,
-    isTabletDevice,
-    quickActionAnimatedValues,
-  ]);
-
-  // Animate pagination dots when current page changes (only for phones)
-  useEffect(() => {
-    if (!isIPadDevice && !isTabletDevice) {
-      quickActionAnimatedValues.forEach((animValue, index) => {
-        Animated.timing(animValue, {
-          toValue: index === currentQuickActionPage ? 1 : 0,
-          duration: 300,
-          useNativeDriver: false,
-        }).start();
-      });
-    }
-  }, [
-    currentQuickActionPage,
-    quickActionAnimatedValues,
-    isIPadDevice,
-    isTabletDevice,
-  ]);
-
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Compact Header */}
@@ -1860,112 +1747,15 @@ export default function TeacherScreen({ route, navigation }) {
           <ActivityIndicator size='large' color='#007AFF' />
           <Text style={styles.loadingText}>{t('loading')}</Text>
         </View>
-      ) : /* Main content container */
-      !isIPadDevice && !isTabletDevice ? (
-        /* For phones: Use flex container without ScrollView to prevent overflow */
-        <View style={styles.phoneQuickActionsWrapper}>
-          {/* Quick Actions */}
-          <View style={styles.quickActionsContainer}>
-            {/* For phones: Use paginated FlatList with 3x2 layout */}
-            <FlatList
-              ref={quickActionsFlatListRef}
-              data={quickActionPages}
-              renderItem={renderQuickActionPage}
-              keyExtractor={(_, index) => `quick-action-page-${index}`}
-              horizontal={true}
-              showsHorizontalScrollIndicator={false}
-              pagingEnabled={true}
-              snapToAlignment='center'
-              decelerationRate='fast'
-              onMomentumScrollEnd={(event) => {
-                const contentOffset = event.nativeEvent.contentOffset.x;
-                const pageIndex = Math.round(contentOffset / screenWidth);
-                setCurrentQuickActionPage(
-                  Math.max(0, Math.min(pageIndex, quickActionPages.length - 1))
-                );
-              }}
-              getItemLayout={(_, index) => ({
-                length: screenWidth,
-                offset: screenWidth * index,
-                index,
-              })}
-              onScrollToIndexFailed={(info) => {
-                // Handle the failure by scrolling to a nearby item
-                setTimeout(() => {
-                  if (
-                    quickActionsFlatListRef.current &&
-                    quickActionPages.length > 0
-                  ) {
-                    quickActionsFlatListRef.current.scrollToIndex({
-                      index: Math.min(
-                        info.highestMeasuredFrameIndex,
-                        quickActionPages.length - 1
-                      ),
-                      animated: true,
-                    });
-                  }
-                }, 100);
-              }}
-            />
-
-            {/* Dotted Pagination Indicator for phones */}
-            {quickActionPages.length > 1 && (
-              <View style={styles.paginationContainer}>
-                {quickActionPages.map((_, index) => {
-                  const animValue =
-                    quickActionAnimatedValues[index] || new Animated.Value(0);
-                  const dotWidth = animValue.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [8, 24],
-                  });
-                  const dotOpacity = animValue.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.5, 1],
-                  });
-
-                  return (
-                    <TouchableOpacity
-                      key={index}
-                      onPress={() => {
-                        setCurrentQuickActionPage(index);
-                        quickActionsFlatListRef.current?.scrollToIndex({
-                          index,
-                          animated: true,
-                        });
-                      }}
-                      style={styles.paginationDotTouchable}
-                    >
-                      <Animated.View
-                        style={[
-                          styles.paginationDot,
-                          {
-                            width: dotWidth,
-                            opacity: dotOpacity,
-                            backgroundColor:
-                              index === currentQuickActionPage
-                                ? theme.colors.primary
-                                : theme.colors.border,
-                          },
-                        ]}
-                      />
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-        </View>
       ) : (
-        /* For tablets/iPads: Use ScrollView with original behavior */
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollViewContent}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[theme.colors.primary]}
-              tintColor={theme.colors.primary}
+              onRefresh={loadTeacherData}
+              colors={['#007AFF']}
+              tintColor='#007AFF'
             />
           }
         >
@@ -1985,7 +1775,8 @@ export default function TeacherScreen({ route, navigation }) {
               ]}
             >
               {getQuickActions().map((action, index) => {
-                const totalItems = getQuickActions().length;
+                const quickActions = getQuickActions();
+                const totalItems = quickActions.length;
 
                 // Helper function to calculate items per row for landscape tablets/iPads
                 const getLandscapeItemsPerRow = (totalItems) => {
@@ -2032,7 +1823,7 @@ export default function TeacherScreen({ route, navigation }) {
                 } else if (isTabletDevice && isLandscape) {
                   minHeight = (screenWidth - 80) / itemsPerRow - 12;
                 } else if (isIPadDevice) {
-                  minHeight = (screenWidth - 80) / 4 - 12;
+                  20;
                 } else if (isTabletDevice) {
                   minHeight = (screenWidth - 80) / 4 - 12;
                 }
@@ -2067,6 +1858,9 @@ export default function TeacherScreen({ route, navigation }) {
           </View>
         </ScrollView>
       )}
+
+      {/* All Roles Modal */}
+      {renderAllRolesModal()}
     </SafeAreaView>
   );
 }
@@ -2084,7 +1878,8 @@ const createStyles = (theme, fontSizes, screenWidth, screenHeight) =>
       marginHorizontal: 16,
       marginTop: 8,
       marginBottom: 8,
-      ...createMediumShadow(theme),
+      ...theme.shadows.small,
+      zIndex: 1,
     },
     navigationHeader: {
       backgroundColor: theme.colors.headerBackground,
@@ -2436,7 +2231,7 @@ const createStyles = (theme, fontSizes, screenWidth, screenHeight) =>
 
     // Quick Actions - Tile Layout
     quickActionsContainer: {
-      marginHorizontal: 10,
+      marginHorizontal: 20,
       marginBottom: 25,
       alignItems: 'center', // Centers the grid horizontally within the container
     },
@@ -2444,7 +2239,7 @@ const createStyles = (theme, fontSizes, screenWidth, screenHeight) =>
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'flex-start', // Changed from space-between to support flex expansion
-      gap: Math.max(4, Math.min(8, screenHeight * 0.01)), // Even smaller dynamic gap: 4-8px based on screen height
+      gap: 12,
     },
     // iPad-specific grid layout - 4 tiles per row, wraps to next row for additional tiles
     iPadActionTilesGrid: {
@@ -2484,19 +2279,19 @@ const createStyles = (theme, fontSizes, screenWidth, screenHeight) =>
     tabletLandscapeActionTilesGrid3Col: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      justifyContent: 'flex-start',
+      justifyContent: 'flex-start200200300',
       alignItems: 'flex-start',
       gap: 16,
       paddingHorizontal: 20,
       paddingVertical: 10,
     },
     actionTile: {
-      width: (screenWidth - 52) / 1.5, // 2 tiles per row with margins and gap
-      minWidth: (screenWidth - 52) / 1.5, // Minimum width for flex expansion
+      width: (screenWidth - 52) / 2, // 2 tiles per row with margins and gap
+      minWidth: (screenWidth - 52) / 2, // Minimum width for flex expansion
       aspectRatio: 1, // Square tiles
       borderRadius: 24,
       padding: 20,
-      justifyContent: 'flex-start',
+      justifyContent: 'space-between',
       alignItems: 'flex-start',
       ...createMediumShadow(theme),
       position: 'relative',
@@ -2943,82 +2738,5 @@ const createStyles = (theme, fontSizes, screenWidth, screenHeight) =>
       color: '#fff',
       fontSize: 16,
       fontWeight: '600',
-    },
-
-    // Quick Actions Pagination Styles (for phones only)
-    phoneQuickActionsWrapper: {
-      justifyContent: 'flex-start',
-      minHeight:
-        ((screenWidth - 85) / 2) * 0.9 * 3 +
-        Math.max(4, Math.min(8, screenHeight * 0.01)) * 2 +
-        40, // Height for 3 rows + even smaller dynamic gaps + padding
-    },
-    quickActionPageContainer: {
-      width: screenWidth,
-      paddingHorizontal: 0, // Remove padding to prevent double padding
-      marginHorizontal: 0, // Remove margin to prevent double padding
-    },
-    // Phone-specific grid layout (2 columns, 3 rows)
-    phoneActionTilesGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'flex-start', // Use space-between for consistent spacing
-      paddingHorizontal: 15, // Single layer of padding
-    },
-    // Phone-specific tile styles (2 columns)
-    phoneActionTile: {
-      width: (screenWidth - 85) / 2, // 2 tiles per row: balanced size
-      height: ((screenWidth - 85) / 2) * 0.9, // Slightly shorter than square
-      borderRadius: '15%', // Smaller border radius
-      padding: 15, // Less padding
-      justifyContent: 'flex-start',
-      alignItems: 'center',
-      marginLeft: 5,
-    },
-    phoneTileIconContainer: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      backgroundColor: 'rgba(255, 255, 255, 0.25)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 6,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.3)',
-      
-    },
-    phoneTileTitle: {
-      fontSize: Math.max(fontSizes.tileTitle - 4, 16),
-      fontWeight: '700',
-      color: '#fff',
-      marginBottom: 2,
-      letterSpacing: 0.2,
-      marginTop: 5,
-      textAlign: 'center',
-    },
-    phoneTileSubtitle: {
-      fontSize: Math.max(fontSizes.tileSubtitle - 3, 12),
-      color: 'rgba(255, 255, 255, 0.8)',
-      fontWeight: '500',
-      marginBottom: 4,
-      marginTop: 5,
-      textAlign: 'center',
-    },
-    paginationContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: 15,
-      paddingHorizontal: 20,
-    },
-    paginationDotTouchable: {
-      paddingHorizontal: 4,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    paginationDot: {
-      height: 8,
-      borderRadius: 4,
-      marginHorizontal: 2,
     },
   });
