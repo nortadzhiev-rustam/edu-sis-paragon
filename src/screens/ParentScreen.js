@@ -10,9 +10,15 @@ import {
   ScrollView,
   Platform,
   Dimensions,
-  Animated,
 } from 'react-native';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  interpolate,
+} from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -24,7 +30,6 @@ import {
 
 import {
   faChild,
-  faTrash,
   faBook,
   faCalendarAlt,
   faChartLine,
@@ -58,12 +63,6 @@ import { updateLastLogin } from '../services/deviceService';
 // Import Parent Proxy Access System
 import {
   getParentChildren,
-  getChildTimetable,
-  getChildHomework,
-  getChildAttendance,
-  getChildGrades,
-  getChildAssessment,
-  getChildBpsProfile,
   saveChildrenData,
   getChildrenData,
   formatChildForDisplay,
@@ -209,37 +208,101 @@ export default function ParentScreen({ navigation }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = React.useRef(null);
   const notificationsLoadedRef = React.useRef(new Set());
-  const animatedValues = React.useRef([]).current;
+  // Create a reasonable number of shared values for pagination (max 10 students)
+  const paginationSharedValues = Array.from({ length: 10 }, (_, i) =>
+    useSharedValue(i === 0 ? 1 : 0)
+  );
 
+  // Create animated styles for all possible pagination dots (outside of render)
+  const paginationAnimatedStyles = paginationSharedValues.map((sharedValue) =>
+    useAnimatedStyle(() => {
+      if (!sharedValue) return {};
+
+      return {
+        width: interpolate(sharedValue.value, [0, 1], [8, 24]),
+        opacity: interpolate(sharedValue.value, [0, 1], [0.5, 1]),
+      };
+    })
+  );
   // Parent profile animation states
   const [isProfileVisible, setIsProfileVisible] = useState(false);
+  const [hintProfileVisible, setHintProfileVisible] = useState(false); // Separate state for hint text
   const [showInitialHint, setShowInitialHint] = useState(true);
   const [hintAutoHideTimeout, setHintAutoHideTimeout] = useState(null);
-  const profileTranslateY = useRef(new Animated.Value(-120)).current; // Start hidden (negative value)
-  const profileOpacity = useRef(new Animated.Value(0)).current;
-  const hintOpacity = useRef(new Animated.Value(1)).current; // Start visible when profile is hidden
-  const hintArrowBounce = useRef(new Animated.Value(0)).current; // For bouncing arrow animation
+  const profileVisibilityRef = useRef(false); // Immediate reference for hint text
+  const profileTranslateY = useSharedValue(-120); // Start hidden (negative value)
+  const profileOpacity = useSharedValue(0);
+  const hintOpacity = useSharedValue(1); // Start visible when profile is hidden
+  const hintArrowBounce = useSharedValue(0); // For bouncing arrow animation
   const hintBounceAnimRef = useRef(null); // Holds current bounce animation loop instance
-  const contentTranslateY = useRef(new Animated.Value(-80)).current; // Start moved up when profile is hidden (affects all content)
+  const contentTranslateY = useSharedValue(-80); // Start moved up when profile is hidden (affects all content)
+  const isProfileVisibleShared = useSharedValue(false); // Shared value for worklet access
+  const gestureCompletedShared = useSharedValue(0); // Triggers when gesture completes (increments)
 
   // Parent notifications hook
   const { selectStudent, refreshAllStudents } = useParentNotifications();
 
   const styles = createStyles(theme, fontSizes, screenWidth, screenHeight);
 
-  // Initialize animated values when students change
+  // Animated styles for reanimated
+  const profileAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: profileTranslateY.value }],
+      opacity: profileOpacity.value,
+    };
+  });
+
+  const contentAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: contentTranslateY.value }],
+    };
+  });
+
+  const hintAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: hintOpacity.value,
+    };
+  });
+
+  const hintArrowAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        {
+          translateY: hintArrowBounce.value * (isProfileVisible ? -3 : 3),
+        },
+      ],
+    };
+  });
+
+  // Sync React state with shared value changes from gestures
   useEffect(() => {
-    // Initialize animated values for each student
-    while (animatedValues.length < students.length) {
-      // Initialize first dot as active (1), others as inactive (0)
-      const initialValue = animatedValues.length === 0 ? 1 : 0;
-      animatedValues.push(new Animated.Value(initialValue));
-    }
-    // Remove excess animated values
-    if (animatedValues.length > students.length) {
-      animatedValues.splice(students.length);
-    }
-  }, [students.length]);
+    const checkSharedValue = () => {
+      if (isProfileVisibleShared.value !== isProfileVisible) {
+        setIsProfileVisible(isProfileVisibleShared.value);
+      }
+    };
+
+    const interval = setInterval(checkSharedValue, 100);
+    return () => clearInterval(interval);
+  }, [isProfileVisible]);
+
+  // Initialize shared value with React state
+  useEffect(() => {
+    isProfileVisibleShared.value = isProfileVisible;
+  }, [isProfileVisible]);
+
+  // Update pagination dots when students change or current index changes
+  useEffect(() => {
+    // Reset all dots to inactive, then set current one to active
+    paginationSharedValues.forEach((sharedValue, index) => {
+      if (index < students.length) {
+        sharedValue.value = withSpring(index === currentIndex ? 1 : 0, {
+          damping: 25,
+          stiffness: 400,
+        });
+      }
+    });
+  }, [students.length, currentIndex]);
 
   // Update current index when selected student changes
   useEffect(() => {
@@ -253,16 +316,33 @@ export default function ParentScreen({ navigation }) {
     }
   }, [selectedStudent, students]);
 
-  // Animate dots when current index changes
+  // Watch for gesture completion and sync React state with shared values
   useEffect(() => {
-    animatedValues.forEach((animValue, index) => {
-      Animated.timing(animValue, {
-        toValue: index === currentIndex ? 1 : 0,
-        duration: 300,
-        useNativeDriver: false,
-      }).start();
-    });
-  }, [currentIndex, animatedValues]);
+    const interval = setInterval(() => {
+      // Check if profile visibility changed via gesture
+      if (isProfileVisibleShared.value !== isProfileVisible) {
+        const newVisibility = isProfileVisibleShared.value;
+        console.log('Gesture changed profile visibility to:', newVisibility);
+        setIsProfileVisible(newVisibility);
+        setHintProfileVisible(newVisibility); // Update hint state immediately
+        profileVisibilityRef.current = newVisibility; // Update ref immediately
+
+        // Show hint when profile is hidden via gesture, hide when shown
+        if (!newVisibility) {
+          console.log('Profile hidden via gesture, showing hint');
+          setTimeout(() => {
+            showHintTemporarily(3000);
+          }, 500);
+        } else {
+          console.log('Profile shown via gesture, hiding hint');
+          hintOpacity.value = withTiming(0, { duration: 300 });
+          stopHintBounce();
+        }
+      }
+    }, 16); // Check every 16ms (60fps) for immediate response
+
+    return () => clearInterval(interval);
+  }, [isProfileVisible]);
 
   // Refresh notifications when screen comes into focus
   useFocusEffect(
@@ -311,56 +391,52 @@ export default function ParentScreen({ navigation }) {
       } catch (e) {}
       hintBounceAnimRef.current = null;
     }
-    hintArrowBounce.setValue(0);
+    hintArrowBounce.value = 0;
   };
 
   const startHintBounce = (iterations) => {
     // iterations: number | undefined (undefined = infinite)
     stopHintBounce();
-    const seq = Animated.sequence([
-      Animated.timing(hintArrowBounce, {
-        toValue: 1,
-        duration: 700,
-        useNativeDriver: true,
-      }),
-      Animated.timing(hintArrowBounce, {
-        toValue: 0,
-        duration: 700,
-        useNativeDriver: true,
-      }),
-    ]);
-    const loop = iterations
-      ? Animated.loop(seq, { iterations })
-      : Animated.loop(seq);
-    hintBounceAnimRef.current = loop;
-    loop.start();
+
+    // Simple spring animation for bounce effect
+    hintArrowBounce.value = withSpring(1, {
+      damping: 2,
+      stiffness: 100,
+    });
+
+    // Reset after animation
+    setTimeout(() => {
+      hintArrowBounce.value = withSpring(0, {
+        damping: 15,
+        stiffness: 150,
+      });
+    }, 300);
   };
 
   // Helper function to show hint temporarily (with bouncing chevrons)
   const showHintTemporarily = (duration = 2000) => {
+    console.log('showHintTemporarily called with duration:', duration);
+    console.log('Current hintOpacity value:', hintOpacity.value);
+
     // Clear any existing timeout
     if (hintAutoHideTimeout) {
       clearTimeout(hintAutoHideTimeout);
     }
 
+    // Force stop any existing animations and reset opacity
+    stopHintBounce();
+
     // Show hint and start chevron bounce
-    Animated.timing(hintOpacity, {
-      toValue: 1,
-      duration: 250,
-      useNativeDriver: true,
-    }).start(() => {
-      startHintBounce(); // start infinite bounce while hint is visible
-    });
+    console.log('Setting hintOpacity to 1');
+    hintOpacity.value = 1; // Set immediately first
+    hintOpacity.value = withTiming(1, { duration: 250 }); // Then animate to ensure it's visible
+    startHintBounce(); // start infinite bounce while hint is visible
 
     // Set timeout to hide hint and stop bounce
     const timeout = setTimeout(() => {
-      Animated.timing(hintOpacity, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: true,
-      }).start(() => {
-        stopHintBounce();
-      });
+      console.log('Hiding hint after timeout');
+      hintOpacity.value = withTiming(0, { duration: 400 });
+      stopHintBounce();
     }, duration);
 
     setHintAutoHideTimeout(timeout);
@@ -374,15 +450,10 @@ export default function ParentScreen({ navigation }) {
       startHintBounce(3);
       // After bouncing, hide the hint (add a short pause before hiding)
       setTimeout(() => {
-        Animated.timing(hintOpacity, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }).start(() => {
-          stopHintBounce();
-          setShowInitialHint(false);
-        });
-      }, 1000 + 3 * 1400);
+        hintOpacity.value = withTiming(0, { duration: 500 });
+        stopHintBounce();
+        setShowInitialHint(false);
+      }, 1000 + 3 * 300);
     }, 1000); // Wait 1 second after component mount
   };
 
@@ -1018,6 +1089,28 @@ export default function ParentScreen({ navigation }) {
 
   // Student cleanup is now handled by the logoutService
 
+  // Helper function to update React state and show hint (called from worklet)
+  const updateProfileStateAndShowHint = (willBeVisible) => {
+    console.log(
+      'updateProfileStateAndShowHint called, willBeVisible:',
+      willBeVisible
+    );
+
+    // Update React state
+    setIsProfileVisible(willBeVisible);
+
+    // Show hint logic (only when hiding profile)
+    if (!willBeVisible) {
+      console.log(
+        'Profile being hidden via gesture, will show hint after delay'
+      );
+      setTimeout(() => {
+        console.log('Showing hint now via gesture');
+        showHintTemporarily(3000);
+      }, 500);
+    }
+  };
+
   // Animation functions for parent profile
   const toggleProfileVisibility = () => {
     const wasVisible = isProfileVisible;
@@ -1031,66 +1124,105 @@ export default function ParentScreen({ navigation }) {
       clearTimeout(hintAutoHideTimeout);
       setHintAutoHideTimeout(null);
     }
-    setShowInitialHint(false); // Disable initial hint once user interacts
+    // Only disable initial hint when profile is being shown, re-enable when hiding
+    if (willBeVisible) {
+      console.log('Profile being shown - disabling hint');
+      setShowInitialHint(false); // Disable hint when showing profile
+    } else {
+      console.log('Profile being hidden - re-enabling hint');
+      setShowInitialHint(true); // Re-enable hint when hiding profile
+    }
 
     // Update visibility state immediately
     setIsProfileVisible(willBeVisible);
+    setHintProfileVisible(willBeVisible); // Update hint state immediately
+    profileVisibilityRef.current = willBeVisible; // Update ref immediately
+    isProfileVisibleShared.value = willBeVisible; // Sync shared value
 
-    Animated.parallel([
-      // Profile animation
-      Animated.spring(profileTranslateY, {
-        toValue,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }),
-      Animated.timing(profileOpacity, {
-        toValue: opacityValue,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      // Entire content animation (children + menu sections)
-      Animated.spring(contentTranslateY, {
-        toValue: contentToValue,
-        useNativeDriver: true,
-        tension: 80,
-        friction: 8,
-      }),
-    ]).start(() => {
-      // Show hint briefly after transition (text and chevron direction adapt automatically)
-      showHintTemporarily(2000);
+    // Use reanimated animations
+    profileTranslateY.value = withSpring(toValue, {
+      damping: 15,
+      stiffness: 150,
     });
+
+    profileOpacity.value = withSpring(opacityValue, {
+      damping: 15,
+      stiffness: 150,
+    });
+
+    contentTranslateY.value = withSpring(contentToValue, {
+      damping: 12,
+      stiffness: 120,
+    });
+
+    // Show hint briefly after transition (text and chevron direction adapt automatically)
+    // Only show hint when profile is being hidden
+    if (!willBeVisible) {
+      console.log('Profile being hidden, will show hint after delay');
+      setTimeout(() => {
+        console.log('Showing hint now, hintOpacity before:', hintOpacity.value);
+        showHintTemporarily(3000); // Show hint for 3 seconds when profile is hidden
+        console.log(
+          'showHintTemporarily called, hintOpacity after:',
+          hintOpacity.value
+        );
+      }, 500); // Small delay after profile hide animation
+    }
   };
 
-  // Handle pan gesture for swipe to reveal/hide profile
-  const onGestureEvent = Animated.event(
-    [{ nativeEvent: { translationY: profileTranslateY } }],
-    { useNativeDriver: true }
-  );
-
-  const onHandlerStateChange = (event) => {
-    if (event.nativeEvent.state === State.END) {
-      const { translationY, velocityY } = event.nativeEvent;
+  const panGesture = Gesture.Pan()
+    .onBegin(() => {
+      'worklet';
+      // Store the starting position when gesture begins
+    })
+    .onUpdate((event) => {
+      'worklet';
+      // Update the profile position in real-time during gesture
+      const startValue = isProfileVisibleShared.value ? 0 : -120;
+      profileTranslateY.value = startValue + event.translationY;
+    })
+    .onEnd((event) => {
+      'worklet';
+      const { translationY, velocityY } = event;
 
       // Determine if we should show or hide based on gesture
       const shouldShow = translationY > 30 || velocityY > 500;
       const shouldHide = translationY < -30 || velocityY < -500;
 
-      if (shouldShow && !isProfileVisible) {
-        toggleProfileVisibility();
-      } else if (shouldHide && isProfileVisible) {
-        toggleProfileVisibility();
+      if (shouldShow && !isProfileVisibleShared.value) {
+        // Show profile
+        isProfileVisibleShared.value = true;
+        profileTranslateY.value = withSpring(0, {
+          damping: 15,
+          stiffness: 150,
+        });
+        profileOpacity.value = withSpring(1, { damping: 15, stiffness: 150 });
+        contentTranslateY.value = withSpring(0, {
+          damping: 12,
+          stiffness: 120,
+        });
+        // React state will be synced via useEffect polling
+      } else if (shouldHide && isProfileVisibleShared.value) {
+        // Hide profile
+        isProfileVisibleShared.value = false;
+        profileTranslateY.value = withSpring(-120, {
+          damping: 15,
+          stiffness: 150,
+        });
+        profileOpacity.value = withSpring(0, { damping: 15, stiffness: 150 });
+        contentTranslateY.value = withSpring(-80, {
+          damping: 12,
+          stiffness: 120,
+        });
+        // React state will be synced via useEffect polling
       } else {
         // Snap back to current state
-        Animated.spring(profileTranslateY, {
-          toValue: isProfileVisible ? 0 : -120,
-          useNativeDriver: true,
-          tension: 100,
-          friction: 8,
-        }).start();
+        profileTranslateY.value = withSpring(
+          isProfileVisibleShared.value ? 0 : -120,
+          { damping: 15, stiffness: 150 }
+        );
       }
-    }
-  };
+    });
 
   // Debug function to help troubleshoot parent photo issue
   const debugParentData = async () => {
@@ -1237,86 +1369,75 @@ export default function ParentScreen({ navigation }) {
       <Animated.View
         style={[
           styles.parentProfileContainer,
+          styles.parentProfileSection,
+          profileAnimatedStyle,
           {
             height: isProfileVisible ? 'auto' : 0, // Collapse height when hidden
             overflow: 'hidden', // Hide content when collapsed
             marginTop: isProfileVisible ? 0 : 40,
+            marginBottom: isProfileVisible ? 0 : 12,
           },
         ]}
       >
-        {/* Animated Parent Profile */}
-        <Animated.View
-          style={[
-            styles.parentProfileSection,
-            {
-              transform: [{ translateY: profileTranslateY }],
-              opacity: profileOpacity,
-              marginBottom: isProfileVisible ? 0 : 12,
-            },
-          ]}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ParentProfile')}
+          onLongPress={debugParentData} // Long press to debug parent data
+          activeOpacity={0.7}
+          style={styles.parentProfileTouchable}
         >
-          <TouchableOpacity
-            onPress={() => navigation.navigate('ParentProfile')}
-            onLongPress={debugParentData} // Long press to debug parent data
-            activeOpacity={0.7}
-            style={styles.parentProfileTouchable}
-          >
-            <View style={styles.parentProfileCard}>
-              <View style={styles.parentAvatarContainer}>
-                {parentPhoto ? (
-                  <Image
-                    source={{
-                      uri: parentPhoto.startsWith('http')
+          <View style={styles.parentProfileCard}>
+            <View style={styles.parentAvatarContainer}>
+              {parentPhoto ? (
+                <Image
+                  source={{
+                    uri: parentPhoto.startsWith('http')
+                      ? parentPhoto
+                      : `${Config.API_DOMAIN}${parentPhoto}`,
+                  }}
+                  style={styles.parentAvatar}
+                  resizeMode='cover'
+                  onError={(error) => {
+                    console.log(
+                      '❌ PARENT PROFILE: Image load error:',
+                      error.nativeEvent.error
+                    );
+                    console.log(
+                      '🔗 PARENT PROFILE: Failed image URL:',
+                      parentPhoto.startsWith('http')
                         ? parentPhoto
-                        : `${Config.API_DOMAIN}${parentPhoto}`,
-                    }}
-                    style={styles.parentAvatar}
-                    resizeMode='cover'
-                    onError={(error) => {
-                      console.log(
-                        '❌ PARENT PROFILE: Image load error:',
-                        error.nativeEvent.error
-                      );
-                      console.log(
-                        '🔗 PARENT PROFILE: Failed image URL:',
-                        parentPhoto.startsWith('http')
-                          ? parentPhoto
-                          : `${Config.API_DOMAIN}${parentPhoto}`
-                      );
-                    }}
-                    onLoad={() => {
-                      console.log(
-                        '✅ PARENT PROFILE: Image loaded successfully'
-                      );
-                    }}
+                        : `${Config.API_DOMAIN}${parentPhoto}`
+                    );
+                  }}
+                  onLoad={() => {
+                    console.log('✅ PARENT PROFILE: Image loaded successfully');
+                  }}
+                />
+              ) : (
+                <View style={styles.parentAvatarPlaceholder}>
+                  <FontAwesomeIcon
+                    icon={faUser}
+                    size={18}
+                    color={theme.colors.primary}
                   />
-                ) : (
-                  <View style={styles.parentAvatarPlaceholder}>
-                    <FontAwesomeIcon
-                      icon={faUser}
-                      size={18}
-                      color={theme.colors.primary}
-                    />
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.parentInfo}>
-                <Text style={styles.parentName}>{parentName}</Text>
-                <Text style={styles.parentEmail}>
-                  ID: {currentUserData?.parent_info?.parent_id}
-                </Text>
-                <Text style={styles.parentRole}>{t('tapToViewProfile')}</Text>
-              </View>
-
-              <FontAwesomeIcon
-                icon={faEdit}
-                size={14}
-                color={theme.colors.textSecondary}
-              />
+                </View>
+              )}
             </View>
-          </TouchableOpacity>
-        </Animated.View>
+
+            <View style={styles.parentInfo}>
+              <Text style={styles.parentName}>{parentName}</Text>
+              <Text style={styles.parentEmail}>
+                ID: {currentUserData?.parent_info?.parent_id}
+              </Text>
+              <Text style={styles.parentRole}>{t('tapToViewProfile')}</Text>
+            </View>
+
+            <FontAwesomeIcon
+              icon={faEdit}
+              size={14}
+              color={theme.colors.textSecondary}
+            />
+          </View>
+        </TouchableOpacity>
       </Animated.View>
     );
   };
@@ -1514,14 +1635,32 @@ export default function ParentScreen({ navigation }) {
         {/* Parent Profile Section */}
         {renderParentProfile()}
 
+        {/* DEBUG: Temporary visible toggle button
+        <TouchableOpacity
+          onPress={() => {
+            console.log('DEBUG: Toggle button pressed');
+            toggleProfileVisibility();
+          }}
+          style={{
+            position: 'absolute',
+            top: 50,
+            right: 20,
+            backgroundColor: 'red',
+            padding: 10,
+            zIndex: 999,
+          }}
+        >
+          <Text style={{ color: 'white' }}>TOGGLE</Text>
+        </TouchableOpacity> */}
+
         {/* Swipe Hint - Positioned absolutely, moves with profile visibility */}
         <Animated.View
           pointerEvents='box-none'
           style={[
             styles.swipeHintFixed,
+            hintAnimatedStyle,
             {
-              opacity: hintOpacity,
-              top: isProfileVisible ? 90 : -20, // Under profile when visible, under header when hidden
+              top: hintProfileVisible ? 90 : -20, // Move further down when profile is visible
             },
           ]}
         >
@@ -1531,25 +1670,13 @@ export default function ParentScreen({ navigation }) {
             activeOpacity={0.7}
           >
             <Text style={styles.swipeHintText}>
-              {isProfileVisible
+              {hintProfileVisible
                 ? t('swipeUpToHide') || 'Swipe up to hide profile'
                 : t('swipeDownToShow') || 'Swipe down to see profile'}
             </Text>
             {/* Double Chevron Animation */}
             <Animated.View
-              style={[
-                styles.doubleChevronContainer,
-                {
-                  transform: [
-                    {
-                      translateY: hintArrowBounce.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, isProfileVisible ? -3 : 3], // Bounce direction matches profile state
-                      }),
-                    },
-                  ],
-                },
-              ]}
+              style={[styles.doubleChevronContainer, hintArrowAnimatedStyle]}
             >
               <FontAwesomeIcon
                 icon={isProfileVisible ? faChevronUp : faChevronDown}
@@ -1568,15 +1695,12 @@ export default function ParentScreen({ navigation }) {
         </Animated.View>
 
         {/* Animated Content Section (Children + Menu) with Swipe Gesture */}
-        <PanGestureHandler
-          onGestureEvent={onGestureEvent}
-          onHandlerStateChange={onHandlerStateChange}
-        >
+        <GestureDetector gesture={panGesture}>
           <Animated.View
             style={[
               styles.contentSection,
+              contentAnimatedStyle,
               {
-                transform: [{ translateY: contentTranslateY }],
                 paddingTop: isProfileVisible ? 0 : 20,
               },
             ]}
@@ -1592,13 +1716,21 @@ export default function ParentScreen({ navigation }) {
                     style={styles.scrollIndicator}
                     onPress={() => {
                       if (students.length > 2 && flatListRef.current) {
-                        // Scroll to the next item
+                        // Find current student index
                         const currentIndex = selectedStudent
                           ? students.findIndex(
                               (s) => s.id === selectedStudent.id
                             )
                           : 0;
                         const nextIndex = (currentIndex + 1) % students.length;
+                        const nextStudent = students[nextIndex];
+
+                        // Select the next student using the proper handler
+                        if (nextStudent) {
+                          handleStudentPress(nextStudent);
+                        }
+
+                        // Scroll to the next item
                         flatListRef.current.scrollToIndex({
                           index: nextIndex,
                           animated: true,
@@ -1640,6 +1772,20 @@ export default function ParentScreen({ navigation }) {
                     offset: 346 * index,
                     index,
                   })}
+                  onScroll={(event) => {
+                    const contentOffset = event.nativeEvent.contentOffset.x;
+                    const index = Math.round(contentOffset / 346);
+                    const newIndex = Math.max(
+                      0,
+                      Math.min(index, students.length - 1)
+                    );
+
+                    // Update pagination dots immediately during scroll
+                    if (newIndex !== currentIndex) {
+                      setCurrentIndex(newIndex);
+                    }
+                  }}
+                  scrollEventThrottle={16} // Update at 60fps for smooth pagination
                   onMomentumScrollEnd={(event) => {
                     const contentOffset = event.nativeEvent.contentOffset.x;
                     const index = Math.round(contentOffset / 346);
@@ -1668,17 +1814,6 @@ export default function ParentScreen({ navigation }) {
               {students.length > 1 && (
                 <View style={styles.paginationContainer}>
                   {students.map((_, index) => {
-                    const animValue =
-                      animatedValues[index] || new Animated.Value(0);
-                    const dotWidth = animValue.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [8, 24],
-                    });
-                    const dotOpacity = animValue.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.5, 1],
-                    });
-
                     return (
                       <TouchableOpacity
                         key={index}
@@ -1694,9 +1829,8 @@ export default function ParentScreen({ navigation }) {
                         <Animated.View
                           style={[
                             styles.paginationDot,
+                            paginationAnimatedStyles[index],
                             {
-                              width: dotWidth,
-                              opacity: dotOpacity,
                               backgroundColor:
                                 index === currentIndex
                                   ? theme.colors.primary
@@ -1815,7 +1949,7 @@ export default function ParentScreen({ navigation }) {
               </ScrollView>
             </View>
           </Animated.View>
-        </PanGestureHandler>
+        </GestureDetector>
       </View>
     </SafeAreaView>
   );
