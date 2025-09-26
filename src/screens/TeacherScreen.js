@@ -1817,7 +1817,7 @@ export default function TeacherScreen({ route, navigation }) {
                   !isTabletDevice;
 
                 // Calculate minimum height based on device type and actual itemsPerRow
-                let minHeight = (screenWidth - 52) / 2; // Default mobile (2 per row, accounting for margins and gap)
+                let minHeight = (screenWidth - 52) / 2.4; // Default mobile (2 per row, accounting for margins and gap)
                 if (isIPadDevice && isLandscape) {
                   minHeight = (screenWidth - 80) / itemsPerRow - 12;
                 } else if (isTabletDevice && isLandscape) {
@@ -2291,7 +2291,7 @@ const createStyles = (theme, fontSizes, screenWidth, screenHeight) =>
       aspectRatio: 1, // Square tiles
       borderRadius: 24,
       padding: 20,
-      justifyContent: 'space-between',
+      justifyContent: 'flex-start',
       alignItems: 'flex-start',
       ...createMediumShadow(theme),
       position: 'relative',
