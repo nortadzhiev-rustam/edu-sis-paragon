@@ -626,7 +626,7 @@ const createStyles = (theme, fontSizes) =>
       backgroundColor: theme.colors.background,
     },
     logo: {
-      width: width * 1,
+      width: width * 0.7,
       height: height * 0.15,
       marginTop: height * 0.03,
     },

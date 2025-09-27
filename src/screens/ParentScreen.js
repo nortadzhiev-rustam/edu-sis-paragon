@@ -229,6 +229,8 @@ export default function ParentScreen({ navigation }) {
   const [hintProfileVisible, setHintProfileVisible] = useState(false); // Separate state for hint text
   const [showInitialHint, setShowInitialHint] = useState(true);
   const [hintAutoHideTimeout, setHintAutoHideTimeout] = useState(null);
+  const [isHintVisible, setIsHintVisible] = useState(false);
+
   const profileVisibilityRef = useRef(false); // Immediate reference for hint text
   const profileTranslateY = useSharedValue(-120); // Start hidden (negative value)
   const profileOpacity = useSharedValue(0);
@@ -337,6 +339,7 @@ export default function ParentScreen({ navigation }) {
           console.log('Profile shown via gesture, hiding hint');
           hintOpacity.value = withTiming(0, { duration: 300 });
           stopHintBounce();
+          setIsHintVisible(false);
         }
       }
     }, 16); // Check every 16ms (60fps) for immediate response
@@ -428,6 +431,7 @@ export default function ParentScreen({ navigation }) {
 
     // Show hint and start chevron bounce
     console.log('Setting hintOpacity to 1');
+    setIsHintVisible(true);
     hintOpacity.value = 1; // Set immediately first
     hintOpacity.value = withTiming(1, { duration: 250 }); // Then animate to ensure it's visible
     startHintBounce(); // start infinite bounce while hint is visible
@@ -437,6 +441,7 @@ export default function ParentScreen({ navigation }) {
       console.log('Hiding hint after timeout');
       hintOpacity.value = withTiming(0, { duration: 400 });
       stopHintBounce();
+      setIsHintVisible(false);
     }, duration);
 
     setHintAutoHideTimeout(timeout);
@@ -447,12 +452,14 @@ export default function ParentScreen({ navigation }) {
     // Wait a bit for the screen to settle, then start bouncing animation
     setTimeout(() => {
       // Start limited bounce for initial hint (3 cycles), then hide
+      setIsHintVisible(true);
       startHintBounce(3);
       // After bouncing, hide the hint (add a short pause before hiding)
       setTimeout(() => {
         hintOpacity.value = withTiming(0, { duration: 500 });
         stopHintBounce();
         setShowInitialHint(false);
+        setIsHintVisible(false);
       }, 1000 + 3 * 300);
     }, 1000); // Wait 1 second after component mount
   };
@@ -737,7 +744,7 @@ export default function ParentScreen({ navigation }) {
           },
         });
         break;
-      case 'guardian-pickup':
+      case 'guardian-pickup': {
         // Navigate to unified guardian & pickup management screen
         const guardianPickupAuthCode =
           currentUserData?.auth_code || currentUserData?.authCode;
@@ -755,6 +762,7 @@ export default function ParentScreen({ navigation }) {
           );
         }
         break;
+      }
       default:
         break;
     }
@@ -1171,6 +1179,8 @@ export default function ParentScreen({ navigation }) {
   };
 
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-15, 15])
+    .failOffsetX([-15, 15])
     .onBegin(() => {
       'worklet';
       // Store the starting position when gesture begins
@@ -1635,24 +1645,6 @@ export default function ParentScreen({ navigation }) {
         {/* Parent Profile Section */}
         {renderParentProfile()}
 
-        {/* DEBUG: Temporary visible toggle button
-        <TouchableOpacity
-          onPress={() => {
-            console.log('DEBUG: Toggle button pressed');
-            toggleProfileVisibility();
-          }}
-          style={{
-            position: 'absolute',
-            top: 50,
-            right: 20,
-            backgroundColor: 'red',
-            padding: 10,
-            zIndex: 999,
-          }}
-        >
-          <Text style={{ color: 'white' }}>TOGGLE</Text>
-        </TouchableOpacity> */}
-
         {/* Swipe Hint - Positioned absolutely, moves with profile visibility */}
         <Animated.View
           pointerEvents='box-none'
@@ -1701,7 +1693,7 @@ export default function ParentScreen({ navigation }) {
               styles.contentSection,
               contentAnimatedStyle,
               {
-                paddingTop: isProfileVisible ? 0 : 20,
+                paddingTop: isHintVisible ? 20 : 0,
               },
             ]}
           >
