@@ -554,6 +554,7 @@ const TeacherProfileEditScreen = ({ navigation, route }) => {
             uploading={photoUploading}
             theme={theme}
             size='large'
+            editable={false}
           />
         </View>
 

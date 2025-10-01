@@ -23,6 +23,7 @@ import {
   faTrash,
 } from '@fortawesome/free-solid-svg-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { Config } from '../config/env';
 
 const ProfilePhotoUpload = ({
   currentPhoto,
@@ -190,7 +191,7 @@ const ProfilePhotoUpload = ({
     );
   };
 
-  // Clean up photo URL to remove incorrect storage/ path
+  // Clean up photo URL and ensure it's a complete URL
   const cleanPhotoUrl = (url) => {
     if (!url || typeof url !== 'string') return url;
 
@@ -199,6 +200,19 @@ const ProfilePhotoUpload = ({
 
     // Also fix any remaining double slashes (but preserve protocol://)
     cleanedUrl = cleanedUrl.replace(/([^:]\/)\/+/g, '$1');
+
+    // If the URL doesn't start with http/https, prepend the API domain
+    if (
+      !cleanedUrl.startsWith('http://') &&
+      !cleanedUrl.startsWith('https://')
+    ) {
+      const domain = Config.API_DOMAIN.endsWith('/')
+        ? Config.API_DOMAIN.slice(0, -1)
+        : Config.API_DOMAIN;
+      cleanedUrl = cleanedUrl.startsWith('/')
+        ? `${domain}${cleanedUrl}`
+        : `${domain}/${cleanedUrl}`;
+    }
 
     console.log('🔧 PROFILE PHOTO UPLOAD: Cleaned URL:', {
       original: url,

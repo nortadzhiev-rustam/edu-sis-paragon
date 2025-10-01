@@ -44,6 +44,7 @@ import { performLogout } from '../services/logoutService';
 import { isIPad, isTablet } from '../utils/deviceDetection';
 import DemoModeIndicator from '../components/DemoModeIndicator';
 import { updateLastLogin } from '../services/deviceService';
+import { saveUserData } from '../services/authService';
 
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -261,6 +262,19 @@ export default function StudentScreen({ navigation }) {
         });
 
         setStudentData(normalizedStudentData);
+
+        // Save normalized data back to AsyncStorage so other screens can access the photo
+        try {
+          await saveUserData(normalizedStudentData, AsyncStorage);
+          console.log(
+            '✅ STUDENT SCREEN: Saved normalized student data (including photo) to AsyncStorage'
+          );
+        } catch (saveError) {
+          console.warn(
+            '⚠️ STUDENT SCREEN: Failed to save normalized data:',
+            saveError
+          );
+        }
 
         // Update last login timestamp
         await updateLastLogin(normalizedStudentData.authCode);

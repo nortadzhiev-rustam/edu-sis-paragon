@@ -16,6 +16,7 @@ import { getResponsiveHeaderFontSize } from '../utils/commonStyles';
 import { useFocusEffect } from '@react-navigation/native';
 import { getUserData } from '../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Config } from '../config/env';
 
 export default function StudentProfileScreen({ route, navigation }) {
   const { theme } = useTheme();
@@ -65,12 +66,21 @@ export default function StudentProfileScreen({ route, navigation }) {
     normalizedPhoto: student.photo,
   });
 
-  const photoUri =
+  const rawPhotoUri =
     student?.personal_info?.profile_photo ||
     student?.photo ||
     student?.profile_photo ||
     student?.user_photo ||
     null;
+
+  // Ensure photo URL is absolute
+  const photoUri = rawPhotoUri
+    ? rawPhotoUri.startsWith('http')
+      ? rawPhotoUri
+      : `${Config.API_DOMAIN}${
+          rawPhotoUri.startsWith('/') ? rawPhotoUri : '/' + rawPhotoUri
+        }`
+    : null;
 
   console.log('📸 STUDENT PROFILE: Final photo URI:', photoUri);
 
@@ -194,7 +204,7 @@ export default function StudentProfileScreen({ route, navigation }) {
               <FontAwesomeIcon
                 icon={faEdit}
                 size={14}
-                color={theme.colors.primary}
+                color={theme.colors.accent}
               />
               <Text style={styles.editProfileText}>
                 {t('editProfile') || 'Edit Profile'}
@@ -380,16 +390,18 @@ const createStyles = (theme, fontSizes) =>
     editProfileButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: theme.colors.primary + '15',
+      backgroundColor: theme.colors.surfaceSecondary,
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 16,
       marginTop: 8,
       alignSelf: 'flex-start',
+      borderWidth: 1,
+      borderColor: theme.colors.accent,
     },
     editProfileText: {
       fontSize: fontSizes.small,
-      color: theme.colors.primary,
+      color: theme.colors.accent,
       fontWeight: '600',
       marginLeft: 4,
     },

@@ -4,10 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
+  SectionList,
   Dimensions,
   Platform,
   ActivityIndicator,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -19,6 +21,8 @@ import {
   faTrophy,
   faUser,
   faChevronRight,
+  faChevronDown,
+  faChevronUp,
   faCalculator,
   faFlask,
   faMicroscope,
@@ -78,14 +82,12 @@ export default function GradesScreen({ navigation, route }) {
   const [grades, setGrades] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Subject filtering state
-  const [selectedSubject, setSelectedSubject] = useState(null);
-  const [availableSubjects, setAvailableSubjects] = useState([]);
-  const [showSubjectList, setShowSubjectList] = useState(true);
+  // Modal state for template details
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10); // Number of items per page
+  // Expanded section state (only one section can be expanded at a time)
+  const [expandedSection, setExpandedSection] = useState(null);
 
   // Refresh notifications when screen comes into focus
   useFocusEffect(
@@ -189,91 +191,81 @@ export default function GradesScreen({ navigation, route }) {
     fetchGrades();
   }, [authCode]);
 
-  // Extract unique subjects from grades data
-  const extractSubjects = (gradesData) => {
-    const subjects = new Set();
+  // Group assessments by subject and template
+  const groupAssessmentsBySubjectAndTemplate = (assessments) => {
+    if (!assessments || !Array.isArray(assessments)) return [];
 
-    if (gradesData?.summative && Array.isArray(gradesData.summative)) {
-      gradesData.summative.forEach((item) => {
-        if (item.subject_name) {
-          subjects.add(item.subject_name);
+    const grouped = {};
+
+    assessments.forEach((assessment) => {
+      const subject = assessment.subject_name || 'Other';
+      const templateName =
+        assessment.template_info?.template_name ||
+        assessment.assessment_name ||
+        'Untitled';
+
+      if (!grouped[subject]) {
+        grouped[subject] = {
+          templates: {},
+          allAssessments: [],
+        };
+      }
+
+      if (!grouped[subject].templates[templateName]) {
+        grouped[subject].templates[templateName] = {
+          templateName,
+          subject,
+          assessments: [],
+          template_id: assessment.template_info?.template_id,
+        };
+      }
+
+      grouped[subject].templates[templateName].assessments.push(assessment);
+      grouped[subject].allAssessments.push(assessment);
+    });
+
+    // Convert to sections array for SectionList with calculated averages
+    const sections = [];
+    Object.keys(grouped).forEach((subject) => {
+      const templates = Object.values(grouped[subject].templates);
+      const allAssessments = grouped[subject].allAssessments;
+
+      // Calculate subject average (for summative only)
+      let subjectAverage = null;
+      if (activeTab === 'summative') {
+        const graded = allAssessments.filter(
+          (a) => a.score_percentage !== null
+        );
+        if (graded.length > 0) {
+          const sum = graded.reduce(
+            (acc, a) => acc + (a.score_percentage || 0),
+            0
+          );
+          subjectAverage = Math.round(sum / graded.length);
         }
+      }
+
+      sections.push({
+        title: subject,
+        data: templates,
+        average: subjectAverage,
+        assessmentCount: allAssessments.length,
       });
-    }
+    });
 
-    if (gradesData?.formative && Array.isArray(gradesData.formative)) {
-      gradesData.formative.forEach((item) => {
-        if (item.subject_name) {
-          subjects.add(item.subject_name);
-        }
-      });
-    }
-
-    // If no API data, extract from dummy data
-    if (
-      (!gradesData?.summative || gradesData.summative.length === 0) &&
-      (!gradesData?.formative || gradesData.formative.length === 0)
-    ) {
-      // Add dummy subjects for testing
-      ['Mathematics', 'English', 'Physics', 'Chemistry', 'Biology'].forEach(
-        (subject) => {
-          subjects.add(subject);
-        }
-      );
-    }
-
-    return Array.from(subjects);
+    return sections;
   };
 
-  // Update available subjects when grades data changes
-  useEffect(() => {
-    if (grades) {
-      const subjects = extractSubjects(grades);
-      setAvailableSubjects(subjects);
-    }
-  }, [grades]);
-
-  // Reset pagination when tab or subject changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab, selectedSubject, showSubjectList]);
-
-  // Pagination utility functions
-  const getPaginatedData = (data) => {
-    if (!data || data.length === 0) return [];
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const paginatedData = data.slice(startIndex, endIndex);
-    return paginatedData;
-  };
-
-  const getTotalPages = (data) => {
-    if (!data || data.length === 0) return 0;
-    return Math.ceil(data.length / itemsPerPage);
-  };
-
-  const goToNextPage = (totalPages) => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const goToPreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const handleSubjectSelect = (subject) => {
-    setSelectedSubject(subject);
-    setShowSubjectList(false);
-    setCurrentPage(1); // Reset pagination when selecting a subject
-  };
-
-  const handleBackToSubjects = () => {
-    setSelectedSubject(null);
-    setShowSubjectList(true);
-    setCurrentPage(1);
+  // Toggle section - only one section can be expanded at a time
+  const toggleSection = (sectionTitle) => {
+    setExpandedSection((prev) => {
+      // If tapping the currently expanded section, collapse it
+      if (prev === sectionTitle) {
+        return null;
+      }
+      // Otherwise, expand the tapped section (and collapse others)
+      return sectionTitle;
+    });
   };
 
   // Helper function to get specific subject icon
@@ -918,6 +910,138 @@ export default function GradesScreen({ navigation, route }) {
     </TouchableOpacity>
   );
 
+  // Render colorful section header with expand/collapse
+  const renderSectionHeader = ({ section }) => {
+    const { title, average, assessmentCount } = section;
+    const isExpanded = expandedSection === title;
+    const subjectColor = getSubjectColor(title);
+    const subjectIcon = getSubjectIcon(title);
+    const isFormative = activeTab === 'formative';
+    const isDark = theme.dark;
+
+    // Get grade letter and color
+    const gradeColor = average !== null ? getGradeColor(average) : subjectColor;
+    const gradeLetter = average !== null ? getGradeLabel(average) : 'N/A';
+
+    // Adjust opacity for dark mode - use lighter background
+    const backgroundOpacity = isDark ? '25' : '15';
+    const badgeOpacity = isDark ? '35' : '20';
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.subjectSectionHeader,
+          { backgroundColor: `${subjectColor}${backgroundOpacity}` },
+        ]}
+        onPress={() => toggleSection(title)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.subjectSectionLeft}>
+          <View
+            style={[
+              styles.subjectSectionIcon,
+              { backgroundColor: subjectColor },
+            ]}
+          >
+            <FontAwesomeIcon icon={subjectIcon} size={18} color='#fff' />
+          </View>
+          <View style={styles.subjectSectionInfo}>
+            <Text style={styles.subjectSectionTitle}>{title}</Text>
+            <Text style={styles.subjectSectionSubtitle}>
+              {assessmentCount} assessment{assessmentCount !== 1 ? 's' : ''}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.subjectSectionRight}>
+          {!isFormative && average !== null && (
+            <View
+              style={[
+                styles.subjectGradeBadge,
+                { backgroundColor: `${gradeColor}${badgeOpacity}` },
+              ]}
+            >
+              <Text style={[styles.subjectGradeText, { color: gradeColor }]}>
+                {average}%
+              </Text>
+              <Text style={[styles.subjectGradeLetter, { color: gradeColor }]}>
+                {gradeLetter}
+              </Text>
+            </View>
+          )}
+          <FontAwesomeIcon
+            icon={isExpanded ? faChevronUp : faChevronDown}
+            size={16}
+            color={subjectColor}
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // Render template card (shows template with average grade)
+  const renderTemplateCard = ({ item }) => {
+    const { templateName, subject, assessments } = item;
+    const isFormative = activeTab === 'formative';
+
+    // Calculate average for template
+    const calculateTemplateAverage = () => {
+      if (isFormative) return null;
+
+      const graded = assessments.filter((a) => a.score_percentage !== null);
+      if (graded.length === 0) return null;
+
+      const sum = graded.reduce((acc, a) => acc + (a.score_percentage || 0), 0);
+      return Math.round(sum / graded.length);
+    };
+
+    const average = calculateTemplateAverage();
+    const gradeColor = average !== null ? getGradeColor(average) : '#007AFF';
+    const gradeLetter = average !== null ? getGradeLabel(average) : 'A';
+
+    const handlePress = () => {
+      setSelectedTemplate(item);
+      setModalVisible(true);
+    };
+
+    return (
+      <TouchableOpacity
+        style={styles.templateCard}
+        onPress={handlePress}
+        activeOpacity={0.7}
+      >
+        <View style={styles.templateCardHeader}>
+          <View style={styles.templateCardLeft}>
+            <Text style={styles.templateCardTitle}>{templateName}</Text>
+            <Text style={styles.templateCardSubtitle}>
+              {assessments.length} assessment
+              {assessments.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
+          <View style={styles.templateCardRight}>
+            {!isFormative && average !== null && (
+              <View
+                style={[
+                  styles.templateGradeBadge,
+                  { backgroundColor: `${gradeColor}15` },
+                ]}
+              >
+                <Text style={[styles.templateGradeText, { color: gradeColor }]}>
+                  {average}%
+                </Text>
+                <Text
+                  style={[styles.templateGradeLetter, { color: gradeColor }]}
+                >
+                  {gradeLetter}
+                </Text>
+              </View>
+            )}
+            <FontAwesomeIcon icon={faChevronRight} size={16} color='#999' />
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   // Helper function to get grade performance color
   const getGradeColor = (percentage) => {
     if (percentage >= 90) return '#34C759'; // Green for excellent
@@ -942,723 +1066,6 @@ export default function GradesScreen({ navigation, route }) {
   };
 
   // Modern grade card component
-  const renderGradeCard = ({ item, index }) => {
-    const isFormative = activeTab === 'formative';
-
-    // Calculate card width based on orientation
-    const cardStyle = isLandscape
-      ? [
-          styles.gradeCard,
-          styles.landscapeGradeCard,
-          index % 2 === 0 && styles.evenGradeCard,
-        ]
-      : [styles.gradeCard, index % 2 === 0 && styles.evenGradeCard];
-
-    // For formative grades, use enhanced assessment criteria layout
-    if (isFormative) {
-      // Enhanced assessment criteria with better labels and values
-      const assessmentCriteria = [
-        {
-          label: 'T&R',
-          fullLabel: 'Thinking & Reasoning',
-          value: item.tt1 || '',
-          color: '#34C759',
-        },
-        {
-          label: 'COM',
-          fullLabel: 'Communication',
-          value: item.tt2 || '',
-          color: '#FF9500',
-        },
-        {
-          label: 'APP',
-          fullLabel: 'Application',
-          value: item.tt3 || '',
-          color: '#007AFF',
-        },
-        {
-          label: 'COL',
-          fullLabel: 'Collaboration',
-          value: item.tt4 || '',
-          color: '#FF3B30',
-        },
-      ].filter(
-        (criteria) => criteria.value && criteria.value.toString().trim() !== ''
-      ); // Only show criteria with values
-
-      const isGraded = item.is_graded === 1;
-      const gradingStatus =
-        item.grading_status || (isGraded ? 'Graded' : 'Not Graded');
-
-      return (
-        <View style={cardStyle}>
-          <View style={styles.gradeCardHeader}>
-            <View style={styles.gradeCardLeft}>
-              <Text
-                style={[
-                  styles.gradeTitle,
-                  isLandscape && styles.landscapeGradeTitle,
-                ]}
-                numberOfLines={isLandscape ? 2 : 3}
-              >
-                {item.title}
-              </Text>
-              <Text style={styles.gradeDate}>Date: {item.date}</Text>
-              {item.strand_name && (
-                <Text style={styles.gradeDate}>Strand: {item.strand_name}</Text>
-              )}
-              {item.skill_name && (
-                <Text style={styles.gradeDate}>Skill: {item.skill_name}</Text>
-              )}
-            </View>
-            <View style={styles.gradeCardRight}>
-              <View style={styles.assessmentCriteriaContainer}>
-                {assessmentCriteria.map((criteria) => (
-                  <View
-                    key={criteria.label}
-                    style={[
-                      styles.criteriaItem,
-                      { backgroundColor: criteria.color },
-                    ]}
-                  >
-                    <Text style={styles.criteriaLabel}>{criteria.label}</Text>
-                    <Text style={styles.criteriaValue}>{criteria.value}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.gradeCardBody}>
-            <View style={styles.gradeDetails}>
-              <View style={styles.gradeDetailItem}>
-                <FontAwesomeIcon
-                  icon={faUser}
-                  size={isLandscape ? 12 : 14}
-                  color='#666'
-                />
-                <Text
-                  style={[
-                    styles.gradeDetailText,
-                    isLandscape && styles.landscapeDetailText,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {item.teacher}
-                </Text>
-              </View>
-              <View style={styles.gradeDetailItem}>
-                <FontAwesomeIcon
-                  icon={faGraduationCap}
-                  size={isLandscape ? 12 : 14}
-                  color={isGraded ? '#34C759' : '#FF9500'}
-                />
-                <Text
-                  style={[
-                    styles.gradeDetailText,
-                    isLandscape && styles.landscapeDetailText,
-                    { color: isGraded ? '#34C759' : '#FF9500' },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {gradingStatus}
-                </Text>
-              </View>
-            </View>
-
-            {/* Criteria Legend */}
-            {assessmentCriteria.length > 0 && (
-              <View style={styles.criteriaLegend}>
-                <Text style={styles.criteriaLegendTitle}>
-                  Assessment Criteria (1-4 scale):
-                </Text>
-                {assessmentCriteria.map((criteria) => (
-                  <Text key={criteria.label} style={styles.criteriaLegendItem}>
-                    • {criteria.label}: {criteria.fullLabel} ({criteria.value})
-                  </Text>
-                ))}
-              </View>
-            )}
-          </View>
-        </View>
-      );
-    }
-
-    // For summative grades, use enhanced data
-    const calculatedGrade =
-      item.score_percentage !== null && item.score_percentage !== undefined
-        ? parseFloat(item.score_percentage)
-        : null;
-    const letterGrade =
-      item.letter_grade ||
-      (calculatedGrade !== null ? getGradeLabel(calculatedGrade) : 'N/A');
-    const gradeColor =
-      calculatedGrade !== null ? getGradeColor(calculatedGrade) : '#8E8E93';
-    const hasTemplate =
-      item.template_info && item.grading_context?.has_template;
-
-    return (
-      <View style={cardStyle}>
-        <View style={styles.gradeCardHeader}>
-          <View style={styles.gradeCardLeft}>
-            <Text
-              style={[
-                styles.gradeTitle,
-                isLandscape && styles.landscapeGradeTitle,
-              ]}
-              numberOfLines={isLandscape ? 2 : 3}
-            >
-              {item.title}
-            </Text>
-            {item.strand && item.strand !== 'N/A' && (
-              <Text style={styles.gradeDate}>Strand: {item.strand}</Text>
-            )}
-            <Text style={styles.gradeDate}>Date: {item.date}</Text>
-            {hasTemplate && item.template_info?.template_name && (
-              <Text style={styles.templateInfo}>
-                📋 {item.template_info.template_name}
-              </Text>
-            )}
-          </View>
-          <View style={styles.gradeCardRight}>
-            <View
-              style={[
-                styles.gradeScoreContainer,
-                {
-                  backgroundColor: `${gradeColor}15`,
-                },
-                isLandscape && styles.landscapeScoreContainer,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.gradeScore,
-                  { color: gradeColor },
-                  isLandscape && styles.landscapeGradeScore,
-                ]}
-              >
-                {calculatedGrade !== null ? `${calculatedGrade}%` : 'N/A'}
-              </Text>
-              <Text
-                style={[
-                  styles.gradePercentage,
-                  { color: gradeColor },
-                  isLandscape && styles.landscapeGradePercentage,
-                ]}
-              >
-                {item.raw_score !== null && item.max_score !== null
-                  ? `${item.raw_score}/${item.max_score}`
-                  : 'Not Graded'}
-              </Text>
-              {letterGrade && letterGrade !== 'N/A' && (
-                <Text
-                  style={[
-                    styles.letterGrade,
-                    { color: gradeColor },
-                    isLandscape && styles.landscapeLetterGrade,
-                  ]}
-                >
-                  {letterGrade}
-                </Text>
-              )}
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.gradeCardBody}>
-          <View style={styles.gradeDetails}>
-            <View style={styles.gradeDetailItem}>
-              <FontAwesomeIcon
-                icon={faUser}
-                size={isLandscape ? 12 : 14}
-                color='#666'
-              />
-              <Text
-                style={[
-                  styles.gradeDetailText,
-                  isLandscape && styles.landscapeDetailText,
-                ]}
-                numberOfLines={1}
-              >
-                {item.teacher}
-              </Text>
-            </View>
-            <View style={styles.gradeDetailItem}>
-              <FontAwesomeIcon
-                icon={faTrophy}
-                size={isLandscape ? 12 : 14}
-                color='#666'
-              />
-              <Text
-                style={[
-                  styles.gradeDetailText,
-                  isLandscape && styles.landscapeDetailText,
-                ]}
-                numberOfLines={1}
-              >
-                {item.type}
-                {item.type_percentage && ` (${item.type_percentage}%)`}
-              </Text>
-            </View>
-          </View>
-
-          {/* Enhanced comment display */}
-          {item.comment && (
-            <View style={styles.commentSection}>
-              <Text style={styles.commentText} numberOfLines={2}>
-                💬 {item.comment}
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.gradePerformanceContainer}>
-            <View
-              style={[
-                styles.gradePerformanceBadge,
-                { backgroundColor: gradeColor },
-                isLandscape && styles.landscapePerformanceBadge,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.gradePerformanceText,
-                  isLandscape && styles.landscapePerformanceText,
-                ]}
-              >
-                {letterGrade}
-              </Text>
-            </View>
-            {hasTemplate && item.grading_context?.is_weighted && (
-              <View style={styles.weightedBadge}>
-                <Text style={styles.weightedText}>⚖️ Weighted</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </View>
-    );
-  };
-
-  const renderPaginationControls = (data) => {
-    const totalPages = getTotalPages(data);
-
-    // Show pagination if there's any data
-    if (!data || data.length === 0) {
-      return null;
-    }
-
-    const isFirstPage = currentPage === 1;
-    const isLastPage = currentPage === totalPages;
-
-    return (
-      <View style={styles.paginationContainer}>
-        <TouchableOpacity
-          style={[
-            styles.paginationButton,
-            isFirstPage && styles.disabledButton,
-          ]}
-          onPress={goToPreviousPage}
-          disabled={isFirstPage}
-        >
-          <Text
-            style={[
-              styles.paginationButtonText,
-              isFirstPage && styles.disabledText,
-            ]}
-          >
-            Previous
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.pageInfo}>
-          <Text style={styles.pageInfoText}>
-            Page {currentPage} of {totalPages}
-          </Text>
-          <Text style={styles.itemsInfoText}>
-            Showing{' '}
-            {Math.min(
-              itemsPerPage,
-              data.length - (currentPage - 1) * itemsPerPage
-            )}{' '}
-            of {data.length} items
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.paginationButton, isLastPage && styles.disabledButton]}
-          onPress={() => goToNextPage(totalPages)}
-          disabled={isLastPage}
-        >
-          <Text
-            style={[
-              styles.paginationButtonText,
-              isLastPage && styles.disabledText,
-            ]}
-          >
-            Next
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
-  const renderSummativeContent = () => {
-    // Use real API data if available, otherwise show dummy data
-    let summativeData = [];
-
-    if (grades?.summative && Array.isArray(grades.summative)) {
-      // Transform enhanced API data to match our table format
-      summativeData = grades.summative.map((item, index) => {
-        // Enhanced API provides: calculated_grade, letter_grade, display_score, template_info
-        const isGraded = item.is_graded === 1;
-
-        // Use enhanced fields for better display
-        const calculatedGrade = item.calculated_grade;
-        const letterGrade = item.letter_grade;
-        const rawScore = item.raw_score;
-        const maxScore = item.max_score || 100;
-        const scorePercentage = item.score_percentage;
-
-        // Create score display using enhanced data
-        let scoreDisplay;
-        if (!isGraded) {
-          scoreDisplay = t('notGraded');
-        } else if (item.display_score) {
-          // Use pre-formatted display_score from enhanced API
-          scoreDisplay = item.display_score;
-        } else if (rawScore !== null && rawScore !== undefined) {
-          // Fallback to raw score display
-          scoreDisplay = `${rawScore}/${maxScore}`;
-        } else {
-          scoreDisplay = t('notGraded');
-        }
-
-        // Use calculated_grade for percentage display if available
-        const percentageDisplay =
-          isGraded && calculatedGrade !== null && calculatedGrade !== undefined
-            ? `${calculatedGrade}%`
-            : scorePercentage !== null && scorePercentage !== undefined
-            ? `${scorePercentage}%`
-            : t('notGraded');
-
-        return {
-          id: item.assessment_id || item.id || index + 1,
-          date: item.date || 'N/A',
-          subject: item.subject_name || 'N/A',
-          strand: item.strand_name || 'N/A',
-          title: item.assessment_name || 'N/A',
-          score: scoreDisplay,
-          percentage: percentageDisplay,
-          type: item.type_title || 'N/A',
-          teacher: item.teacher_name || 'N/A',
-          // Enhanced fields for better UI
-          calculated_grade: calculatedGrade,
-          letter_grade: letterGrade,
-          score_percentage: scorePercentage,
-          comment: item.comment,
-          template_info: item.template_info,
-          grading_context: item.grading_context,
-          raw_score: rawScore,
-          max_score: maxScore,
-          type_percentage: item.type_percentage,
-        };
-      });
-    } else {
-      // Fallback dummy data for testing with different max scores and weights
-      summativeData = [
-        {
-          id: 1,
-          date: '2025-03-19',
-          subject: 'Mathematics',
-          strand: 'Geometry',
-          title: 'Quiz 1',
-          score: '9/10', // 90% of 10 = 9/10
-          percentage: '90%',
-          type: 'Quiz',
-          teacher: 'Su Su Htwe',
-          // Enhanced fields for weighted calculation testing
-          calculated_grade: 90,
-          score_percentage: 90,
-          raw_score: 9,
-          max_score: 10,
-          type_percentage: 10, // 10% weight
-        },
-        {
-          id: 2,
-          date: '2025-03-18',
-          subject: 'Mathematics',
-          strand: 'Algebra',
-          title: 'Quiz 2',
-          score: '5/10', // 50% of 10 = 5/10
-          percentage: '50%',
-          type: 'Quiz',
-          teacher: 'Su Su Htwe',
-          // Enhanced fields for weighted calculation testing
-          calculated_grade: 50,
-          score_percentage: 50,
-          raw_score: 5,
-          max_score: 10,
-          type_percentage: 10, // 10% weight
-        },
-        {
-          id: 3,
-          date: '2025-03-17',
-          subject: 'Mathematics',
-          strand: 'Calculus',
-          title: 'Midterm Exam',
-          score: '40/40', // 100% of 40 = 40/40
-          percentage: '100%',
-          type: 'Exam',
-          teacher: 'Su Su Htwe',
-          // Enhanced fields for weighted calculation testing
-          calculated_grade: 100,
-          score_percentage: 100,
-          raw_score: 40,
-          max_score: 40,
-          type_percentage: 40, // 40% weight
-        },
-        {
-          id: 4,
-          date: '2025-03-16',
-          subject: 'Mathematics',
-          strand: 'Statistics',
-          title: 'Final Project',
-          score: '40/40', // 100% of 40 = 40/40
-          percentage: '100%',
-          type: 'Project',
-          teacher: 'Su Su Htwe',
-          // Enhanced fields for weighted calculation testing
-          calculated_grade: 100,
-          score_percentage: 100,
-          raw_score: 40,
-          max_score: 40,
-          type_percentage: 40, // 40% weight
-        },
-        {
-          id: 5,
-          date: '2025-03-19',
-          subject: 'English',
-          strand: 'Literature',
-          title: 'Essay Writing',
-          score: '46/50', // 92% of 50 = 46/50
-          percentage: '92%',
-          type: 'Assignment',
-          teacher: 'Ms. Johnson',
-          // Enhanced fields - no weights for simple average testing
-          calculated_grade: 92,
-          score_percentage: 92,
-          raw_score: 46,
-          max_score: 50,
-        },
-        {
-          id: 2,
-          date: '2024-01-20',
-          subject: 'English',
-          strand: 'Literature',
-          title: 'Essay Writing',
-          score: '46/50', // 92% of 50 = 46/50
-          percentage: '92%',
-          type: 'Assignment',
-          teacher: 'Ms. Johnson',
-        },
-        {
-          id: 3,
-          date: '2024-01-25',
-          subject: 'Physics',
-          strand: 'Mechanics',
-          title: 'Motion & Forces',
-          score: '39/50', // 78% of 50 = 39/50
-          percentage: '78%',
-          type: 'Quiz',
-          teacher: 'Dr. Brown',
-        },
-        {
-          id: 4,
-          date: '2024-02-01',
-          subject: 'Chemistry',
-          strand: 'Organic',
-          title: 'Lab Report',
-          score: '21/25', // 84% of 25 = 21/25
-          percentage: '84%',
-          type: 'Lab',
-          teacher: 'Ms. Davis',
-        },
-        // Add more dummy data to test pagination (consistent data)
-        {
-          id: 5,
-          date: '2024-02-05',
-          subject: 'Biology',
-          strand: 'Genetics',
-          title: 'DNA Structure',
-          score: '95/100',
-          percentage: '95%',
-          type: 'Project',
-          teacher: 'Mr. Wilson',
-        },
-        {
-          id: 6,
-          date: '2024-02-10',
-          subject: 'Mathematics',
-          strand: 'Calculus',
-          title: 'Derivatives Test',
-          score: '88/100',
-          percentage: '88%',
-          type: 'Test',
-          teacher: 'Ms. Smith',
-        },
-        {
-          id: 7,
-          date: '2024-02-15',
-          subject: 'Physics',
-          strand: 'Thermodynamics',
-          title: 'Heat Transfer',
-          score: '82/100',
-          percentage: '82%',
-          type: 'Quiz',
-          teacher: 'Dr. Brown',
-        },
-        {
-          id: 8,
-          date: '2024-02-20',
-          subject: 'Chemistry',
-          strand: 'Inorganic',
-          title: 'Periodic Table',
-          score: '90/100',
-          percentage: '90%',
-          type: 'Assignment',
-          teacher: 'Ms. Davis',
-        },
-        {
-          id: 9,
-          date: '2024-02-25',
-          subject: 'English',
-          strand: 'Grammar',
-          title: 'Sentence Structure',
-          score: '85/100',
-          percentage: '85%',
-          type: 'Test',
-          teacher: 'Ms. Johnson',
-        },
-        {
-          id: 10,
-          date: '2024-03-01',
-          subject: 'Biology',
-          strand: 'Ecology',
-          title: 'Ecosystem Study',
-          score: '92/100',
-          percentage: '92%',
-          type: 'Project',
-          teacher: 'Mr. Wilson',
-        },
-        {
-          id: 11,
-          date: '2024-03-05',
-          subject: 'Mathematics',
-          strand: 'Statistics',
-          title: 'Data Analysis',
-          score: '87/100',
-          percentage: '87%',
-          type: 'Assignment',
-          teacher: 'Ms. Smith',
-        },
-        {
-          id: 12,
-          date: '2024-03-10',
-          subject: 'Physics',
-          strand: 'Optics',
-          title: 'Light Refraction',
-          score: '89/100',
-          percentage: '89%',
-          type: 'Lab',
-          teacher: 'Dr. Brown',
-        },
-        {
-          id: 13,
-          date: '2024-03-15',
-          subject: 'Chemistry',
-          strand: 'Organic',
-          title: 'Functional Groups',
-          score: '91/100',
-          percentage: '91%',
-          type: 'Test',
-          teacher: 'Ms. Davis',
-        },
-        {
-          id: 14,
-          date: '2024-03-20',
-          subject: 'English',
-          strand: 'Literature',
-          title: 'Poetry Analysis',
-          score: '86/100',
-          percentage: '86%',
-          type: 'Essay',
-          teacher: 'Ms. Johnson',
-        },
-        {
-          id: 15,
-          date: '2024-03-25',
-          subject: 'Biology',
-          strand: 'Anatomy',
-          title: 'Human Body Systems',
-          score: '94/100',
-          percentage: '94%',
-          type: 'Test',
-          teacher: 'Mr. Wilson',
-        },
-      ];
-    }
-
-    // Filter by selected subject
-    if (selectedSubject) {
-      summativeData = summativeData.filter(
-        (item) => item.subject === selectedSubject
-      );
-    }
-
-    // Check if we have any summative data to display
-    if (summativeData.length === 0) {
-      return (
-        <View style={styles.comingSoon}>
-          <Text style={styles.comingSoonText}>
-            {selectedSubject
-              ? `No summative grades available for ${selectedSubject} yet.`
-              : 'No summative grades available yet.'}
-          </Text>
-        </View>
-      );
-    }
-
-    // Safety check: ensure currentPage doesn't exceed totalPages
-    const totalPages = getTotalPages(summativeData);
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(1);
-      return null; // Re-render will happen with correct page
-    }
-
-    // Get paginated data
-    const paginatedData = getPaginatedData(summativeData);
-
-    return (
-      <View style={styles.modernGradesContainer}>
-        <FlatList
-          data={paginatedData}
-          renderItem={renderGradeCard}
-          keyExtractor={(item) => item.id.toString()}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.gradesList,
-            isLandscape && { paddingHorizontal: 0 }, // Remove padding in landscape for full width
-          ]}
-          ItemSeparatorComponent={GradeSeparator}
-          numColumns={isLandscape ? 2 : 1}
-          key={isLandscape ? 'landscape' : 'portrait'} // Force re-render when orientation changes
-        />
-        <View style={styles.paginationSection}>
-          {renderPaginationControls(summativeData)}
-        </View>
-      </View>
-    );
-  };
 
   // Render enhanced statistics display
   const renderStatisticsOverview = () => {
@@ -1688,9 +1095,8 @@ export default function GradesScreen({ navigation, route }) {
     };
 
     return (
-      <View style={styles.statisticsContainer}>
+      <>
         <Text style={styles.statisticsTitle}>📊 Performance Overview</Text>
-
         <View style={styles.statisticsGrid}>
           {/* Overall Statistics */}
           <View style={styles.statisticsCard}>
@@ -1759,140 +1165,290 @@ export default function GradesScreen({ navigation, route }) {
             </View>
           </View>
         </View>
-      </View>
+      </>
     );
   };
 
-  const renderFormativeContent = () => {
-    // Use real API data if available, otherwise show message
-    let formativeData = [];
+  // Render template detail modal
+  const renderTemplateModal = () => {
+    if (!selectedTemplate) return null;
 
-    if (grades?.formative && Array.isArray(grades.formative)) {
-      // Transform enhanced formative API data
-      formativeData = grades.formative.map((item, index) => {
-        return {
-          id: item.assessment_id || item.id || index + 1,
-          date: item.date || 'N/A',
-          subject: item.subject_name || 'N/A',
-          title: item.assessment_name || 'N/A',
-          teacher: item.teacher_name || 'N/A',
-          // Enhanced formative assessment criteria (1-4 scale)
-          tt1: item.tt1 || '', // Thinking & Reasoning
-          tt2: item.tt2 || '', // Communication
-          tt3: item.tt3 || '', // Application
-          tt4: item.tt4 || '', // Collaboration
-          // Enhanced fields
-          strand_id: item.strand_id,
-          strand_name: item.strand_name,
-          skill_id: item.skill_id,
-          skill_name: item.skill_name,
-          max_score: item.max_score,
-          is_graded: item.is_graded,
-          grading_status:
-            item.grading_status ||
-            (item.is_graded === 1 ? 'Graded' : 'Not Graded'),
-        };
-      });
-    }
+    const { templateName, subject, assessments } = selectedTemplate;
+    const isFormative = activeTab === 'formative';
 
-    // Filter by selected subject
-    if (selectedSubject) {
-      formativeData = formativeData.filter(
-        (item) => item.subject === selectedSubject
-      );
-    }
+    // Calculate statistics
+    const normalAssessments = assessments.filter(
+      (a) =>
+        !a.type_title?.toLowerCase().includes('final') &&
+        !a.type_title?.toLowerCase().includes('exam')
+    );
+    const finalAssessments = assessments.filter(
+      (a) =>
+        a.type_title?.toLowerCase().includes('final') ||
+        a.type_title?.toLowerCase().includes('exam')
+    );
 
-    if (formativeData.length === 0) {
-      return (
-        <View style={styles.comingSoon}>
-          <Text style={styles.comingSoonText}>
-            {selectedSubject
-              ? `No life skills grades available for ${selectedSubject} yet.`
-              : 'No life skills grades available yet.'}
-          </Text>
-        </View>
-      );
-    }
+    const normalScore = normalAssessments.reduce(
+      (sum, a) => sum + (a.raw_score || 0),
+      0
+    );
+    const finalScore = finalAssessments.reduce(
+      (sum, a) => sum + (a.raw_score || 0),
+      0
+    );
 
-    // Safety check: ensure currentPage doesn't exceed totalPages
-    const totalPages = getTotalPages(formativeData);
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(1);
-      return null; // Re-render will happen with correct page
-    }
-
-    // Get paginated data
-    const paginatedData = getPaginatedData(formativeData);
+    // Calculate average
+    const graded = assessments.filter((a) => a.score_percentage !== null);
+    const average =
+      graded.length > 0
+        ? Math.round(
+            graded.reduce((sum, a) => sum + (a.score_percentage || 0), 0) /
+              graded.length
+          )
+        : null;
+    const gradeColor = average !== null ? getGradeColor(average) : '#007AFF';
+    const gradeLetter = average !== null ? getGradeLabel(average) : 'A';
 
     return (
-      <View style={styles.modernGradesContainer}>
-        <FlatList
-          data={paginatedData}
-          renderItem={renderGradeCard}
-          keyExtractor={(item) => item.id.toString()}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.gradesList,
-            isLandscape && { paddingHorizontal: 0 }, // Remove padding in landscape for full width
-          ]}
-          ItemSeparatorComponent={GradeSeparator}
-          numColumns={isLandscape ? 2 : 1}
-          key={isLandscape ? 'landscape' : 'portrait'} // Force re-render when orientation changes
-        />
-        <View style={styles.paginationSection}>
-          {renderPaginationControls(formativeData)}
-        </View>
-      </View>
+      <Modal
+        visible={modalVisible}
+        animationType='slide'
+        presentationStyle='pageSheet'
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <SafeAreaView
+          style={styles.modalContainer}
+          edges={['top', 'left', 'right']}
+        >
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              style={styles.modalBackButton}
+              onPress={() => setModalVisible(false)}
+            >
+              <FontAwesomeIcon
+                icon={faArrowLeft}
+                size={20}
+                color={theme.colors.text}
+              />
+            </TouchableOpacity>
+            <View style={styles.modalHeaderCenter}>
+              <Text style={styles.modalHeaderTitle}>{templateName}</Text>
+              <Text style={styles.modalHeaderSubtitle}>
+                {subject} • {assessments.length} assessments
+              </Text>
+            </View>
+            {!isFormative && average !== null && (
+              <View
+                style={[
+                  styles.modalHeaderBadge,
+                  { backgroundColor: `${gradeColor}15` },
+                ]}
+              >
+                <Text style={[styles.modalHeaderGrade, { color: gradeColor }]}>
+                  {average}%
+                </Text>
+                <Text style={[styles.modalHeaderLetter, { color: gradeColor }]}>
+                  {gradeLetter}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <ScrollView
+            style={styles.modalContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Assessments Section */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Assessments</Text>
+              {assessments.map((assessment) => (
+                <View
+                  key={assessment.assessment_id}
+                  style={styles.assessmentItem}
+                >
+                  <View style={styles.assessmentItemHeader}>
+                    <Text style={styles.assessmentItemTitle}>
+                      {assessment.assessment_name}
+                    </Text>
+                    {!isFormative && (
+                      <View style={styles.assessmentTypeBadge}>
+                        <Text style={styles.assessmentTypeBadgeText}>
+                          {assessment.type_title}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.assessmentItemDate}>
+                    • {assessment.date}
+                  </Text>
+                  <View style={styles.assessmentItemFooter}>
+                    {!isFormative ? (
+                      <>
+                        <Text style={styles.assessmentItemScore}>
+                          {assessment.raw_score !== null
+                            ? `${assessment.raw_score}/${assessment.max_score}`
+                            : 'Not graded'}
+                        </Text>
+                        {assessment.score_percentage !== null && (
+                          <Text
+                            style={[
+                              styles.assessmentItemPercentage,
+                              {
+                                color: getGradeColor(
+                                  assessment.score_percentage
+                                ),
+                              },
+                            ]}
+                          >
+                            {assessment.score_percentage}%
+                          </Text>
+                        )}
+                      </>
+                    ) : (
+                      <View style={styles.formativeCriteriaRow}>
+                        {assessment.tt1 && (
+                          <View
+                            style={[
+                              styles.formativeCriteriaBadge,
+                              { backgroundColor: '#34C759' },
+                            ]}
+                          >
+                            <Text style={styles.formativeCriteriaLabel}>
+                              T&R
+                            </Text>
+                            <Text style={styles.formativeCriteriaValue}>
+                              {assessment.tt1}
+                            </Text>
+                          </View>
+                        )}
+                        {assessment.tt2 && (
+                          <View
+                            style={[
+                              styles.formativeCriteriaBadge,
+                              { backgroundColor: '#FF9500' },
+                            ]}
+                          >
+                            <Text style={styles.formativeCriteriaLabel}>
+                              COM
+                            </Text>
+                            <Text style={styles.formativeCriteriaValue}>
+                              {assessment.tt2}
+                            </Text>
+                          </View>
+                        )}
+                        {assessment.tt3 && (
+                          <View
+                            style={[
+                              styles.formativeCriteriaBadge,
+                              { backgroundColor: '#007AFF' },
+                            ]}
+                          >
+                            <Text style={styles.formativeCriteriaLabel}>
+                              APP
+                            </Text>
+                            <Text style={styles.formativeCriteriaValue}>
+                              {assessment.tt3}
+                            </Text>
+                          </View>
+                        )}
+                        {assessment.tt4 && (
+                          <View
+                            style={[
+                              styles.formativeCriteriaBadge,
+                              { backgroundColor: '#FF3B30' },
+                            ]}
+                          >
+                            <Text style={styles.formativeCriteriaLabel}>
+                              COL
+                            </Text>
+                            <Text style={styles.formativeCriteriaValue}>
+                              {assessment.tt4}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* Calculation Breakdown (Summative only) */}
+            {!isFormative && (
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>
+                  Calculation Breakdown
+                </Text>
+                <View style={styles.calculationCard}>
+                  <View style={styles.calculationRow}>
+                    <View style={styles.calculationColumn}>
+                      <Text style={styles.calculationLabel}>
+                        Normal Assessments
+                      </Text>
+                      <Text style={styles.calculationValue}>
+                        {normalAssessments.length}
+                      </Text>
+                    </View>
+                    <View style={styles.calculationColumn}>
+                      <Text style={styles.calculationLabel}>
+                        Final Assessments
+                      </Text>
+                      <Text style={styles.calculationValue}>
+                        {finalAssessments.length}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.calculationDivider} />
+                  <View style={styles.calculationRow}>
+                    <View style={styles.calculationColumn}>
+                      <Text style={styles.calculationLabel}>Normal Score</Text>
+                      <Text style={styles.calculationValue}>{normalScore}</Text>
+                    </View>
+                    <View style={styles.calculationColumn}>
+                      <Text style={styles.calculationLabel}>Final Score</Text>
+                      <Text style={styles.calculationValue}>{finalScore}</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     );
   };
+
+  // Get sections for current tab
+  const getSections = () => {
+    const data =
+      activeTab === 'summative' ? grades?.summative : grades?.formative;
+    return groupAssessmentsBySubjectAndTemplate(data || []);
+  };
+
+  const sections = getSections();
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      {/* Template Detail Modal */}
+      {renderTemplateModal()}
+
       {/* Compact Header */}
       <View style={styles.compactHeaderContainer}>
         {/* Navigation Header */}
         <View style={styles.navigationHeader}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => {
-              if (showSubjectList) {
-                navigation.goBack();
-              } else {
-                setShowSubjectList(true);
-              }
-            }}
+            onPress={() => navigation.goBack()}
           >
             <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>
-              {showSubjectList
-                ? `${t('assessments')}`
-                : isLandscape
-                ? `${selectedSubject} - ${
-                    activeTab === 'summative' ? t('summative') : t('formative')
-                  }`
-                : selectedSubject.substring(0, 16) || t('grades')}
-            </Text>
+            <Text style={styles.headerTitle}>{t('assessments')}</Text>
           </View>
 
-          <View style={styles.headerRight}>
-            {isLandscape && (
-              <TouchableOpacity
-                style={styles.switchButton}
-                onPress={() =>
-                  setActiveTab(
-                    activeTab === 'summative' ? 'formative' : 'summative'
-                  )
-                }
-              >
-                <Text style={styles.switchButtonText}>
-                  {activeTab === 'summative' ? 'F' : 'S'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <View style={styles.headerRight} />
         </View>
 
         {studentName && (
@@ -1901,15 +1457,15 @@ export default function GradesScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* Tab Navigation Subheader - Only show when not in subject list and not landscape */}
-        {!showSubjectList && !isLandscape && (
-          <View style={styles.subHeader}>
-            <View style={styles.tabContainer}>
-              {renderTabButton('summative', t('summative'))}
-              {renderTabButton('formative', t('formative'))}
-            </View>
+        {/* Tab Navigation Subheader */}
+        <View style={styles.subHeader}>
+          <View style={styles.tabContainer}>
+            {renderTabButton('summative', t('summative'))}
+            {renderTabButton('formative', t('formative'))}
           </View>
-        )}
+          {/* Enhanced Statistics Overview */}
+          {renderStatisticsOverview()}
+        </View>
       </View>
 
       <View style={[styles.content, isLandscape && styles.landscapeContent]}>
@@ -1919,31 +1475,31 @@ export default function GradesScreen({ navigation, route }) {
             <ActivityIndicator size='large' color={theme.colors.primary} />
             <Text style={styles.loadingText}>Loading grades...</Text>
           </View>
-        ) : showSubjectList ? (
-          // Show subject selection screen
-          <View style={styles.subjectListContainer}>
-            {/* Enhanced Statistics Overview */}
-            {renderStatisticsOverview()}
-
-            <FlatList
-              data={availableSubjects}
-              renderItem={({ item }) => renderSubjectCard(item)}
-              keyExtractor={(item) => item}
-              numColumns={1}
-              style={styles.fullWidth}
-              contentContainerStyle={styles.subjectGrid}
-              showsVerticalScrollIndicator={false}
-            />
-          </View>
         ) : (
-          // Show grades table for selected subject
-          <View style={styles.gradesContainer}>
-            {/* Tab Content */}
-            <View style={styles.scrollContainer}>
-              {activeTab === 'summative'
-                ? renderSummativeContent()
-                : renderFormativeContent()}
-            </View>
+          // Show template list grouped by subject
+          <View style={styles.templateListContainer}>
+            <SectionList
+              sections={sections.map((section) => ({
+                ...section,
+                data: expandedSection === section.title ? section.data : [],
+              }))}
+              renderItem={renderTemplateCard}
+              renderSectionHeader={renderSectionHeader}
+              keyExtractor={(item, index) => `${item.template_id}-${index}`}
+              style={styles.fullWidth}
+              contentContainerStyle={styles.templateGrid}
+              showsVerticalScrollIndicator={false}
+              stickySectionHeadersEnabled={false}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>
+                    {activeTab === 'summative'
+                      ? 'No summative assessments available'
+                      : 'No formative assessments available'}
+                  </Text>
+                </View>
+              }
+            />
           </View>
         )}
       </View>
@@ -1982,7 +1538,7 @@ const createStyles = (theme) =>
     subHeader: {
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 16,
-      paddingVertical: 16,
+      paddingVertical: 5,
     },
     studentContextBar: {
       backgroundColor: theme.colors.surface,
@@ -2435,6 +1991,376 @@ const createStyles = (theme) =>
       flex: 1,
       paddingHorizontal: 5,
     },
+    // Section Header Styles
+    sectionHeader: {
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      backgroundColor: theme.colors.background,
+    },
+    sectionHeaderText: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    // Subject Section Header Styles (Colorful & Expandable)
+    subjectSectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      marginHorizontal: 16,
+      marginTop: 12,
+      marginBottom: 8,
+      borderRadius: 12,
+      ...createSmallShadow(theme),
+    },
+    subjectSectionLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    subjectSectionIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    subjectSectionInfo: {
+      flex: 1,
+    },
+    subjectSectionTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 2,
+    },
+    subjectSectionSubtitle: {
+      fontSize: 13,
+      fontWeight: '400',
+      color: theme.colors.textSecondary,
+    },
+    subjectSectionRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    subjectGradeBadge: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      alignItems: 'center',
+      minWidth: 70,
+    },
+    subjectGradeText: {
+      fontSize: 18,
+      fontWeight: '700',
+      marginBottom: 2,
+    },
+    subjectGradeLetter: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    gradeSectionHeader: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      backgroundColor: theme.colors.background,
+      marginBottom: 8,
+    },
+    gradeSectionHeaderText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    // Strand Section Styles (for grouped assessments)
+    strandSectionHeader: {
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      backgroundColor: theme.colors.background,
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    strandSectionTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 2,
+    },
+    strandSectionSubtitle: {
+      fontSize: 13,
+      fontWeight: '400',
+      color: theme.colors.textSecondary,
+    },
+    // Strand Item Styles (individual assessment in section)
+    strandItemContainer: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 12,
+      padding: 16,
+      marginHorizontal: 16,
+      marginVertical: 6,
+      ...createSmallShadow(theme),
+    },
+    strandItemHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    strandItemLeft: {
+      flex: 1,
+      marginRight: 12,
+    },
+    strandItemTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 4,
+    },
+    strandItemSubtitle: {
+      fontSize: 13,
+      fontWeight: '400',
+      color: theme.colors.textSecondary,
+    },
+    strandItemRight: {
+      alignItems: 'flex-end',
+    },
+    strandGradeBadge: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 8,
+      alignItems: 'center',
+      minWidth: 70,
+    },
+    strandGradeText: {
+      fontSize: 20,
+      fontWeight: '700',
+      marginBottom: 2,
+    },
+    strandGradeLetter: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    // Formative Criteria Styles
+    formativeCriteriaRow: {
+      flexDirection: 'row',
+      gap: 6,
+    },
+    formativeCriteriaBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      borderRadius: 6,
+      alignItems: 'center',
+      minWidth: 40,
+    },
+    formativeCriteriaLabel: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: '#fff',
+      marginBottom: 2,
+    },
+    formativeCriteriaValue: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    // Template Card Styles
+    templateListContainer: {
+      flex: 1,
+    },
+    templateGrid: {
+      paddingBottom: 20,
+    },
+    templateCard: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 12,
+      padding: 16,
+      marginHorizontal: 26,
+      marginVertical: 6,
+      ...createSmallShadow(theme),
+    },
+    templateCardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    templateCardLeft: {
+      flex: 1,
+      marginRight: 12,
+    },
+    templateCardTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 4,
+    },
+    templateCardSubtitle: {
+      fontSize: 13,
+      fontWeight: '400',
+      color: theme.colors.textSecondary,
+    },
+    templateCardRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    templateGradeBadge: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+      alignItems: 'center',
+      minWidth: 60,
+    },
+    templateGradeText: {
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    templateGradeLetter: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    // Modal Styles
+    modalContainer: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: theme.colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      ...createSmallShadow(theme),
+    },
+    modalBackButton: {
+      padding: 8,
+      marginRight: 12,
+    },
+    modalHeaderCenter: {
+      flex: 1,
+    },
+    modalHeaderTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 2,
+    },
+    modalHeaderSubtitle: {
+      fontSize: 13,
+      fontWeight: '400',
+      color: theme.colors.textSecondary,
+    },
+    modalHeaderBadge: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      alignItems: 'center',
+      minWidth: 60,
+      marginLeft: 12,
+    },
+    modalHeaderGrade: {
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    modalHeaderLetter: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    modalContent: {
+      flex: 1,
+    },
+    modalSection: {
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+    },
+    modalSectionTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 12,
+    },
+    assessmentItem: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+      ...createSmallShadow(theme),
+    },
+    assessmentItemHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 8,
+    },
+    assessmentItemTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+      flex: 1,
+      marginRight: 8,
+    },
+    assessmentTypeBadge: {
+      backgroundColor: '#FF9500',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    assessmentTypeBadgeText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#fff',
+    },
+    assessmentItemDate: {
+      fontSize: 13,
+      fontWeight: '400',
+      color: theme.colors.textSecondary,
+      marginBottom: 12,
+    },
+    assessmentItemFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    assessmentItemScore: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: theme.colors.text,
+    },
+    assessmentItemPercentage: {
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    calculationCard: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 12,
+      padding: 16,
+      ...createSmallShadow(theme),
+    },
+    calculationRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    calculationColumn: {
+      flex: 1,
+    },
+    calculationLabel: {
+      fontSize: 13,
+      fontWeight: '400',
+      color: theme.colors.textSecondary,
+      marginBottom: 4,
+    },
+    calculationValue: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    calculationDivider: {
+      height: 1,
+      backgroundColor: theme.colors.border,
+      marginVertical: 16,
+    },
     // Modern Grades Container Styles
     modernGradesContainer: {
       flex: 1,
@@ -2453,7 +2379,7 @@ const createStyles = (theme) =>
       backgroundColor: theme.colors.card,
       borderRadius: 16,
       padding: 20,
-      marginHorizontal: 2, // Minimal horizontal margin for better width usage
+      marginHorizontal: 10, // Minimal horizontal margin for better width usage
       marginVertical: 6, // Add vertical margin for better spacing in two-column layout
       ...createSmallShadow(theme), // Enhanced shadow with border fallback for Android
       flex: 1, // Allow cards to expand in landscape mode
@@ -2750,6 +2676,15 @@ const createStyles = (theme) =>
       color: theme.colors.text,
       marginBottom: 12,
       textAlign: 'center',
+      marginVertical: 12,
+    },
+    overviewTabContainer: {
+      flexDirection: 'row',
+      backgroundColor: theme.colors.background,
+      borderRadius: 12,
+      padding: 4,
+      marginHorizontal: 0,
+      marginBottom: 12,
     },
     statisticsGrid: {
       flexDirection: 'row',

@@ -612,7 +612,7 @@ const createStyles = (theme, fontSizes) =>
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+      backgroundColor: theme.colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
       shadowColor: '#000',

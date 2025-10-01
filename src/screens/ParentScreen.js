@@ -18,6 +18,7 @@ import Animated, {
   withSpring,
   withTiming,
   interpolate,
+  interpolateColor,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -221,6 +222,11 @@ export default function ParentScreen({ navigation }) {
       return {
         width: interpolate(sharedValue.value, [0, 1], [8, 24]),
         opacity: interpolate(sharedValue.value, [0, 1], [0.5, 1]),
+        backgroundColor: interpolateColor(
+          sharedValue.value,
+          [0, 1],
+          [theme.colors.border, theme.colors.primary]
+        ),
       };
     })
   );
@@ -1822,12 +1828,6 @@ export default function ParentScreen({ navigation }) {
                           style={[
                             styles.paginationDot,
                             paginationAnimatedStyles[index],
-                            {
-                              backgroundColor:
-                                index === currentIndex
-                                  ? theme.colors.primary
-                                  : theme.colors.border,
-                            },
                           ]}
                         />
                       </TouchableOpacity>

@@ -32,6 +32,7 @@ import { getUserData } from '../services/authService';
 import { performLogout } from '../services/logoutService';
 import { borderRadius } from '../utils/commonStyles';
 import { useFocusEffect } from '@react-navigation/native';
+import { Config } from '../config/env';
 
 export default function TeacherProfile({ route, navigation }) {
   const { theme } = useTheme();
@@ -327,10 +328,17 @@ export default function TeacherProfile({ route, navigation }) {
             {userData.photo || userData.profile_photo || userData.user_photo ? (
               <Image
                 source={{
-                  uri:
-                    userData.photo ||
-                    userData.profile_photo ||
-                    userData.user_photo,
+                  uri: (() => {
+                    const rawPhoto =
+                      userData.photo ||
+                      userData.profile_photo ||
+                      userData.user_photo;
+                    return rawPhoto.startsWith('http')
+                      ? rawPhoto
+                      : `${Config.API_DOMAIN}${
+                          rawPhoto.startsWith('/') ? rawPhoto : '/' + rawPhoto
+                        }`;
+                  })(),
                 }}
                 style={styles.avatar}
                 resizeMode='cover'
@@ -364,7 +372,7 @@ export default function TeacherProfile({ route, navigation }) {
             <FontAwesomeIcon
               icon={faEdit}
               size={16}
-              color={theme.colors.primary}
+              color={theme.colors.accent}
             />
             <Text style={styles.editProfileText}>
               {t('editProfile') || 'Edit Profile'}
@@ -568,7 +576,7 @@ const createStyles = (theme, fontSizes) =>
       justifyContent: 'space-between',
       alignItems: 'center',
       borderRadius: 16,
-      ...theme.shadows.medium,
+      ...theme.shadows.small,
     },
     backButton: {
       width: 40,
@@ -613,7 +621,7 @@ const createStyles = (theme, fontSizes) =>
       padding: 30,
       margin: 20,
       borderRadius: 16,
-      ...theme.shadows.medium,
+      ...theme.shadows.small,
     },
     avatarContainer: {
       marginBottom: 20,
@@ -653,16 +661,18 @@ const createStyles = (theme, fontSizes) =>
     editProfileButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: theme.colors.primary + '15',
+      backgroundColor: theme.colors.surfaceSecondary,
       paddingHorizontal: 16,
       paddingVertical: 8,
       borderRadius: 20,
       marginTop: 16,
       alignSelf: 'center',
+      borderWidth: 1,
+      borderColor: theme.colors.accent,
     },
     editProfileText: {
       fontSize: fontSizes.small,
-      color: theme.colors.primary,
+      color: theme.colors.accent,
       fontWeight: '600',
       marginLeft: 6,
     },
@@ -672,7 +682,7 @@ const createStyles = (theme, fontSizes) =>
       marginTop: 0,
       borderRadius: 16,
       padding: 20,
-      ...theme.shadows.medium,
+      ...theme.shadows.small,
     },
     sectionTitle: {
       fontSize: fontSizes.sectionTitle,

@@ -951,9 +951,8 @@ const translations = {
 
     // Grades Screen
     loadingFormativeGrades: 'Loading formative grades...',
-    noLifeSkillsGradesForSubject:
-      'No Life Skills grades available for {subject}',
-    noLifeSkillsGrades: 'No Life Skills grades available',
+    noFormativeGradesForSubject: 'No Formative grades available for {subject}',
+    noFormativeGrades: 'No Formative grades available',
     summative: 'Summative',
     formative: 'Formative',
     notGraded: 'Not Graded',
@@ -1750,9 +1749,8 @@ const translations = {
 
     // Grades Screen
     loadingFormativeGrades: 'အကဲဖြတ်မှုအမှတ်များ ဖွင့်နေသည်...',
-    noLifeSkillsGradesForSubject:
-      '{subject} အတွက် ဘဝကျွမ်းကျင်မှုအမှတ်များ မရှိပါ',
-    noLifeSkillsGrades: 'ဘဝကျွမ်းကျင်မှုအမှတ်များ မရှိပါ',
+    noFormativeGradesForSubject: '{subject} အတွက် အကဲဖြတ်မှုအမှတ်များ မရှိပါ',
+    noFormativeGrades: 'အကဲဖြတ်မှုအမှတ်များ မရှိပါ',
     summative: 'အပေါင်းအမှတ်',
     formative: 'အသွင်အပြင်',
     notGraded: 'အမှတ်မပေးရသေး',
@@ -2558,8 +2556,8 @@ const translations = {
 
     // Grades Screen
     loadingFormativeGrades: '正在加载形成性评价成绩...',
-    noLifeSkillsGradesForSubject: '{subject}没有生活技能成绩',
-    noLifeSkillsGrades: '没有生活技能成绩',
+    noFormativeGradesForSubject: '{subject}没有形成性评价成绩',
+    noFormativeGrades: '没有形成性评价成绩',
     summative: '总结性评价',
     formative: '形成性',
     notGraded: '未评分',
@@ -3366,8 +3364,9 @@ const translations = {
 
     // Grades Screen
     loadingFormativeGrades: 'กำลังโหลดคะแนนการประเมินระหว่างเรียน...',
-    noLifeSkillsGradesForSubject: 'ไม่มีคะแนนทักษะชีวิตสำหรับ {subject}',
-    noLifeSkillsGrades: 'ไม่มีคะแนนทักษะชีวิต',
+    noFormativeGradesForSubject:
+      'ไม่มีคะแนนการประเมินระหว่างเรียนสำหรับ {subject}',
+    noFormativeGrades: 'ไม่มีคะแนนการประเมินระหว่างเรียน',
     summative: 'การประเมินรวม',
     formative: 'การสร้างสรรค์',
     notGraded: 'ยังไม่ได้ให้คะแนน',
@@ -3659,9 +3658,9 @@ const translations = {
 
     // Grades Screen
     loadingFormativeGrades: 'កំពុងផ្ទុកពិន្ទុសិក្សាអាល់ខ្លួន...',
-    noLifeSkillsGradesForSubject:
-      'មិនមានពិន្ទុសិក្សាអាល់ខ្លួនសម្រាប់ {subject}',
-    noLifeSkillsGrades: 'មិនមានពិន្ទុសិក្សាអាល់ខ្លួន',
+    noFormativeGradesForSubject:
+      'មិនមានពិន្ទុការវាយតម្លៃបង្កើតសម្រាប់ {subject}',
+    noFormativeGrades: 'មិនមានពិន្ទុការវាយតម្លៃបង្កើត',
     summative: 'ទម្រង់',
     notGraded: 'មិនបានដាក់ពិន្ទុ',
     formative: 'ទម្រង់',

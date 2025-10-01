@@ -158,10 +158,12 @@ const ParentProfileScreen = ({ navigation }) => {
         : [],
     });
 
-    const photoUri = parentPhoto?.startsWith('http')
-      ? parentPhoto
-      : parentPhoto
-      ? `${Config.API_DOMAIN}${parentPhoto}`
+    const photoUri = parentPhoto
+      ? parentPhoto.startsWith('http')
+        ? parentPhoto
+        : `${Config.API_DOMAIN}${
+            parentPhoto.startsWith('/') ? parentPhoto : '/' + parentPhoto
+          }`
       : null;
 
     return (
@@ -208,7 +210,7 @@ const ParentProfileScreen = ({ navigation }) => {
           <FontAwesomeIcon
             icon={faEdit}
             size={18}
-            color={theme.colors.primary}
+            color={theme.colors.accent}
           />
         </TouchableOpacity>
       </View>
@@ -459,7 +461,7 @@ const createStyles = (theme, fontSizes) =>
       justifyContent: 'center',
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: theme.colors.primary,
+      borderColor: theme.colors.accent,
     },
     infoSection: {
       backgroundColor: theme.colors.surface,
