@@ -612,7 +612,7 @@ const createStyles = (theme, fontSizes) =>
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.surface,
       justifyContent: 'center',
       alignItems: 'center',
       shadowColor: '#000',
@@ -626,7 +626,7 @@ const createStyles = (theme, fontSizes) =>
       backgroundColor: theme.colors.background,
     },
     logo: {
-      width: width * 0.7,
+      width: width * 0.5,
       height: height * 0.15,
       marginTop: height * 0.03,
     },
