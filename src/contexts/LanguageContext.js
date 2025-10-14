@@ -957,6 +957,12 @@ const translations = {
     formative: 'Formative',
     notGraded: 'Not Graded',
 
+    // Maintenance Messages
+    maintenanceWarning:
+      'System upgrade in progress. You will be informed by school authorities when the service is available. We apologize for the inconvenience.',
+    maintenanceInfo: 'Scheduled maintenance in progress.',
+    maintenanceError: 'Service temporarily unavailable.',
+
     // Library Screen
     authenticationRequired: 'Authentication required',
     failedToLoadLibraryData: 'Failed to load library data',
@@ -1754,6 +1760,12 @@ const translations = {
     summative: 'အပေါင်းအမှတ်',
     formative: 'အသွင်အပြင်',
     notGraded: 'အမှတ်မပေးရသေး',
+
+    // Maintenance Messages
+    maintenanceWarning:
+      'စနစ်အဆင့်မြှင့်တင်မှု လုပ်ဆောင်နေပါသည်။ ဝန်ဆောင်မှု ပြန်လည်ရရှိနိုင်သည့်အခါ ကျောင်းအာဏာပိုင်များမှ အကြောင်းကြားပေးပါမည်။ အဆင်မပြေမှုအတွက် တောင်းပန်ပါသည်။',
+    maintenanceInfo: 'စီစဉ်ထားသော ပြုပြင်ထိန်းသိမ်းမှု လုပ်ဆောင်နေပါသည်။',
+    maintenanceError: 'ဝန်ဆောင်မှု ယာယီမရရှိနိုင်ပါ။',
 
     // Library Screen
     authenticationRequired: 'အထောက်အထားပြရန် လိုအပ်သည်',
@@ -2561,6 +2573,12 @@ const translations = {
     summative: '总结性评价',
     formative: '形成性',
     notGraded: '未评分',
+
+    // Maintenance Messages
+    maintenanceWarning:
+      '系统升级正在进行中。服务恢复后，学校管理部门将通知您。对于给您带来的不便，我们深表歉意。',
+    maintenanceInfo: '计划维护正在进行中。',
+    maintenanceError: '服务暂时不可用。',
 
     // Library Screen
     authenticationRequired: '需要身份验证',
@@ -3371,6 +3389,12 @@ const translations = {
     formative: 'การสร้างสรรค์',
     notGraded: 'ยังไม่ได้ให้คะแนน',
 
+    // Maintenance Messages
+    maintenanceWarning:
+      'กำลังอัปเกรดระบบ ทางโรงเรียนจะแจ้งให้ทราบเมื่อบริการพร้อมใช้งาน เราขออภัยในความไม่สะดวก',
+    maintenanceInfo: 'กำลังดำเนินการบำรุงรักษาตามกำหนดการ',
+    maintenanceError: 'บริการไม่พร้อมใช้งานชั่วคราว',
+
     // Library Screen
     authenticationRequired: 'ต้องการการยืนยันตัวตน',
     failedToLoadLibraryData: 'ไม่สามารถโหลดข้อมูลห้องสมุดได้',
@@ -3664,6 +3688,12 @@ const translations = {
     summative: 'ទម្រង់',
     notGraded: 'មិនបានដាក់ពិន្ទុ',
     formative: 'ទម្រង់',
+
+    // Maintenance Messages
+    maintenanceWarning:
+      'ការធ្វើបច្ចុប្បន្នភាពប្រព័ន្ធកំពុងដំណើរការ។ អ្នកនឹងត្រូវបានជូនដំណឹងដោយអាជ្ញាធរសាលានៅពេលសេវាកម្មអាចប្រើបាន។ យើងសូមអភ័យទោសចំពោះការរអាក់រអួល។',
+    maintenanceInfo: 'ការថែទាំតាមកាលវិភាគកំពុងដំណើរការ។',
+    maintenanceError: 'សេវាកម្មមិនអាចប្រើបានជាបណ្តោះអាសន្ន។',
 
     // Login Screen
     teacherId: 'លេខសម្គាល់គ្រូ',

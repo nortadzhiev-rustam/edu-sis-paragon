@@ -102,7 +102,7 @@ export default function SplashScreen({ onAnimationComplete }) {
   useEffect(() => {
     if (!startTyping) return;
 
-    const FULL_TEXT = 'Learn Today\nFor Better Tomorrow';
+    const FULL_TEXT = 'Learn Today\nFor a Better Tomorrow';
     let currentIndex = 0;
     const typewriterInterval = setInterval(() => {
       if (currentIndex <= FULL_TEXT.length) {

@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import SplashScreen from './src/screens/SplashScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import MaintenanceBanner from './src/components/MaintenanceBanner';
 
 // Teacher Screens
 import TeacherScreen from './src/screens/TeacherScreen';
@@ -105,6 +106,17 @@ import performanceMonitor, {
 } from './src/utils/performanceMonitor';
 
 const Stack = createNativeStackNavigator();
+
+// Global Maintenance Banner Wrapper Component
+const GlobalMaintenanceBanner = () => {
+  // Control visibility here - set to false to hide the banner
+  // You can also control this via API, AsyncStorage, or a context
+  const showMaintenance = true;
+
+  if (!showMaintenance) return null;
+
+  return <MaintenanceBanner />;
+};
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -324,6 +336,10 @@ export default function App() {
                   }}
                 >
                   <StatusBar style='auto' />
+
+                  {/* Global Maintenance Banner - appears on all screens */}
+                  <GlobalMaintenanceBanner />
+
                   <Stack.Navigator
                     initialRouteName='Home'
                     screenOptions={{ headerShown: false }}
