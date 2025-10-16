@@ -894,6 +894,7 @@ const translations = {
     noNotificationsYet:
       "You'll see your notifications here when you receive them.",
     loadingNotifications: 'Loading notifications...',
+    loadingMore: 'Loading more...',
 
     // Calendar Screen
     loginRequired: 'Login Required',
@@ -1691,6 +1692,7 @@ const translations = {
     noNotificationsYet:
       'အကြောင်းကြားချက်များ ရရှိသောအခါ ဤနေရာတွင် မြင်ရမည်ဖြစ်သည်။',
     loadingNotifications: 'အကြောင်းကြားချက်များ ဖွင့်နေသည်...',
+    loadingMore: 'နောက်ထပ်ဖွင့်နေသည်...',
 
     // Calendar Screen
     loginRequired: 'လော့ဂ်အင် လိုအပ်သည်',
@@ -2513,6 +2515,7 @@ const translations = {
     noUnreadNotifications: '您已查看完毕！没有未读通知。',
     noNotificationsYet: '收到通知时，您将在此处看到它们。',
     loadingNotifications: '加载通知中...',
+    loadingMore: '加载更多...',
 
     // Calendar Screen
     loginRequired: '需要登录',
@@ -3323,6 +3326,7 @@ const translations = {
     noUnreadNotifications: 'คุณอ่านครบแล้ว! ไม่มีการแจ้งเตือนที่ยังไม่ได้อ่าน',
     noNotificationsYet: 'คุณจะเห็นการแจ้งเตือนที่นี่เมื่อได้รับ',
     loadingNotifications: 'กำลังโหลดการแจ้งเตือน...',
+    loadingMore: 'กำลังโหลดเพิ่มเติม...',
 
     // Calendar Screen
     loginRequired: 'ต้องเข้าสู่ระบบ',

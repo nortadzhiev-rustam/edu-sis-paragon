@@ -863,6 +863,18 @@ export default function ParentScreen({ navigation }) {
 
         setCurrentUserData(parsedUserData); // Set current user data for demo mode indicator
 
+        // Update the generic userData key to mark parent as most recent user
+        // This ensures NotificationContext detects the correct user type
+        if (parsedUserData.userType === 'parent') {
+          await AsyncStorage.setItem(
+            'userData',
+            JSON.stringify(parsedUserData)
+          );
+          console.log(
+            '✅ PARENT: Updated userData to mark parent as most recent user'
+          );
+        }
+
         // Check if we have teacher data but no parent/student data
         if (
           parsedUserData.userType === 'teacher' &&

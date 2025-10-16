@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import {
@@ -8,15 +9,28 @@ import {
   clearNotificationHistory,
   setupLocalNotifications,
 } from '../utils/messaging';
+// Import user-type-specific notification services
 import {
-  getNotifications as getAPINotifications,
-  markNotificationAsRead as markAPINotificationRead,
-  markAllNotificationsAsRead as markAllAPINotificationsRead,
-  getNotificationCategories as getAPINotificationCategories,
-  sendNotification as sendAPINotification,
-  getNotificationStatistics as getAPINotificationStatistics,
-  getLegacyNotifications,
-} from '../services/notificationService';
+  getTeacherNotifications,
+  markTeacherNotificationAsRead,
+  markAllTeacherNotificationsAsRead,
+  getTeacherNotificationCategories,
+  sendTeacherNotification,
+  getTeacherNotificationStatistics,
+} from '../services/teacherNotificationService';
+import {
+  getParentNotifications,
+  markParentNotificationAsRead,
+  markAllParentNotificationsAsRead,
+  getParentNotificationCategories,
+} from '../services/parentNotificationService';
+import {
+  getStudentNotifications,
+  markStudentNotificationAsRead,
+  getStudentNotificationCategories,
+} from '../services/studentNotificationService';
+// Keep legacy service for backward compatibility
+import { getNotifications as getAPINotifications } from '../services/notificationService';
 import { Config, buildApiUrl } from '../config/env';
 
 const NotificationContext = createContext();
@@ -40,6 +54,133 @@ export const NotificationProvider = ({ children }) => {
   const [studentNotifications, setStudentNotifications] = useState({});
   const [studentUnreadCounts, setStudentUnreadCounts] = useState({});
   const [currentStudentAuthCode, setCurrentStudentAuthCode] = useState(null);
+
+  // Detect current user type from AsyncStorage by checking user-type-specific keys
+  const detectUserType = async () => {
+    try {
+      console.log('🔍 NOTIFICATION CONTEXT: Starting user type detection...');
+
+      // Check user-type-specific storage keys directly
+      // This is more reliable than using the generic userData key
+      const teacherData = await AsyncStorage.getItem(
+        Config.STORAGE_KEYS.TEACHER_USER_DATA
+      );
+      const parentData = await AsyncStorage.getItem(
+        Config.STORAGE_KEYS.PARENT_USER_DATA
+      );
+      const studentData = await AsyncStorage.getItem(
+        Config.STORAGE_KEYS.STUDENT_USER_DATA
+      );
+
+      console.log('🔍 NOTIFICATION CONTEXT: Storage keys check:', {
+        hasTeacherData: !!teacherData,
+        hasParentData: !!parentData,
+        hasStudentData: !!studentData,
+      });
+
+      // Now check the generic userData key to see which user is currently active
+      const currentUserData = await AsyncStorage.getItem('userData');
+      if (currentUserData) {
+        const parsed = JSON.parse(currentUserData);
+        console.log(
+          '🔍 NOTIFICATION CONTEXT: Current active user from userData:',
+          {
+            userType: parsed.userType,
+            username: parsed.username,
+            name: parsed.name,
+          }
+        );
+
+        // Verify that the user type actually has data in storage
+        if (parsed.userType === 'teacher' && teacherData) {
+          console.log('✅ NOTIFICATION CONTEXT: Detected user type: teacher');
+          return 'teacher';
+        } else if (parsed.userType === 'parent' && parentData) {
+          console.log('✅ NOTIFICATION CONTEXT: Detected user type: parent');
+          return 'parent';
+        } else if (parsed.userType === 'student' && studentData) {
+          console.log('✅ NOTIFICATION CONTEXT: Detected user type: student');
+          return 'student';
+        }
+      }
+
+      // Fallback: if no userData key, check which user-type-specific keys exist
+      // Priority: parent > teacher > student
+      console.log(
+        '⚠️ NOTIFICATION CONTEXT: No userData key, checking user-type-specific keys...'
+      );
+
+      if (parentData) {
+        console.log(
+          '🔔 NOTIFICATION CONTEXT: Detected user type: parent (from parentUserData)'
+        );
+        return 'parent';
+      }
+
+      if (teacherData) {
+        console.log(
+          '🔔 NOTIFICATION CONTEXT: Detected user type: teacher (from teacherUserData)'
+        );
+        return 'teacher';
+      }
+
+      if (studentData) {
+        console.log(
+          '🔔 NOTIFICATION CONTEXT: Detected user type: student (from studentUserData)'
+        );
+        return 'student';
+      }
+
+      console.warn('⚠️ NOTIFICATION CONTEXT: No user type detected');
+      return null;
+    } catch (error) {
+      console.error(
+        '❌ NOTIFICATION CONTEXT: Error detecting user type:',
+        error
+      );
+      return null;
+    }
+  };
+
+  // Get the appropriate notification service based on user type
+  const getNotificationService = (userType) => {
+    switch (userType) {
+      case 'teacher':
+        return {
+          getNotifications: getTeacherNotifications,
+          markAsRead: markTeacherNotificationAsRead,
+          markAllAsRead: markAllTeacherNotificationsAsRead,
+          getCategories: getTeacherNotificationCategories,
+          sendNotification: sendTeacherNotification,
+          getStatistics: getTeacherNotificationStatistics,
+        };
+      case 'parent':
+        return {
+          getNotifications: getParentNotifications,
+          markAsRead: markParentNotificationAsRead,
+          markAllAsRead: markAllParentNotificationsAsRead,
+          getCategories: getParentNotificationCategories,
+        };
+      case 'student':
+        return {
+          getNotifications: getStudentNotifications,
+          markAsRead: markStudentNotificationAsRead,
+          markAllAsRead: markAllStudentNotificationsAsRead,
+          getCategories: getStudentNotificationCategories,
+        };
+      default:
+        // Fallback to legacy service
+        console.warn(
+          '⚠️ NOTIFICATION CONTEXT: Using legacy notification service'
+        );
+        return {
+          getNotifications: getAPINotifications,
+          markAsRead: null,
+          markAllAsRead: null,
+          getCategories: null,
+        };
+    }
+  };
 
   // Update app icon badge when unread count changes
   const updateAppIconBadge = async (count) => {
@@ -70,10 +211,24 @@ export const NotificationProvider = ({ children }) => {
     updateAppIconBadge(totalUnread);
   }, [unreadCount, studentUnreadCounts]);
 
-  // Load notifications on mount
+  // Load notifications on mount and when app becomes active
   useEffect(() => {
     loadNotifications();
     setupLocalNotifications();
+
+    // Add app state listener to refresh notifications when app becomes active
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        console.log(
+          '🔔 NOTIFICATION CONTEXT: App became active, refreshing notifications'
+        );
+        loadNotifications();
+      }
+    });
+
+    return () => {
+      subscription?.remove();
+    };
   }, []);
 
   // Add debouncing to prevent excessive API calls
@@ -98,12 +253,29 @@ export const NotificationProvider = ({ children }) => {
       isLoading.current = true;
       setLoading(true);
 
+      // Detect user type and get appropriate service
+      const userType = await detectUserType();
+      if (!userType) {
+        console.warn(
+          '⚠️ NOTIFICATION CONTEXT: No user type detected, skipping API call'
+        );
+        setLoading(false);
+        isLoading.current = false;
+        return;
+      }
+
+      const service = getNotificationService(userType);
+
       // Try to fetch from API first
       try {
         console.log(
-          '🔔 NOTIFICATION CONTEXT: Loading notifications from API...'
+          '🔔 NOTIFICATION CONTEXT: Loading notifications from API for user type:',
+          userType
         );
-        const apiResponse = await getAPINotifications({ page: 1, limit: 50 });
+        const apiResponse = await service.getNotifications({
+          page: 1,
+          limit: 50,
+        });
         console.log('🔔 NOTIFICATION CONTEXT: API response:', {
           success: apiResponse?.success,
           dataCount: apiResponse?.data?.length || 0,
@@ -186,7 +358,6 @@ export const NotificationProvider = ({ children }) => {
       let targetNotification = null;
       let isStudentNotification = false;
       let studentAuthCode = null;
-      let isParentViewingChildNotification = false;
 
       // Check main notifications first
       targetNotification = notifications.find((n) => n.id === notificationId);
@@ -306,26 +477,9 @@ export const NotificationProvider = ({ children }) => {
 
           let apiResponse;
 
-          // For student notifications, pass the student's authCode
-          if (isStudentNotification && studentAuthCode) {
-            apiResponse = await markAPINotificationRead(
-              originalNotificationId,
-              studentAuthCode
-            );
-          } else if (isParentViewingChildNotification && studentAuthCode) {
-            // For parent viewing child notifications, use child's authCode if available
-            console.log(
-              '📱 NOTIFICATION: Using child authCode for mark as read'
-            );
-            apiResponse = await markAPINotificationRead(
-              originalNotificationId,
-              studentAuthCode
-            );
-          } else {
-            // For regular notifications, use the standard API call
-            console.log('📱 NOTIFICATION: Using standard mark as read');
-            apiResponse = await markAPINotificationRead(originalNotificationId);
-          }
+          // Use the user-type-specific service to mark as read
+          console.log('📱 NOTIFICATION: Using user-type-specific mark as read');
+          apiResponse = await markAPINotificationAsRead(originalNotificationId);
 
           if (apiResponse?.success) {
             // Update local state based on notification type
@@ -468,7 +622,19 @@ export const NotificationProvider = ({ children }) => {
   // Mark API notification as read
   const markAPINotificationAsRead = async (notificationId) => {
     try {
-      const response = await markAPINotificationRead(notificationId);
+      const userType = await detectUserType();
+      if (!userType) {
+        throw new Error('No user type detected');
+      }
+
+      const service = getNotificationService(userType);
+      if (!service.markAsRead) {
+        throw new Error(
+          `Mark as read not supported for user type: ${userType}`
+        );
+      }
+
+      const response = await service.markAsRead(notificationId);
       if (response?.success) {
         // Update local state if needed
         await refreshNotifications();
@@ -483,11 +649,24 @@ export const NotificationProvider = ({ children }) => {
   // Mark all API notifications as read
   const markAllAPINotificationsAsRead = async (specificAuthCode = null) => {
     try {
+      const userType = await detectUserType();
+      if (!userType) {
+        throw new Error('No user type detected');
+      }
+
       console.log(
-        '📱 NOTIFICATION CONTEXT: Marking all notifications as read with authCode:',
-        specificAuthCode || 'auto-detect'
+        '📱 NOTIFICATION CONTEXT: Marking all notifications as read for user type:',
+        userType
       );
-      const response = await markAllAPINotificationsRead(specificAuthCode);
+
+      const service = getNotificationService(userType);
+      if (!service.markAllAsRead) {
+        throw new Error(
+          `Mark all as read not supported for user type: ${userType}`
+        );
+      }
+
+      const response = await service.markAllAsRead();
       if (response?.success) {
         // Update local state
         await refreshNotifications();
@@ -502,7 +681,8 @@ export const NotificationProvider = ({ children }) => {
   // Mark all student notifications as read (for parent context)
   const markAllStudentNotificationsAsRead = async (studentAuthCode) => {
     try {
-      const response = await markAllAPINotificationsRead(studentAuthCode);
+      // For parent context, use parent service
+      const response = await markAllParentNotificationsAsRead();
       if (response?.success) {
         // In parent proxy system, refresh main notifications instead
         await refreshNotifications();
@@ -517,7 +697,19 @@ export const NotificationProvider = ({ children }) => {
   // Get notification categories
   const fetchNotificationCategories = async () => {
     try {
-      const response = await getAPINotificationCategories();
+      const userType = await detectUserType();
+      if (!userType) {
+        throw new Error('No user type detected');
+      }
+
+      const service = getNotificationService(userType);
+      if (!service.getCategories) {
+        throw new Error(
+          `Get categories not supported for user type: ${userType}`
+        );
+      }
+
+      const response = await service.getCategories();
       return response;
     } catch (error) {
       console.error('Error fetching notification categories:', error);
@@ -525,10 +717,20 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // Send notification (staff only)
+  // Send notification (staff only - teachers)
   const sendNotificationToAPI = async (notificationData) => {
     try {
-      const response = await sendAPINotification(notificationData);
+      const userType = await detectUserType();
+      if (userType !== 'teacher') {
+        throw new Error('Only teachers can send notifications');
+      }
+
+      const service = getNotificationService(userType);
+      if (!service.sendNotification) {
+        throw new Error('Send notification not supported');
+      }
+
+      const response = await service.sendNotification(notificationData);
       return response;
     } catch (error) {
       console.error('Error sending notification:', error);
@@ -536,10 +738,20 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // Get notification statistics (staff only)
+  // Get notification statistics (staff only - teachers)
   const fetchNotificationStatistics = async (params = {}) => {
     try {
-      const response = await getAPINotificationStatistics(params);
+      const userType = await detectUserType();
+      if (userType !== 'teacher') {
+        throw new Error('Only teachers can view notification statistics');
+      }
+
+      const service = getNotificationService(userType);
+      if (!service.getStatistics) {
+        throw new Error('Get statistics not supported');
+      }
+
+      const response = await service.getStatistics(params);
       return response;
     } catch (error) {
       console.error('Error fetching notification statistics:', error);

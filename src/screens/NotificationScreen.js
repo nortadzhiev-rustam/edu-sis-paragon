@@ -26,8 +26,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getAllLoggedInUsers,
   getMostRecentUser,
-  getUserData,
 } from '../services/authService';
+// Import user-type-specific notification services
+import { getTeacherNotifications } from '../services/teacherNotificationService';
+import { getParentNotifications } from '../services/parentNotificationService';
+import { getStudentNotifications } from '../services/studentNotificationService';
 
 const NotificationScreen = ({ navigation, route }) => {
   const { theme } = useTheme();
@@ -53,123 +56,122 @@ const NotificationScreen = ({ navigation, route }) => {
   const [contextUnreadCount, setContextUnreadCount] = useState(0);
   const [contextLoading, setContextLoading] = useState(true);
 
-  // Load notifications for specific user type
-  const loadNotificationsForUserType = async (userType) => {
-    try {
-      setContextLoading(true);
-      console.log(
-        '📱 NOTIFICATION: Loading notifications for user type:',
-        userType
-      );
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMorePages, setHasMorePages] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalNotifications, setTotalNotifications] = useState(0);
 
-      // Get the auth code for the specific user type
-      let authCode = null;
-      if (userType === 'teacher') {
-        console.log('📱 NOTIFICATION: Fetching teacher data...');
-        const teacherData = await getUserData('teacher', AsyncStorage);
-        console.log(
-          '📱 NOTIFICATION: Teacher data retrieved:',
-          teacherData ? 'success' : 'null'
-        );
-        authCode = teacherData?.authCode || teacherData?.auth_code;
-        console.log(
-          '📱 NOTIFICATION: Using teacher auth code:',
-          authCode?.substring(0, 8) + '...'
-        );
-      } else if (userType === 'parent') {
-        const parentData = await getUserData('parent', AsyncStorage);
-        authCode = parentData?.authCode || parentData?.auth_code;
-        console.log(
-          '📱 NOTIFICATION: Using parent auth code:',
-          authCode?.substring(0, 8) + '...'
-        );
-      } else if (userType === 'student') {
-        const studentData = await getUserData('student', AsyncStorage);
-        authCode = studentData?.authCode || studentData?.auth_code;
-        console.log(
-          '📱 NOTIFICATION: Using student auth code:',
-          authCode?.substring(0, 8) + '...'
-        );
+  // Load notifications for specific user type
+  const loadNotificationsForUserType = async (
+    userType,
+    page = 1,
+    append = false
+  ) => {
+    try {
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setContextLoading(true);
+        setCurrentPage(1);
+        setHasMorePages(true);
       }
 
-      if (authCode) {
-        // Make direct API call with specific auth code
-        console.log('📱 NOTIFICATION: Step 1 - Starting API call setup');
-        const baseUrl = 'https://sis.paragonisc.edu.kh/mobile-api';
-        const endpoint = '/notifications/list';
-        console.log('📱 NOTIFICATION: Step 2 - URL components ready');
+      console.log(
+        '📱 NOTIFICATION: Loading notifications for user type:',
+        userType,
+        'page:',
+        page
+      );
 
-        const queryParams = new URLSearchParams({
-          authCode,
-          page: '1',
-          limit: '20',
-        });
-        console.log('📱 NOTIFICATION: Step 3 - Query params created');
-
-        const url = `${baseUrl}${endpoint}?${queryParams.toString()}`;
-        console.log(
-          '📱 NOTIFICATION: Step 4 - Making API call to:',
-          url.replace(authCode, authCode.substring(0, 8) + '...')
-        );
-
-        const response = await fetch(url, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        console.log('📱 NOTIFICATION: Step 5 - Fetch completed');
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data?.success) {
-            // Transform API notifications to match expected format
-            const transformedNotifications = (data.notifications || []).map(
-              (notification) => ({
-                ...notification,
-                // Ensure consistent field mapping
-                id:
-                  notification.notification_id?.toString() ||
-                  notification.id?.toString() ||
-                  Date.now().toString(),
-                read: !!notification.read_at || !!notification.is_read,
-                // Keep original API data for reference
-                _apiData: notification,
-              })
-            );
-
-            setContextNotifications(transformedNotifications);
-            setContextUnreadCount(
-              data.unread_count ||
-                transformedNotifications.filter((n) => !n.read).length
-            );
-            console.log(
-              '📱 NOTIFICATION: Loaded and transformed',
-              transformedNotifications.length,
-              'notifications for',
-              userType
-            );
-          } else {
-            console.warn(
-              '📱 NOTIFICATION: API returned success=false for',
-              userType
-            );
-            setContextNotifications([]);
-            setContextUnreadCount(0);
-          }
-        } else {
-          console.warn(
-            '📱 NOTIFICATION: API request failed with status:',
-            response.status,
-            'for',
-            userType
-          );
+      // Get the appropriate service based on user type
+      let getNotificationsService = null;
+      switch (userType) {
+        case 'teacher':
+          getNotificationsService = getTeacherNotifications;
+          break;
+        case 'parent':
+          getNotificationsService = getParentNotifications;
+          break;
+        case 'student':
+          getNotificationsService = getStudentNotifications;
+          break;
+        default:
+          console.warn('📱 NOTIFICATION: Unknown user type:', userType);
           setContextNotifications([]);
           setContextUnreadCount(0);
+          setTotalNotifications(0);
+          setContextLoading(false);
+          return;
+      }
+
+      // Call the user-type-specific service with pagination
+      const apiResponse = await getNotificationsService({ page, limit: 20 });
+
+      if (apiResponse?.success) {
+        // Transform API notifications to match expected format
+        const notificationArray =
+          apiResponse.notifications || apiResponse.data || [];
+        const transformedNotifications = notificationArray.map(
+          (notification) => ({
+            ...notification,
+            // Ensure consistent field mapping
+            id:
+              notification.notification_id?.toString() ||
+              notification.id?.toString() ||
+              Date.now().toString(),
+            read: !!notification.read_at || !!notification.is_read,
+            // Keep original API data for reference
+            _apiData: notification,
+          })
+        );
+
+        // Update notifications list (append or replace)
+        if (append) {
+          setContextNotifications((prev) => [
+            ...prev,
+            ...transformedNotifications,
+          ]);
+        } else {
+          setContextNotifications(transformedNotifications);
         }
+
+        // Update unread count and total from API response
+        setContextUnreadCount(apiResponse.unread_count || 0);
+        setTotalNotifications(
+          apiResponse.total || apiResponse.total_count || 0
+        );
+
+        // Check if there are more pages
+        const currentTotal = append
+          ? contextNotifications.length + transformedNotifications.length
+          : transformedNotifications.length;
+        const hasMore =
+          currentTotal < (apiResponse.total || apiResponse.total_count || 0);
+        setHasMorePages(hasMore);
+
+        console.log(
+          '📱 NOTIFICATION: Loaded',
+          transformedNotifications.length,
+          'notifications for',
+          userType,
+          '| Total:',
+          apiResponse.total || apiResponse.total_count,
+          '| Unread:',
+          apiResponse.unread_count,
+          '| Has more:',
+          hasMore
+        );
       } else {
-        console.warn('📱 NOTIFICATION: No auth code found for', userType);
-        setContextNotifications([]);
-        setContextUnreadCount(0);
+        console.warn(
+          '📱 NOTIFICATION: API returned success=false for',
+          userType
+        );
+        if (!append) {
+          setContextNotifications([]);
+          setContextUnreadCount(0);
+          setTotalNotifications(0);
+        }
       }
     } catch (error) {
       console.error(
@@ -179,10 +181,14 @@ const NotificationScreen = ({ navigation, route }) => {
         error.message || error
       );
       console.error('📱 NOTIFICATION: Full error details:', error);
-      setContextNotifications([]);
-      setContextUnreadCount(0);
+      if (!append) {
+        setContextNotifications([]);
+        setContextUnreadCount(0);
+        setTotalNotifications(0);
+      }
     } finally {
       setContextLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -451,6 +457,35 @@ const NotificationScreen = ({ navigation, route }) => {
     } catch (error) {
       Alert.alert(t('error'), t('failedToMarkAsRead'));
     }
+  };
+
+  // Load more notifications when scrolling to the end
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMorePages && userType) {
+      const nextPage = currentPage + 1;
+      console.log(
+        '📱 NOTIFICATION: Loading more notifications, page:',
+        nextPage
+      );
+      setCurrentPage(nextPage);
+      loadNotificationsForUserType(userType, nextPage, true);
+    }
+  };
+
+  // Render footer for FlatList (loading indicator when loading more)
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size='small' color={theme.colors.primary} />
+        <Text
+          style={[styles.footerText, { color: theme.colors.textSecondary }]}
+        >
+          {t('loadingMore')}
+        </Text>
+      </View>
+    );
   };
 
   // Determine which notifications to show based on user type and context
@@ -797,7 +832,7 @@ const NotificationScreen = ({ navigation, route }) => {
             {getActiveUnreadCount() > 0 && (
               <View style={styles.unreadBadge}>
                 <Text style={styles.unreadBadgeText}>
-                  {getActiveUnreadCount()}
+                  {getActiveUnreadCount() > 99 ? '99+' : getActiveUnreadCount()}
                 </Text>
               </View>
             )}
@@ -862,6 +897,9 @@ const NotificationScreen = ({ navigation, route }) => {
               />
             }
             ListEmptyComponent={renderEmptyState}
+            ListFooterComponent={renderFooter}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
             showsVerticalScrollIndicator={false}
           />
         )}
@@ -1051,6 +1089,15 @@ const createStyles = (theme) =>
       color: '#FFFFFF',
       fontSize: 16,
       fontWeight: '600',
+    },
+    footerLoader: {
+      paddingVertical: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    footerText: {
+      marginTop: 8,
+      fontSize: 14,
     },
   });
 

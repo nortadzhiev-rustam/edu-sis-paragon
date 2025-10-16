@@ -6,8 +6,8 @@ export const Config = {
   // Base API Configuration
   // For physical devices, use your computer's IP address instead of 127.0.0.1
   // Your Mac's IP address: 192.168.10.2
-  API_BASE_URL: 'https://sis.paragonisc.edu.kh/mobile-api',
-  API_DOMAIN: 'https://sis.paragonisc.edu.kh',
+  API_BASE_URL: 'http://192.168.10.2:8000/mobile-api',
+  API_DOMAIN: 'http://192.168.10.2:8000',
 
   // API Endpoints
   API_ENDPOINTS: {

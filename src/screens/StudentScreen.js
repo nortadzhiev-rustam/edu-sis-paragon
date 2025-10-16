@@ -36,8 +36,9 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import { Config } from '../config/env';
-import ParentNotificationBadge from '../components/ParentNotificationBadge';
+import NotificationBadge from '../components/NotificationBadge';
 import MessageBadge from '../components/MessageBadge';
 import { QuickActionTile, ComingSoonBadge } from '../components';
 import { performLogout } from '../services/logoutService';
@@ -147,6 +148,7 @@ export default function StudentScreen({ navigation }) {
 
   const { theme } = useTheme();
   const { t, currentLanguage } = useLanguage();
+  const { refreshNotifications } = useNotifications();
   const fontSizes = getLanguageFontSizes(currentLanguage);
 
   // Device and orientation detection
@@ -167,8 +169,16 @@ export default function StudentScreen({ navigation }) {
   // Refresh data when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      loadStudentData();
-    }, [])
+      // Load student data first, then refresh notifications
+      // This ensures userData is updated before detecting user type
+      const refreshData = async () => {
+        await loadStudentData();
+        // Small delay to ensure AsyncStorage write completes
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        refreshNotifications();
+      };
+      refreshData();
+    }, [refreshNotifications])
   );
 
   // Compute current ISO week number
@@ -221,6 +231,13 @@ export default function StudentScreen({ navigation }) {
           ]);
           return;
         }
+
+        // Update the generic userData key to mark student as most recent user
+        // This ensures NotificationContext detects the correct user type
+        await AsyncStorage.setItem('userData', JSON.stringify(parsedUserData));
+        console.log(
+          '✅ STUDENT SCREEN: Updated userData to mark student as most recent user'
+        );
 
         // Debug: Log the entire parsed user data structure
         console.log('🔍 STUDENT SCREEN: Full parsed user data structure:', {
@@ -558,10 +575,7 @@ export default function StudentScreen({ navigation }) {
                 }}
               >
                 <FontAwesomeIcon icon={faBell} size={18} color='#fff' />
-                <ParentNotificationBadge
-                  selectedStudent={studentData}
-                  showAllStudents={false}
-                />
+                <NotificationBadge />
               </TouchableOpacity>
 
               <TouchableOpacity

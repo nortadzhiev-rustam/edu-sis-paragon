@@ -627,6 +627,12 @@ export default function TeacherScreen({ route, navigation }) {
               '✅ TEACHER SCREEN: Found teacher data:',
               teacherData.name
             );
+            // Update the generic userData key to mark teacher as most recent user
+            // This ensures NotificationContext detects the correct user type
+            await AsyncStorage.setItem('userData', JSON.stringify(teacherData));
+            console.log(
+              '✅ TEACHER SCREEN: Updated userData to mark teacher as most recent user'
+            );
             setUserData(teacherData);
           } else {
             console.log(
