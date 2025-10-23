@@ -14,6 +14,8 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
@@ -416,8 +418,13 @@ const GuardianProfileEditScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Compact Header */}
-      <View style={styles.compactHeaderContainer}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        {/* Compact Header */}
+        <View style={styles.compactHeaderContainer}>
         <View style={styles.navigationHeader}>
           <View style={styles.headerLeft}>
             <TouchableOpacity style={styles.backButton} onPress={handleBack}>
@@ -589,6 +596,7 @@ const GuardianProfileEditScreen = ({ navigation, route }) => {
           )}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

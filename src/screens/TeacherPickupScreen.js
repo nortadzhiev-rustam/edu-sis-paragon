@@ -9,6 +9,8 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -563,9 +565,14 @@ Distance: ${pending.distance || 'N/A'}`;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {renderHeader()}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        {renderHeader()}
 
-      {/* List */}
+        {/* List */}
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size={'large'} color={theme.colors.primary} />
@@ -590,6 +597,7 @@ Distance: ${pending.distance || 'N/A'}`;
           )}
         />
       )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

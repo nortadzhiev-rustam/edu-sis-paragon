@@ -278,6 +278,9 @@ const translations = {
       "Monitor your child's progress, communicate with teachers, and stay updated",
     studentDescription:
       'View assignments, check grades, and access learning materials',
+    studentParentGuardian: 'Student, Parent, Guardian',
+    studentParentGuardianDescription:
+      'Access student grades, attendance, parent and guardian features',
 
     // Menu Items
     aboutUs: 'About Us',
@@ -1375,6 +1378,9 @@ const translations = {
       'သင့်ကလေး၏ တိုးတက်မှုကို စောင့်ကြည့်ပါ၊ ဆရာများနှင့် ဆက်သွယ်ပါ၊ နောက်ဆုံးအချက်အလက်များကို ရယူပါ',
     studentDescription:
       'အလုပ်အတွက်များကို ကြည့်ရှုပါ၊ အမှတ်များကို စစ်ဆေးပါ၊ သင်ယူရေးပစ္စည်းများကို အသုံးပြုပါ',
+    studentParentGuardian: 'ကျောင်းသား၊ မိဘ၊ အုပ်ထိန်းသူ',
+    studentParentGuardianDescription:
+      'ကျောင်းသားအမှတ်များ၊ တက်ရောက်မှု၊ မိဘနှင့် အုပ်ထိန်းသူအင်္ဂါရပ်များကို အသုံးပြုပါ',
 
     // Menu Items
     aboutUs: 'ကျွန်ုပ်တို့အကြောင်း',
@@ -2254,6 +2260,8 @@ const translations = {
     teacherDescription: '访问教学工具，管理班级，跟踪学生进度',
     parentDescription: '监控您孩子的进度，与老师沟通，保持更新',
     studentDescription: '查看作业，检查成绩，访问学习材料',
+    studentParentGuardian: '学生、家长、监护人',
+    studentParentGuardianDescription: '访问学生成绩、出勤、家长和监护人功能',
 
     // Menu Items
     aboutUs: '关于我们',
@@ -3098,6 +3106,9 @@ const translations = {
       'ติดตามความก้าวหน้าของลูก สื่อสารกับครู และรับข้อมูลล่าสุด',
     studentDescription:
       'ดูงานที่ได้รับมอบหมาย ตรวจสอบเกรด และเข้าถึงสื่อการเรียนรู้',
+    studentParentGuardian: 'นักเรียน, ผู้ปกครอง, ผู้ดูแล',
+    studentParentGuardianDescription:
+      'เข้าถึงเกรดนักเรียน การเข้าเรียน และฟีเจอร์สำหรับผู้ปกครองและผู้ดูแล',
 
     // Menu Items
     aboutUs: 'เกี่ยวกับเรา',
@@ -3975,6 +3986,9 @@ const translations = {
     parentDescription:
       'តាមដានការរីកចម្រើនរបស់កូន ទំនាក់ទំនងជាមួយគ្រូ និងទទួលបានការអាប់ដេត',
     studentDescription: 'មើលកិច្ចការ ពិនិត្យពិន្ទុ និងចូលប្រើសម្ភារៈសិក្សា',
+    studentParentGuardian: 'សិស្ស, ឪពុកម្តាយ, អាណាព្យាបាល',
+    studentParentGuardianDescription:
+      'ចូលប្រើពិន្ទុសិស្ស ការចូលរៀន និងមុខងារសម្រាប់ឪពុកម្តាយនិងអាណាព្យាបាល',
 
     // Menu Items
     aboutUs: 'អំពីយើង',

@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -420,19 +421,24 @@ export default function LoginScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Back Button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
-        <FontAwesomeIcon
-          icon={faArrowLeft}
-          size={20}
-          color={theme.colors.text}
-        />
-      </TouchableOpacity>
+        {/* Back Button */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <FontAwesomeIcon
+            icon={faArrowLeft}
+            size={20}
+            color={theme.colors.text}
+          />
+        </TouchableOpacity>
 
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Animated.Image
           source={logoSource}
           style={styles.logo}
@@ -592,7 +598,8 @@ export default function LoginScreen({ route, navigation }) {
           </TouchableOpacity>
         </Animated.View>
 
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

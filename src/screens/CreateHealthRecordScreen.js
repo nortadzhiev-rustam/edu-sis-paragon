@@ -7,6 +7,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -238,23 +240,29 @@ export default function CreateHealthRecordScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
-          <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{getScreenTitle()}</Text>
-        <View style={styles.headerRight}>
-          {saving && <ActivityIndicator size="small" color="#fff" />}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
+            <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{getScreenTitle()}</Text>
+          <View style={styles.headerRight}>
+            {saving && <ActivityIndicator size="small" color="#fff" />}
+          </View>
         </View>
-      </View>
 
-      <CreateHealthRecordForm
-        recordType={recordType}
-        availableUsers={availableUsers}
-        lookupData={lookupData}
-        onSubmit={handleSubmit}
-        onCancel={handleCancel}
-      />
+        <CreateHealthRecordForm
+          recordType={recordType}
+          availableUsers={availableUsers}
+          lookupData={lookupData}
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+        />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

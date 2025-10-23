@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -275,28 +277,33 @@ export default function EditHealthInfoScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Health Info</Text>
-        <TouchableOpacity
-          style={[styles.saveButton, saving && styles.disabledButton]}
-          onPress={handleSave}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator size='small' color='#fff' />
-          ) : (
-            <FontAwesomeIcon icon={faSave} size={16} color='#fff' />
-          )}
-        </TouchableOpacity>
-      </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <FontAwesomeIcon icon={faArrowLeft} size={18} color='#fff' />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Edit Health Info</Text>
+          <TouchableOpacity
+            style={[styles.saveButton, saving && styles.disabledButton]}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator size='small' color='#fff' />
+            ) : (
+              <FontAwesomeIcon icon={faSave} size={16} color='#fff' />
+            )}
+          </TouchableOpacity>
+        </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Medical Conditions Section */}
         {renderSection(
           'Medical Conditions',
@@ -427,6 +434,7 @@ export default function EditHealthInfoScreen({ route, navigation }) {
           </>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

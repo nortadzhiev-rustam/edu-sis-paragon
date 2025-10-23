@@ -8,6 +8,7 @@ const getFontSize = (baseSize, language) => {
     my: 0.75, // Myanmar - reduce by 25%
     zh: 0.95, // Chinese - reduce by 5%
     th: 0.95, // Thai - reduce by 5%
+    km: 0.95, // Khmer - reduce by 5%
     en: 1.0, // English - no change
   };
 
@@ -21,6 +22,7 @@ const getLineHeight = (fontSize, language) => {
     my: 1.4, // Myanmar - normal line spacing to prevent cutting
     zh: 1.3, // Chinese - normal spacing
     th: 1.3, // Thai - normal spacing
+    km: 1.5, // Khmer - increased line spacing to prevent cutting
     en: 1.3, // English - normal spacing
   };
 

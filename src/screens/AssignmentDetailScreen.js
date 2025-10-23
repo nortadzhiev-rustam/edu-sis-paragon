@@ -10,6 +10,8 @@ import {
   TextInput,
   Linking,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -545,8 +547,13 @@ export default function AssignmentDetailScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Compact Header */}
-      <View style={styles.compactHeaderContainer}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        {/* Compact Header */}
+        <View style={styles.compactHeaderContainer}>
         {/* Navigation Header */}
         <View style={styles.navigationHeader}>
           <TouchableOpacity
@@ -1161,6 +1168,7 @@ export default function AssignmentDetailScreen({ navigation, route }) {
           </View>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

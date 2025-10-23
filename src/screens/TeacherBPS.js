@@ -10,6 +10,8 @@ import {
   RefreshControl,
   Modal,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -1195,8 +1197,13 @@ export default function TeacherBPS({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Compact Header */}
-      <View style={styles.compactHeaderContainer}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        {/* Compact Header */}
+        <View style={styles.compactHeaderContainer}>
         {/* Navigation Header */}
         <View style={styles.navigationHeader}>
           <TouchableOpacity
@@ -2243,6 +2250,7 @@ export default function TeacherBPS({ route, navigation }) {
           <Text style={styles.loadingText}>Processing...</Text>
         </View>
       )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

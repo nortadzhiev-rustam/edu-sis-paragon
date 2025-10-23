@@ -851,7 +851,6 @@ export default function HomeScreen({ navigation }) {
       </TouchableOpacity>
 
       <View style={styles.content}>
-        <Text style={styles.title}>{t('welcomeTo')}</Text>
         <Image source={logoSource} style={styles.logo} resizeMode='contain' />
 
         <Text style={styles.subtitle}>{t('chooseYourRole')}</Text>
@@ -907,9 +906,9 @@ export default function HomeScreen({ navigation }) {
                   color='#FF9500'
                 />
               </View>
-              <Text style={styles.roleText}>Student, Parent, Guardian</Text>
-              <Text style={styles.roleDescription} numberOfLines={1}>
-                Access student grades, attendance, parent and guardian features
+              <Text style={styles.roleText}>{t('studentParentGuardian')}</Text>
+              <Text style={styles.roleDescription} numberOfLines={2}>
+                {t('studentParentGuardianDescription')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1190,11 +1189,13 @@ const createStyles = (
       fontWeight: '600',
       color: theme.colors.text,
       lineHeight: fontSizes.bodyLineHeight,
+      paddingVertical: 2,
     },
     roleDescription: {
       fontSize: fontSizes.bodySmall,
       color: theme.colors.textSecondary,
       lineHeight: fontSizes.bodySmallLineHeight,
+      paddingVertical: 2,
     },
     sectionTitle: {
       fontSize: fontSizes.subtitle,

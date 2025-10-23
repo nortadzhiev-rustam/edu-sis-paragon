@@ -8,6 +8,8 @@ import {
   Alert,
   TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -329,8 +331,13 @@ const TeacherMessagingScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with Collapsible Search */}
-      <View style={styles.headerContainer}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        {/* Header with Collapsible Search */}
+        <View style={styles.headerContainer}>
         {/* Navigation Header */}
         <View
           style={[
@@ -456,6 +463,7 @@ const TeacherMessagingScreen = ({ navigation, route }) => {
           showsVerticalScrollIndicator={false}
         />
       )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

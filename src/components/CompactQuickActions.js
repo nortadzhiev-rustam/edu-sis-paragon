@@ -17,7 +17,7 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -297,34 +297,32 @@ export default function CompactQuickActions({
               </View>
             )}
 
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <ScrollView
-                style={styles.modalScroll}
-                contentContainerStyle={styles.modalScrollContent}
-                showsVerticalScrollIndicator={false}
-                scrollEnabled={!isEditMode}
-              >
-                <View style={styles.modalGrid}>
-                  {orderedActions.map((action, index) => (
-                    <DraggableTile
-                      key={action.id}
-                      action={action}
-                      index={index}
-                      isEditMode={isEditMode}
-                      onReorder={handleReorder}
-                      onPress={() => {
-                        if (!isEditMode) {
-                          setShowAllModal(false);
-                          action.onPress?.();
-                        }
-                      }}
-                      theme={theme}
-                    />
-                  ))}
-                </View>
-              </ScrollView>
-            </GestureHandlerRootView>
-            </Animated.View>
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={!isEditMode}
+            >
+              <View style={styles.modalGrid}>
+                {orderedActions.map((action, index) => (
+                  <DraggableTile
+                    key={action.id}
+                    action={action}
+                    index={index}
+                    isEditMode={isEditMode}
+                    onReorder={handleReorder}
+                    onPress={() => {
+                      if (!isEditMode) {
+                        setShowAllModal(false);
+                        action.onPress?.();
+                      }
+                    }}
+                    theme={theme}
+                  />
+                ))}
+              </View>
+            </ScrollView>
+          </Animated.View>
           </GestureDetector>
         </View>
       </Modal>
