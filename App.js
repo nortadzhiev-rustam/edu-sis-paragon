@@ -338,7 +338,7 @@ export default function App() {
                   <StatusBar style='auto' />
 
                   {/* Global Maintenance Banner - appears on all screens */}
-                  <GlobalMaintenanceBanner />
+                  {/* <GlobalMaintenanceBanner /> */}
 
                   <Stack.Navigator
                     initialRouteName='Home'

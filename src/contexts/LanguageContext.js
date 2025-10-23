@@ -89,6 +89,7 @@ const translations = {
     parent: 'Parent',
     student: 'Student',
     welcomeTo: 'Welcome to',
+    welcomeBack: 'Welcome Back',
 
     // Academic
     assessments: 'Assessments',
@@ -97,6 +98,8 @@ const translations = {
     homework: 'Homework',
     behavior: 'BPS Management',
     discipline: 'Discipline',
+    todaysSchedule: "Today's Schedule",
+    noClassesToday: 'No classes scheduled for today',
 
     // Settings
     language: 'Language',
@@ -126,6 +129,11 @@ const translations = {
     networkError: 'Network error. Please try again.',
     loginSuccess: 'Login successful',
     loginError: 'Login failed. Please check your credentials.',
+    accessDenied: 'Access Denied',
+    noStudentDataFound: 'No student data found',
+    failedToLoadStudentData: 'Failed to load student data',
+    notProvided: 'Not provided',
+    backToLogin: 'Back to Login',
 
     // Specific UI Elements
     parentDashboard: 'Parent Dashboard',
@@ -313,6 +321,16 @@ const translations = {
     behaviorPoints: 'Behavior Points',
     positive: 'Positive',
     negative: 'Negative',
+    positivePoints: 'Positive Points',
+    negativePoints: 'Negative Points',
+    attendanceRate: 'Attendance Rate',
+    averageGrade: 'Average Grade',
+    attendanceTaken: 'Attendance Taken',
+    homeworkAssigned: 'Homework Assigned',
+    gradeEntry: 'Grade Entry',
+    pendingAssignments: 'Pending Assignments',
+    newAssignment: 'New Assignment',
+    newGradePosted: 'New Grade Posted',
     detentions: 'Detentions',
     served: 'Served',
     notServed: 'Not Served',
@@ -329,14 +347,32 @@ const translations = {
     viewTimetable: 'Timetable',
     manageBPS: 'Manage BPS',
     quickActions: 'Quick Actions',
+    allQuickActions: 'All Quick Actions',
     features: 'Features',
     appPreferences: 'App preferences and notifications',
     homeroom: 'Homeroom',
+    done: 'Done',
+    seeAll: 'See All',
+    longPressDragReorder: 'Long press and drag to reorder',
     // Time and dates
     today: 'Today',
     yesterday: 'Yesterday',
     thisWeek: 'This Week',
     thisMonth: 'This Month',
+    justNow: 'Just now',
+    now: 'Now',
+    minAgo: 'min ago',
+    minsAgo: 'mins ago',
+    hourAgo: 'hour ago',
+    hoursAgo: 'hours ago',
+    dayAgo: 'day ago',
+    daysAgo: 'days ago',
+    minutes: 'minutes',
+    week1: 'Week 1',
+    week2: 'Week 2',
+    week3: 'Week 3',
+    week4: 'Week 4',
+    week5: 'Week 5',
 
     // Status
     present: 'Present',
@@ -396,6 +432,11 @@ const translations = {
     library: 'Library',
     analyticsStats: 'Analytics & Stats',
     resourcesFiles: 'Resources & Files',
+
+    // Activity & Performance
+    thisWeeksPerformance: "This Week's Performance",
+    recentActivity: 'Recent Activity',
+    noRecentActivity: 'No recent activity',
 
     // Guardian Management
     guardianManagement: 'Guardian Management',
@@ -1151,6 +1192,7 @@ const translations = {
     parent: 'မိဘ',
     student: 'ကျောင်းသား/သူ',
     welcomeTo: 'မှကြိုဆိုပါတယ်။',
+    welcomeBack: 'ပြန်လည်ကြိုဆိုပါသည်',
 
     // Academic
     assessments: 'အမှတ်များ',
@@ -1159,6 +1201,8 @@ const translations = {
     homework: 'စာတွေ',
     behavior: 'BPS စီမံခန့်ခွဲမှု',
     discipline: 'စည်းကမ်း',
+    todaysSchedule: 'ယနေ့အချိန်ဇယား',
+    noClassesToday: 'ယနေ့အတွက် သင်တန်းများမရှိပါ',
 
     // Settings
     language: 'ဘာသာစကား',
@@ -1184,6 +1228,11 @@ const translations = {
     networkError: 'ကွန်ယက်အမှား။ ပြန်လည်ကြိုးစားပါ။',
     loginSuccess: 'အောင်မြင်စွာဝင်ရောက်ပြီး',
     loginError: 'ဝင်ရောက်မှုမအောင်မြင်ပါ။ အချက်အလက်များကိုစစ်ဆေးပါ။',
+    accessDenied: 'ဝင်ခွင့်ပိတ်ပင်ထားသည်',
+    noStudentDataFound: 'ကျောင်းသားဒေတာမတွေ့ပါ',
+    failedToLoadStudentData: 'ကျောင်းသားဒေတာဖွင့်ရန်မအောင်မြင်ပါ',
+    notProvided: 'မပေးထားပါ',
+    backToLogin: 'အကောင့်ဝင်စာမျက်နှာသို့ပြန်သွားရန်',
 
     // Specific UI Elements
     parentDashboard: 'မိဘထိန်းချုပ်မှုစာမျက်နှာ',
@@ -1369,6 +1418,16 @@ const translations = {
     behaviorPoints: 'အပြုအမူအမှတ်များ',
     positive: 'အပြုသဘော',
     negative: 'အနုတ်လက္ခဏာ',
+    positivePoints: 'အပြုသဘောအမှတ်များ',
+    negativePoints: 'အနုတ်လက္ခဏာအမှတ်များ',
+    attendanceRate: 'တက်ရောက်မှုနှုန်း',
+    averageGrade: 'ပျမ်းမျှအမှတ်',
+    attendanceTaken: 'တက်ရောက်မှုယူပြီး',
+    homeworkAssigned: 'အိမ်စာပေးအပ်ပြီး',
+    gradeEntry: 'အမှတ်ထည့်သွင်းခြင်း',
+    pendingAssignments: 'စောင့်ဆိုင်းနေသောအလုပ်များ',
+    newAssignment: 'အလုပ်အသစ်',
+    newGradePosted: 'အမှတ်အသစ်တင်ပြီး',
     detentions: 'ထိန်းသိမ်းမှုများ',
     served: 'ပြီးစီး',
     notServed: 'မပြီးစီး',
@@ -1385,14 +1444,32 @@ const translations = {
     viewTimetable: 'အချိန်ဇယားကြည့်ရန်',
     manageBPS: 'BPS စီမံခန့်ခွဲရန်',
     quickActions: 'မြန်ဆန်သောလုပ်ဆောင်ချက်များ',
+    allQuickActions: 'လုပ်ဆောင်ချက်အားလုံး',
     features: 'လုပ်ဆောင်ချက်များ',
     appPreferences: 'အက်ပ်လိုက်လျောညီထွေမှုများနှင့် အကြောင်းကြားချက်များ',
     homeroom: 'ဟိုမိုင်း',
+    done: 'ပြီးပြီ',
+    seeAll: 'အားလုံးကြည့်ရန်',
+    longPressDragReorder: 'ပြန်စီရန် ကြာကြာနှိပ်ပြီးဆွဲပါ',
     // Time and dates
     today: 'ယနေ့',
     yesterday: 'မနေ့က',
     thisWeek: 'ဤအပတ်',
     thisMonth: 'ဤလ',
+    justNow: 'ယခုလေးတင်',
+    now: 'ယခု',
+    minAgo: 'မိနစ်အရင်က',
+    minsAgo: 'မိနစ်အရင်က',
+    hourAgo: 'နာရီအရင်က',
+    hoursAgo: 'နာရီအရင်က',
+    dayAgo: 'ရက်အရင်က',
+    daysAgo: 'ရက်အရင်က',
+    minutes: 'မိနစ်',
+    week1: 'အပတ် ၁',
+    week2: 'အပတ် ၂',
+    week3: 'အပတ် ၃',
+    week4: 'အပတ် ၄',
+    week5: 'အပတ် ၅',
 
     // Status
     present: 'တက်ရောက်',
@@ -1438,6 +1515,11 @@ const translations = {
     library: 'စာကြည့်တိုက်',
     analyticsStats: 'ခွဲခြမ်းစိတ်ဖြာမှုနှင့် စာရင်းအင်းများ',
     resourcesFiles: 'အရင်းအမြစ်များနှင့် ဖိုင်များ',
+
+    // Activity & Performance
+    thisWeeksPerformance: 'ဤအပတ်၏စွမ်းဆောင်ရည်',
+    recentActivity: 'မကြာသေးမီလုပ်ဆောင်ချက်များ',
+    noRecentActivity: 'မကြာသေးမီလုပ်ဆောင်ချက်များမရှိပါ',
 
     // Reports
     myReports: 'ကျွန်ုပ်၏ အစီရင်ခံစာများ',
@@ -2004,6 +2086,7 @@ const translations = {
     parent: '家长',
     student: '学生',
     welcomeTo: '欢迎来到',
+    welcomeBack: '欢迎回来',
 
     // Academic
     assessments: '评估',
@@ -2012,6 +2095,8 @@ const translations = {
     homework: '作业',
     behavior: 'BPS管理',
     discipline: '纪律',
+    todaysSchedule: '今日课程表',
+    noClassesToday: '今天没有课程安排',
 
     // Settings
     language: '语言',
@@ -2036,6 +2121,11 @@ const translations = {
     networkError: '网络错误，请重试。',
     loginSuccess: '登录成功',
     loginError: '登录失败，请检查您的凭据。',
+    accessDenied: '访问被拒绝',
+    noStudentDataFound: '未找到学生数据',
+    failedToLoadStudentData: '加载学生数据失败',
+    notProvided: '未提供',
+    backToLogin: '返回登录',
 
     // Specific UI Elements
     parentDashboard: '家长仪表板',
@@ -2206,6 +2296,16 @@ const translations = {
     behaviorPoints: '行为分数',
     positive: '正面',
     negative: '负面',
+    positivePoints: '正面分数',
+    negativePoints: '负面分数',
+    attendanceRate: '出勤率',
+    averageGrade: '平均成绩',
+    attendanceTaken: '已记录出勤',
+    homeworkAssigned: '已布置作业',
+    gradeEntry: '成绩录入',
+    pendingAssignments: '待完成作业',
+    newAssignment: '新作业',
+    newGradePosted: '新成绩已发布',
     detentions: '留校',
     served: '已完成',
     notServed: '未完成',
@@ -2222,15 +2322,33 @@ const translations = {
     viewTimetable: '查看时间表',
     manageBPS: '管理BPS',
     quickActions: '快速操作',
+    allQuickActions: '所有快速操作',
     features: '功能',
     appPreferences: '应用偏好设置和通知',
     homeroom: 'Homeroom',
+    done: '完成',
+    seeAll: '查看全部',
+    longPressDragReorder: '长按并拖动以重新排序',
 
     // Time and dates
     today: '今天',
     yesterday: '昨天',
     thisWeek: '本周',
     thisMonth: '本月',
+    justNow: '刚刚',
+    now: '现在',
+    minAgo: '分钟前',
+    minsAgo: '分钟前',
+    hourAgo: '小时前',
+    hoursAgo: '小时前',
+    dayAgo: '天前',
+    daysAgo: '天前',
+    minutes: '分钟',
+    week1: '第1周',
+    week2: '第2周',
+    week3: '第3周',
+    week4: '第4周',
+    week5: '第5周',
 
     // Status
     present: '出席',
@@ -2276,6 +2394,11 @@ const translations = {
     library: '图书馆',
     analyticsStats: '分析与统计',
     resourcesFiles: '资源与文件',
+
+    // Activity & Performance
+    thisWeeksPerformance: '本周表现',
+    recentActivity: '最近活动',
+    noRecentActivity: '无最近活动',
 
     // Reports
     myReports: '我的报告',
@@ -2796,6 +2919,7 @@ const translations = {
     parent: 'ผู้ปกครอง',
     student: 'นักเรียน',
     welcomeTo: 'ยินดีต้อนรับสู่',
+    welcomeBack: 'ยินดีต้อนรับกลับมา',
 
     // Academic
     assessments: 'การประเมิน',
@@ -2804,6 +2928,8 @@ const translations = {
     homework: 'การบ้าน',
     behavior: 'การจัดการ BPS',
     discipline: 'วินัย',
+    todaysSchedule: 'ตารางเรียนวันนี้',
+    noClassesToday: 'ไม่มีคลาสเรียนในวันนี้',
 
     // Settings
     language: 'ภาษา',
@@ -2828,6 +2954,11 @@ const translations = {
     networkError: 'ข้อผิดพลาดเครือข่าย กรุณาลองใหม่อีกครั้ง',
     loginSuccess: 'เข้าสู่ระบบสำเร็จ',
     loginError: 'เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบข้อมูลของคุณ',
+    accessDenied: 'การเข้าถึงถูกปฏิเสธ',
+    noStudentDataFound: 'ไม่พบข้อมูลนักเรียน',
+    failedToLoadStudentData: 'โหลดข้อมูลนักเรียนไม่สำเร็จ',
+    notProvided: 'ไม่ได้ระบุ',
+    backToLogin: 'กลับไปหน้าเข้าสู่ระบบ',
 
     // Specific UI Elements
     parentDashboard: 'แดชบอร์ดผู้ปกครอง',
@@ -3010,6 +3141,16 @@ const translations = {
     behaviorPoints: 'คะแนนพฤติกรรม',
     positive: 'เชิงบวก',
     negative: 'เชิงลบ',
+    positivePoints: 'คะแนนเชิงบวก',
+    negativePoints: 'คะแนนเชิงลบ',
+    attendanceRate: 'อัตราการเข้าเรียน',
+    averageGrade: 'เกรดเฉลี่ย',
+    attendanceTaken: 'บันทึกการเข้าเรียนแล้ว',
+    homeworkAssigned: 'มอบหมายการบ้านแล้ว',
+    gradeEntry: 'บันทึกเกรด',
+    pendingAssignments: 'งานที่รอดำเนินการ',
+    newAssignment: 'งานใหม่',
+    newGradePosted: 'เกรดใหม่ถูกโพสต์',
     detentions: 'การกักตัว',
     served: 'ดำเนินการแล้ว',
     notServed: 'ยังไม่ดำเนินการ',
@@ -3026,15 +3167,33 @@ const translations = {
     viewTimetable: 'ดูตารางเรียน',
     manageBPS: 'จัดการ BPS',
     quickActions: 'การดำเนินการด่วน',
+    allQuickActions: 'การดำเนินการด่วนทั้งหมด',
     features: 'คุณสมบัติ',
     appPreferences: 'การตั้งค่าแอปและการแจ้งเตือน',
     homeroom: 'ห้องเรียน',
+    done: 'เสร็จสิ้น',
+    seeAll: 'ดูทั้งหมด',
+    longPressDragReorder: 'กดค้างและลากเพื่อจัดเรียงใหม่',
 
     // Time and dates
     today: 'วันนี้',
     yesterday: 'เมื่อวาน',
     thisWeek: 'สัปดาห์นี้',
     thisMonth: 'เดือนนี้',
+    justNow: 'เมื่อสักครู่',
+    now: 'ตอนนี้',
+    minAgo: 'นาทีที่แล้ว',
+    minsAgo: 'นาทีที่แล้ว',
+    hourAgo: 'ชั่วโมงที่แล้ว',
+    hoursAgo: 'ชั่วโมงที่แล้ว',
+    dayAgo: 'วันที่แล้ว',
+    daysAgo: 'วันที่แล้ว',
+    minutes: 'นาที',
+    week1: 'สัปดาห์ที่ 1',
+    week2: 'สัปดาห์ที่ 2',
+    week3: 'สัปดาห์ที่ 3',
+    week4: 'สัปดาห์ที่ 4',
+    week5: 'สัปดาห์ที่ 5',
 
     // Status
     present: 'มาเรียน',
@@ -3080,6 +3239,11 @@ const translations = {
     library: 'ห้องสมุด',
     analyticsStats: 'การวิเคราะห์และสถิติ',
     resourcesFiles: 'ทรัพยากรและไฟล์',
+
+    // Activity & Performance
+    thisWeeksPerformance: 'ผลการปฏิบัติงานสัปดาห์นี้',
+    recentActivity: 'กิจกรรมล่าสุด',
+    noRecentActivity: 'ไม่มีกิจกรรมล่าสุด',
 
     // Reports
     myReports: 'รายงานของฉัน',
@@ -3617,6 +3781,7 @@ const translations = {
     parent: 'ឪពុកម្តាយ',
     student: 'សិស្ស',
     welcomeTo: 'សូមស្វាគមន៍មកកាន់',
+    welcomeBack: 'សូមស្វាគមន៍ការត្រលប់មកវិញ',
 
     // Academic
     assessments: 'ការវាយតម្លៃ',
@@ -3625,6 +3790,8 @@ const translations = {
     homework: 'កិច្ចការផ្ទះ',
     behavior: 'ការគ្រប់គ្រង BPS',
     discipline: 'វិន័យ',
+    todaysSchedule: 'កាលវិភាគថ្ងៃនេះ',
+    noClassesToday: 'គ្មានថ្នាក់រៀនសម្រាប់ថ្ងៃនេះ',
 
     // Settings
     language: 'ភាសា',
@@ -3649,6 +3816,11 @@ const translations = {
     networkError: 'កំហុសបណ្តាញ។ សូមព្យាយាមម្តងទៀត។',
     loginSuccess: 'ចូលបានជោគជ័យ',
     loginError: 'ចូលមិនបានជោគជ័យ។ សូមពិនិត្យព័ត៌មានរបស់អ្នក។',
+    accessDenied: 'ការចូលប្រើត្រូវបានបដិសេធ',
+    noStudentDataFound: 'រកមិនឃើញទិន្នន័យសិស្ស',
+    failedToLoadStudentData: 'បរាជ័យក្នុងការផ្ទុកទិន្នន័យសិស្ស',
+    notProvided: 'មិនបានផ្តល់',
+    backToLogin: 'ត្រលប់ទៅការចូល',
 
     // Specific UI Elements
     parentDashboard: 'ផ្ទាំងគ្រប់គ្រងឪពុកម្តាយ',
@@ -3846,6 +4018,16 @@ const translations = {
     behaviorPoints: 'ពិន្ទុអាកប្បកិរិយា',
     positive: 'វិជ្ជមាន',
     negative: 'អវិជ្ជមាន',
+    positivePoints: 'ពិន្ទុវិជ្ជមាន',
+    negativePoints: 'ពិន្ទុអវិជ្ជមាន',
+    attendanceRate: 'អត្រាវត្តមាន',
+    averageGrade: 'ពិន្ទុមធ្យម',
+    attendanceTaken: 'បានកត់ត្រាវត្តមាន',
+    homeworkAssigned: 'បានចាត់តាំងកិច្ចការផ្ទះ',
+    gradeEntry: 'បញ្ចូលពិន្ទុ',
+    pendingAssignments: 'កិច្ចការកំពុងរង់ចាំ',
+    newAssignment: 'កិច្ចការថ្មី',
+    newGradePosted: 'ពិន្ទុថ្មីត្រូវបានបង្ហោះ',
     detentions: 'ការឃុំខ្លួន',
     served: 'បានបម្រើ',
     notServed: 'មិនបានបម្រើ',
@@ -3862,15 +4044,33 @@ const translations = {
     viewTimetable: 'កាលវិភាគ',
     manageBPS: 'គ្រប់គ្រង BPS',
     quickActions: 'សកម្មភាពរហ័ស',
+    allQuickActions: 'សកម្មភាពរហ័សទាំងអស់',
     features: 'លក្ខណៈពិសេស',
     appPreferences: 'ចំណូលចិត្តកម្មវិធី និងការជូនដំណឹង',
     homeroom: 'បន្ទប់ផ្ទះ',
+    done: 'រួចរាល់',
+    seeAll: 'មើលទាំងអស់',
+    longPressDragReorder: 'ចុចយូរ និងអូសដើម្បីរៀបចំឡើងវិញ',
 
     // Time and dates
     today: 'ថ្ងៃនេះ',
     yesterday: 'ម្សិលមិញ',
     thisWeek: 'សប្តាហ៍នេះ',
     thisMonth: 'ខែនេះ',
+    justNow: 'ទើបតែ',
+    now: 'ឥឡូវនេះ',
+    minAgo: 'នាទីមុន',
+    minsAgo: 'នាទីមុន',
+    hourAgo: 'ម៉ោងមុន',
+    hoursAgo: 'ម៉ោងមុន',
+    dayAgo: 'ថ្ងៃមុន',
+    daysAgo: 'ថ្ងៃមុន',
+    minutes: 'នាទី',
+    week1: 'សប្តាហ៍ទី 1',
+    week2: 'សប្តាហ៍ទី 2',
+    week3: 'សប្តាហ៍ទី 3',
+    week4: 'សប្តាហ៍ទី 4',
+    week5: 'សប្តាហ៍ទី 5',
 
     // Status
     present: 'មាន',
@@ -3923,6 +4123,11 @@ const translations = {
     library: 'បណ្ណាល័យ',
     analyticsStats: 'ការវិភាគ និងស្ថិតិ',
     resourcesFiles: 'ធនធាន និងឯកសារ',
+
+    // Activity & Performance
+    thisWeeksPerformance: 'ការអនុវត្តសប្តាហ៍នេះ',
+    recentActivity: 'សកម្មភាពថ្មីៗ',
+    noRecentActivity: 'គ្មានសកម្មភាពថ្មីៗ',
 
     // Guardian Management
     relationToChild: 'ទំនាក់ទំនងជាមួយកុមារ',

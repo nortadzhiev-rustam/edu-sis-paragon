@@ -9,6 +9,10 @@ export * from './authService';
 // Staff Services (New API endpoints)
 export * from './staffService';
 export * from './staffReportsService';
+export * from './teacherAssessmentService';
+
+// Student Services
+export * from './studentAssessmentService';
 
 // Existing Services
 export * from './homeworkService';
@@ -93,6 +97,42 @@ export {
   getReportSummary,
   validateReportParameters,
 } from './staffReportsService';
+
+/**
+ * Teacher Assessment service functions
+ */
+export {
+  // Unified endpoints (recommended)
+  createAssessment,
+  saveGrade,
+
+  // Assessment List & Details
+  getTeacherAssessments,
+  getAssessmentDetails,
+  getGradeStudents,
+  getAssessmentOptions,
+
+  // Legacy endpoints (still supported)
+  saveSummativeGrade,
+  saveFormativeGrade,
+  saveSummativeGradesBulk,
+  saveFormativeGradesBulk,
+  createSummativeAssessment,
+  createFormativeAssessment,
+} from './teacherAssessmentService';
+
+/**
+ * Student Assessment service functions
+ */
+export {
+  // Unified student assessment API
+  getStudentAssessments,
+  transformLegacyToUnified,
+  filterBySubject,
+  filterByGradingType,
+  getUniqueSubjects,
+  calculateSubjectAverage,
+} from './studentAssessmentService';
 
 /**
  * Service configuration and utilities

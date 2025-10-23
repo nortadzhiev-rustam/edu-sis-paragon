@@ -49,9 +49,10 @@ import TeacherScreen from '../../shared/src/screens/TeacherScreen';
 ```
 
 **After:**
+
 ```javascript
-import { ThemeProvider } from './src/contexts/ThemeContext';
-import TeacherScreen from './src/screens/TeacherScreen';
+import {ThemeProvider} from './ThemeContext';
+import TeacherScreen from './TeacherScreen';
 ```
 
 ### File Structure

@@ -81,21 +81,22 @@ import MaintenanceBanner from '../components/MaintenanceBanner';
 ### Option B: Add to All Screens (Global)
 
 #### Method 1: Add to App.js or Main Navigator
+
 ```javascript
 // In App.js or your main navigator
-import MaintenanceBanner from './src/components/MaintenanceBanner';
+import MaintenanceBanner from './MaintenanceBanner';
 
 function App() {
-  return (
-    <NavigationContainer>
-      {/* Add banner at the top level */}
-      <MaintenanceBanner />
-      
-      <Stack.Navigator>
-        {/* Your screens */}
-      </Stack.Navigator>
-    </NavigationContainer>
-  );
+    return (
+        <NavigationContainer>
+            {/* Add banner at the top level */}
+            <MaintenanceBanner/>
+
+            <Stack.Navigator>
+                {/* Your screens */}
+            </Stack.Navigator>
+        </NavigationContainer>
+    );
 }
 ```
 

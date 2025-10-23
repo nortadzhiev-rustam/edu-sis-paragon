@@ -82,7 +82,7 @@ const monthlyEvents = await calendarService.getMonthlyEvents(2025, 1);
 Run the provided example component to test functionality:
 
 ```javascript
-import PersonalCalendarExample from './examples/PersonalCalendarExample';
+import PersonalCalendarExample from './PersonalCalendarExample';
 
 // The example includes:
 // - Demo mode testing
