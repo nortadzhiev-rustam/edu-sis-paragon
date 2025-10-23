@@ -2,7 +2,7 @@
   "expo": {
     "name": "Paragon ISC",
     "slug": "edu-sis-paragon",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -53,7 +53,7 @@
       "icon": "./assets/paragon-app-logo.icon",
       "bundleIdentifier": "com.edunovaasia.paragon",
       "buildNumber": "1",
-      "runtimeVersion": "1.0.0",
+      "runtimeVersion": "1.0.1",
       "googleServicesFile": "./GoogleService-Info.plist",
       "config": {
         "usesNonExemptEncryption": false
@@ -88,7 +88,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.edunovaasia.paragon",
-      "runtimeVersion": "1.0.0",
+      "runtimeVersion": "1.0.1",
       "googleServicesFile": "./google-services.json",
 
       "versionCode": 2

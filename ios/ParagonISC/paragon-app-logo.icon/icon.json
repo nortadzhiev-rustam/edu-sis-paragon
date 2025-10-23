@@ -5,7 +5,15 @@
   "groups" : [
     {
       "blend-mode" : "normal",
-      "blur-material" : 0.5,
+      "blur-material-specializations" : [
+        {
+          "value" : 0.5
+        },
+        {
+          "appearance" : "dark",
+          "value" : 1
+        }
+      ],
       "hidden-specializations" : [
         {
           "idiom" : "square",
@@ -57,15 +65,33 @@
           ]
         },
         {
+          "blend-mode" : "normal",
           "fill-specializations" : [
+            {
+              "value" : "automatic"
+            },
             {
               "appearance" : "dark",
               "value" : {
-                "solid" : "srgb:0.97487,0.99008,1.00000,1.00000"
+                "solid" : "srgb:0.96808,1.00000,0.94621,1.00000"
+              }
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "solid" : "srgb:0.46218,0.49555,1.00000,0.66000"
               }
             }
           ],
-          "glass" : false,
+          "glass-specializations" : [
+            {
+              "value" : false
+            },
+            {
+              "appearance" : "tinted",
+              "value" : false
+            }
+          ],
           "image-name" : "Remove background project 2.png",
           "name" : "Remove background project 2",
           "position-specializations" : [
@@ -99,15 +125,37 @@
           -45.98046875
         ]
       },
-      "shadow" : {
-        "kind" : "layer-color",
-        "opacity" : 0.5
-      },
+      "shadow-specializations" : [
+        {
+          "value" : {
+            "kind" : "layer-color",
+            "opacity" : 0.5
+          }
+        },
+        {
+          "appearance" : "dark",
+          "value" : {
+            "kind" : "neutral",
+            "opacity" : 1
+          }
+        }
+      ],
       "specular" : true,
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
-      }
+      "translucency-specializations" : [
+        {
+          "value" : {
+            "enabled" : true,
+            "value" : 0.5
+          }
+        },
+        {
+          "appearance" : "dark",
+          "value" : {
+            "enabled" : true,
+            "value" : 1
+          }
+        }
+      ]
     }
   ],
   "supported-platforms" : {
