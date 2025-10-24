@@ -1165,6 +1165,7 @@ const createStyles = (
       ...theme.shadows.small,
       marginLeft: 0,
       elevation: 5,
+        overflow: 'hidden',
     },
     roleButtonHorizontal: {
       width: '48%',

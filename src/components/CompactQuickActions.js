@@ -23,6 +23,7 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
+  runOnJS,
 } from 'react-native-reanimated';
 import DraggableTile from './DraggableTile';
 
@@ -74,20 +75,25 @@ export default function CompactQuickActions({
 
   // Pan gesture for dragging modal (Reanimated v3 API)
   const panGesture = Gesture.Pan()
+    .activeOffsetY([10, 1000]) // Only activate when dragging down
+    .failOffsetY([-10, 10]) // Fail if dragging up or minimal movement
+    .failOffsetX([-15, 15]) // Fail if horizontal movement is significant
     .onUpdate((event) => {
+      'worklet';
       // Only allow dragging down
       if (event.translationY > 0) {
         translateY.value = event.translationY;
       }
     })
     .onEnd((event) => {
+      'worklet';
       // If dragged down more than 100 px or velocity is high, close modal
       if (translateY.value > 100 || event.velocityY > 500) {
-        translateY.value = withTiming(SCREEN_HEIGHT, { duration: 200 });
-        // Use a timeout to close the modal after animation
-        setTimeout(() => {
-          closeModal();
-        }, 200);
+        translateY.value = withTiming(SCREEN_HEIGHT, { duration: 200 }, () => {
+          'worklet';
+          // Use runOnJS to close the modal after animation completes
+          runOnJS(closeModal)();
+        });
       } else {
         // Otherwise, spring back to the original position
         translateY.value = withSpring(0);
@@ -237,15 +243,16 @@ export default function CompactQuickActions({
         }}
       >
         <View style={styles.modalOverlay}>
-          <GestureDetector gesture={panGesture}>
-            <Animated.View style={[styles.modalContent, animatedStyle]}>
-              {/* Drag Handle */}
-              <View style={styles.dragHandle}>
+          <Animated.View style={[styles.modalContent, animatedStyle]}>
+            {/* Drag Handle - with gesture detector */}
+            <GestureDetector gesture={panGesture}>
+              <Animated.View style={styles.dragHandle}>
                 <View style={styles.dragHandleLine} />
-              </View>
+              </Animated.View>
+            </GestureDetector>
 
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{t('allQuickActions')}</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('allQuickActions')}</Text>
               <View style={styles.headerButtons}>
                 <TouchableOpacity
                   onPress={() => setIsEditMode(!isEditMode)}
@@ -323,7 +330,6 @@ export default function CompactQuickActions({
               </View>
             </ScrollView>
           </Animated.View>
-          </GestureDetector>
         </View>
       </Modal>
     </>
