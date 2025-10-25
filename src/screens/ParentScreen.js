@@ -966,7 +966,7 @@ export default function ParentScreen({navigation}) {
                 >
                     {item.photo ? (
                         <Image
-                            source={{uri: Config.API_DOMAIN + item.student_photo}}
+                            source={{uri: item.student_photo}}
                             style={[
                                 styles.studentPhoto,
                                 isSelected && styles.selectedStudentPhoto,
