@@ -127,8 +127,16 @@ const demoParentData = {
   id: 'DEMO_P001',
   username: 'demo_parent',
   name: 'Michael Chen',
+    parent_info: {
+    name: 'Michael Chen',
+    parent_email: 'michael.chen@demo.com',
+    phone: '+1234567890',
+    address: '123 Demo Street',
+    join_date: '2024-01-01',
+  },
   email: 'michael.chen@demo.com',
   authCode: 'DEMO_AUTH_P001',
+  auth_code: 'DEMO_AUTH_P001',
   userType: 'parent',
   is_parent: true,
   photo: null,
@@ -137,10 +145,43 @@ const demoParentData = {
       id: 'DEMO_S001',
       name: 'Alex Chen',
       student_id: 'STU2024001',
+      student_name: 'Alex Chen',
       grade: '10',
+      grade_name: 'Grade 10',
       class: 'Grade 10A',
+      classroom_name: 'Grade 10A',
       branch_name: 'Main Campus',
+      branch_id: 1,
       authCode: 'DEMO_AUTH_S001',
+      student_photo: null,
+      student_email: 'alex.chen@demo.edu',
+      student_phone: null,
+      birth_date: '2009-05-15',
+      gender: 'Male',
+      nationality: 'American',
+      address: '123 Demo Street',
+      academic_year: '2024-2025',
+    },
+    {
+      id: 'DEMO_S002',
+      name: 'Emma Chen',
+      student_id: 'STU2024002',
+      student_name: 'Emma Chen',
+      grade: '8',
+      grade_name: 'Grade 8',
+      class: 'Grade 8B',
+      classroom_name: 'Grade 8B',
+      branch_name: 'Main Campus',
+      branch_id: 1,
+      authCode: 'DEMO_AUTH_S002',
+      student_photo: null,
+      student_email: 'emma.chen@demo.edu',
+      student_phone: null,
+      birth_date: '2011-08-22',
+      gender: 'Female',
+      nationality: 'American',
+      address: '123 Demo Street',
+      academic_year: '2024-2025',
     },
   ],
   demo_mode: true,
@@ -920,7 +961,29 @@ export const unifiedLogin = async (
   // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 800));
 
-  // Check for demo mode credentials first
+  // Check for demo mode credentials first - check parent first, then student
+  if (isDemoCredentials(username, password, 'parent')) {
+    console.log('🎭 DEMO MODE: Parent login detected via unified login');
+
+    // Set up demo school configuration
+    try {
+      const schoolConfig = await SchoolConfigService.detectSchoolFromLogin(
+        username,
+        'parent'
+      );
+      await SchoolConfigService.saveCurrentSchoolConfig(schoolConfig);
+      console.log(
+        '🏫 DEMO MODE: School configuration saved:',
+        schoolConfig.name
+      );
+    } catch (schoolError) {
+      console.error('❌ DEMO MODE: School detection error:', schoolError);
+    }
+
+    const demoData = getDemoUserData('parent');
+    return demoData;
+  }
+
   if (isDemoCredentials(username, password, 'student')) {
     console.log('🎭 DEMO MODE: Student login detected via unified login');
 

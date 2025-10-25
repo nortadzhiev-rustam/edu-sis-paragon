@@ -10,8 +10,8 @@ export const useThemeLogo = () => {
 
   return useMemo(() => {
     return theme.mode === 'dark'
-      ? require('../../assets/ParagonISC App_LOGO_DARK.png')
-      : require('../../assets/ParagonISC App_LOGO.png');
+      ? require('../../assets/ParagonISC_App_LOGO_DARK.png')
+      : require('../../assets/ParagonISC_App_LOGO.png');
   }, [theme.mode]);
 };
 
@@ -24,8 +24,8 @@ export const useSchoolLogo = () => {
 
   return useMemo(() => {
     return theme.mode === 'dark'
-      ? require('../../assets/EduNova School Logo Dark.png')
-      : require('../../assets/EduNova School Logo.png');
+      ? require('../../assets/EduNova_School_Logo_Dark.png')
+      : require('../../assets/EduNova_School_Logo.png');
   }, [theme.mode]);
 };
 

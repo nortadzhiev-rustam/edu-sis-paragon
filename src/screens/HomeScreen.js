@@ -890,7 +890,7 @@ export default function HomeScreen({ navigation }) {
                 />
               </View>
               <Text style={styles.roleText}>{t('teacher')}</Text>
-              <Text style={styles.roleDescription} numberOfLines={2}>
+              <Text style={styles.roleDescription} numberOfLines={3}>
                 {t('teacherDescription')}
               </Text>
             </TouchableOpacity>
@@ -907,7 +907,7 @@ export default function HomeScreen({ navigation }) {
                 />
               </View>
               <Text style={styles.roleText}>{t('studentParentGuardian')}</Text>
-              <Text style={styles.roleDescription} numberOfLines={2}>
+              <Text style={styles.roleDescription} numberOfLines={3}>
                 {t('studentParentGuardianDescription')}
               </Text>
             </TouchableOpacity>
@@ -1011,8 +1011,6 @@ export default function HomeScreen({ navigation }) {
                 {t('faq')}
               </Text>
             </TouchableOpacity>
-
-            
           </View>
 
           {/* Social Media Section */}
@@ -1061,8 +1059,8 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
           </View>
-            {/* copyright with version and logo */}
-            <View style={styles.copyrightContainer}>
+          {/* copyright with version and logo */}
+          <View style={styles.copyrightContainer}>
             <Text style={styles.copyright}>
               © {new Date().getFullYear()} Powered by{' '}
             </Text>
@@ -1120,10 +1118,11 @@ const createStyles = (
       width: '100%',
       paddingBottom: 10, // Extra padding for landscape scrolling
       minHeight: '100%', // Ensure content takes full height
+        paddingTop: 30,
     },
     logo: {
-      width: isIPadDevice ? Math.min(width * 0.3, 300) : width * 0.7,
-      height: isIPadDevice ? Math.min(height * 0.12, 150) : height * 0.1,
+      width: isIPadDevice ? Math.min(width * 0.5, 300) : width * 0.7,
+      height: isIPadDevice ? Math.min(height * 0.2, 150) : height * 0.1,
       // marginTop: isIPadDevice ? height * 0.03 : height * 0.001,
       marginBottom: isIPadDevice ? responsiveSpacing.lg : 20,
       ...createMediumShadow(theme),
@@ -1165,11 +1164,10 @@ const createStyles = (
       ...theme.shadows.small,
       marginLeft: 0,
       elevation: 5,
-        overflow: 'hidden',
     },
     roleButtonHorizontal: {
       width: '48%',
-      height: 150,
+      minHeight: 150,
     },
     iconContainer: {
       width: 60,
@@ -1243,7 +1241,7 @@ const createStyles = (
     socialMediaSection: {
       width: '100%',
       marginTop: 10,
-      marginBottom: 30,
+
       alignItems: 'center',
       justifyContent: 'center',
     },

@@ -244,9 +244,9 @@ Demo Mode lets you try out all the app features with fake data, so you can learn
 
 **Step 2: Choose your role**
 
-- **Teacher Demo**: Username: `demo_teacher`, Password: `demo2024`
-- **Student Demo**: Username: `demo_student`, Password: `demo2024`
-- **Parent Demo**: Username: `demo_parent`, Password: `demo2024`
+- **Teacher Demo**: Username: `demo_teacher`, Password: `demo2025`
+- **Student Demo**: Username: `demo_student`, Password: `demo2025`
+- **Parent Demo**: Username: `demo_parent`, Password: `demo2025`
 
 **Step 3: Log in**
 

@@ -402,7 +402,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 3A54EC3F78C2F0553A924F7B /* Pods-ParagonISC.debug.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = paragon-app-logo;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "paragon-app-logo";
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = ParagonISC/ParagonISC.entitlements;
@@ -427,7 +427,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = com.edunovaasia.paragon;
-				PRODUCT_NAME = "ParagonISC";
+				PRODUCT_NAME = ParagonISC;
 				SWIFT_OBJC_BRIDGING_HEADER = "ParagonISC/ParagonISC-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -440,7 +440,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 640F6030B8D39BD6C0826FE9 /* Pods-ParagonISC.release.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = paragon-app-logo;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "paragon-app-logo";
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = ParagonISC/ParagonISC.entitlements;
@@ -460,7 +460,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = com.edunovaasia.paragon;
-				PRODUCT_NAME = "ParagonISC";
+				PRODUCT_NAME = ParagonISC;
 				SWIFT_OBJC_BRIDGING_HEADER = "ParagonISC/ParagonISC-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -472,7 +472,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_APPICON_NAME = paragon-app-logo;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "paragon-app-logo";
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -549,7 +549,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_APPICON_NAME = paragon-app-logo;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "paragon-app-logo";
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
 				CLANG_CXX_LIBRARY = "libc++";

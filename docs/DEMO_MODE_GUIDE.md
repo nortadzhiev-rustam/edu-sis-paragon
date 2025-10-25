@@ -8,17 +8,17 @@ The EduSIS app now includes a comprehensive demo mode that allows users to explo
 
 ### Teacher Demo Account
 - **Username:** `demo_teacher`
-- **Password:** `demo2024`
+- **Password:** `demo2025`
 - **Features:** Full teacher access including timetables, BPS management, homework creation, attendance tracking, and homeroom management
 
 ### Student Demo Account
 - **Username:** `demo_student`
-- **Password:** `demo2024`
+- **Password:** `demo2025`
 - **Features:** Student view with grades, attendance records, homework assignments, behavior points, and timetables
 
 ### Parent Demo Account
 - **Username:** `demo_parent`
-- **Password:** `demo2024`
+- **Password:** `demo2025`
 - **Features:** Parent dashboard with child monitoring, grades overview, attendance tracking, and communication features
 
 ## Demo Mode Features
