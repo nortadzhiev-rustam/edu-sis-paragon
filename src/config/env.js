@@ -1,13 +1,30 @@
 // Environment configuration
 // Centralized configuration for the entire application
+// Detect environment
+const IS_DEVELOPMENT = __DEV__;
 
+// Environment-specific URLs
+const DEVELOPMENT_CONFIG = {
+    API_BASE_URL: 'http://192.168.10.2:8000/mobile-api',
+    API_DOMAIN: 'http://192.168.10.2:8000',
+};
+
+const PRODUCTION_CONFIG = {
+    API_BASE_URL: 'https://sis.paragonisc.edu.kh/mobile-api',
+    API_DOMAIN: 'https://paragonisc.edu.kh',
+};
+
+// Select configuration based on environment
+const ENV_CONFIG = IS_DEVELOPMENT ? DEVELOPMENT_CONFIG : PRODUCTION_CONFIG;
 // API Configuration
 export const Config = {
   // Base API Configuration
   // For physical devices, use your computer's IP address instead of 127.0.0.1
   // Your Mac's IP address: 192.168.10.2
-  API_BASE_URL: 'https://sis.paragonisc.edu.kh/mobile-api',
-  API_DOMAIN: 'https://sis.paragonisc.edu.kh',
+    // according environment switch between dev and prod
+
+  API_BASE_URL: ENV_CONFIG.API_BASE_URL,
+  API_DOMAIN: ENV_CONFIG.API_DOMAIN,
 
   // API Endpoints
   API_ENDPOINTS: {
