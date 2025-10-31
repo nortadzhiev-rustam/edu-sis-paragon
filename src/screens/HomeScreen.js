@@ -1165,11 +1165,10 @@ const createStyles = (
       ...theme.shadows.small,
       marginLeft: 0,
       elevation: 5,
-        overflow: 'hidden',
     },
     roleButtonHorizontal: {
       width: '48%',
-      height: 150,
+      minHeight: 150,
     },
     iconContainer: {
       width: 60,
