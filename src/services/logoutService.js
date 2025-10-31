@@ -124,28 +124,23 @@ export const performLogout = async (options = {}) => {
       // Decision logic for device removal - check for other active users
       const noOtherUsersActive = await shouldClearSharedData(currentUserType);
 
-      if (currentUserType === 'teacher' && hasStudentAccounts) {
-        console.log('🏫 LOGOUT: Teacher logout with student accounts present');
-        console.log(
-          'ℹ️ LOGOUT: Skipping device removal to preserve student notifications'
-        );
-        console.log(
-          '✅ LOGOUT: Teacher will stop receiving notifications via local data cleanup'
-        );
-      } else if (!noOtherUsersActive) {
-        console.log(
-          `🔒 LOGOUT: Skipping device logout - other users still active`
-        );
-        console.log(
-          'ℹ️ LOGOUT: Device registration preserved for remaining users'
-        );
-      } else if (authCode) {
+      // ALWAYS call logout API to remove user's notification association
+      // The backend will handle removing only this user while keeping device token for others
+      if (authCode) {
         // Use new authCode-based logout method
-        console.log('� LOGOUT: Using new authCode-based logout method...');
+        console.log('🚪 LOGOUT: Calling logout API to remove user from device...');
+        console.log(`👤 LOGOUT: User type: ${currentUserType}`);
+        console.log(`👥 LOGOUT: Other users active: ${!noOtherUsersActive}`);
+        console.log(`👨‍👩‍👧‍👦 LOGOUT: Student accounts present: ${hasStudentAccounts}`);
+
         const logoutResult = await logoutUserFromDevice(authCode);
         if (logoutResult.success) {
           console.log('✅ LOGOUT: User successfully logged out from device');
           console.log('📊 LOGOUT: Response:', logoutResult.message);
+          console.log('🔔 LOGOUT: This user will no longer receive notifications');
+          if (!noOtherUsersActive || hasStudentAccounts) {
+            console.log('ℹ️ LOGOUT: Device token preserved for other active users');
+          }
         } else {
           console.warn(
             '⚠️ LOGOUT: Failed to logout from device:',
@@ -167,7 +162,7 @@ export const performLogout = async (options = {}) => {
       } else {
         // No authCode available, use old method
         console.log(
-          '� LOGOUT: No authCode available, using old removal method...'
+          '⚠️ LOGOUT: No authCode available, using old removal method...'
         );
         const deviceRemovalResult = await removeCurrentUserFromDevice();
         if (deviceRemovalResult.success) {
