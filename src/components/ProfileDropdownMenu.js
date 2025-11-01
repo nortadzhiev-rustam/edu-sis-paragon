@@ -32,6 +32,7 @@ import {Config} from '../config/env';
 import NotificationBadge from './NotificationBadge';
 import MessageBadge from './MessageBadge';
 import ParentNotificationBadge from './ParentNotificationBadge';
+import {createLargeShadow, createMediumShadow} from "../utils/commonStyles";
 
 const {width: screenWidth} = Dimensions.get('window');
 
@@ -416,6 +417,7 @@ const createStyles = (theme) =>
             width: 40,
             height: 40,
             borderRadius: 20,
+            ...createLargeShadow(theme)
         },
         profilePlaceholder: {
             width: 40,

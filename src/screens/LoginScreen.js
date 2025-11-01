@@ -30,13 +30,13 @@ import {
   teacherLogin,
   studentLogin,
   saveUserData,
-} from '../services/authService';
-
+} from '../services';
+import {isIPad} from "../utils/deviceDetection";
 import { Config } from '../config/env';
 import { useTheme, getLanguageFontSizes } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import useThemeLogo from '../hooks/useThemeLogo';
-import { createSmallShadow } from '../utils/commonStyles';
+import {createMediumShadow, createSmallShadow} from '../utils/commonStyles';
 import { updateLastLogin } from '../services/deviceService';
 import { SchoolResourcesSection } from '../components';
 
@@ -47,7 +47,7 @@ export default function LoginScreen({ route, navigation }) {
   const { t, currentLanguage } = useLanguage();
   const fontSizes = getLanguageFontSizes(currentLanguage);
   const logoSource = useThemeLogo();
-
+  const IsIPadDevice = isIPad();
   // Get parameters from route
   const routeLoginType = route.params?.loginType;
   const isAddingStudent = route.params?.isAddingStudent || false;
@@ -63,7 +63,7 @@ export default function LoginScreen({ route, navigation }) {
   const [debugInfo, setDebugInfo] = useState(null);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
 
-  const styles = createStyles(theme, fontSizes);
+  const styles = createStyles(theme, fontSizes, IsIPadDevice);
 
   useEffect(() => {
     // Get device token and log device info when component mounts
@@ -419,6 +419,10 @@ export default function LoginScreen({ route, navigation }) {
     }
   };
 
+  const handleForgotPassword = () => {
+    Alert.alert(t('forgotPassword'), t('forgotPasswordMessage'), [  { text: t('ok') } ]);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
@@ -593,7 +597,7 @@ export default function LoginScreen({ route, navigation }) {
             </View>
           )}
 
-          <TouchableOpacity style={styles.forgotPassword}>
+          <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
             <Text style={styles.forgotPasswordText}>{t('forgotPassword')}</Text>
           </TouchableOpacity>
         </Animated.View>
@@ -604,7 +608,7 @@ export default function LoginScreen({ route, navigation }) {
   );
 }
 
-const createStyles = (theme, fontSizes) =>
+const createStyles = (theme, fontSizes, isIPadDevice) =>
   StyleSheet.create({
     scrollContainer: {
       flexGrow: 1,
@@ -613,7 +617,7 @@ const createStyles = (theme, fontSizes) =>
     },
     backButton: {
       position: 'absolute',
-      top: 60,
+      top: 0,
       left: 20,
       zIndex: 10,
       width: 40,
@@ -632,11 +636,14 @@ const createStyles = (theme, fontSizes) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
-    logo: {
-      width: width * 0.5,
-      height: height * 0.15,
-      marginTop: height * 0.03,
-    },
+      logo: {
+          width: isIPadDevice ? Math.min(width * 0.3, 300) : width * 0.9,
+          height: isIPadDevice ? Math.min(height * 0.12, 150) : height * 0.15,
+          // marginTop: isIPadDevice ? height * 0.03 : height * 0.001,
+          marginBottom: isIPadDevice ? responsiveSpacing.lg : 10,
+          padding: 20,
+          ...createMediumShadow(theme),
+      },
     formContainer: {
       width: '100%',
       paddingHorizontal: 30,

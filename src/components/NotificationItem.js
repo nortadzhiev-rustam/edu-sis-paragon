@@ -19,7 +19,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { createCustomShadow } from '../utils/commonStyles';
 
-const NotificationItem = ({ notification, onPress, userType }) => {
+const NotificationItem = ({ notification, onPress, userType, authCode }) => {
   const { theme } = useTheme();
   const { markAsRead } = useNotifications();
   const navigation = useNavigation();
@@ -204,7 +204,11 @@ const NotificationItem = ({ notification, onPress, userType }) => {
 
   const handlePress = async () => {
     if (!notification.read) {
-      await markAsRead(notification.id);
+      console.log('📱 NOTIFICATION ITEM: Marking notification as read:', {
+        id: notification.id,
+        userType: userType,
+      });
+      await markAsRead(notification.id, userType);
     }
 
     if (onPress) {
@@ -217,7 +221,7 @@ const NotificationItem = ({ notification, onPress, userType }) => {
 
   const getNavigationParams = async () => {
     try {
-      let authCode = null;
+      let navAuthCode = null;
       let studentName = null;
       let parentAuthCode = null;
 
@@ -227,6 +231,7 @@ const NotificationItem = ({ notification, onPress, userType }) => {
           type: notification.type,
           hasStudentAuthCode: !!notification.studentAuthCode,
           userType: userType,
+          passedAuthCode: authCode ? authCode.substring(0, 8) + '...' : null,
         }
       );
 
@@ -291,17 +296,24 @@ const NotificationItem = ({ notification, onPress, userType }) => {
 
         // If we have studentAuthCode, use it; otherwise use parent's authCode for API calls
         if (notification.studentAuthCode) {
-          authCode = notification.studentAuthCode;
+          navAuthCode = notification.studentAuthCode;
           console.log(
             '📱 NOTIFICATION: Using student authCode from notification'
+          );
+        } else if (authCode) {
+          // Use the authCode passed from NotificationScreen (route params)
+          navAuthCode = authCode;
+          console.log(
+            '📱 NOTIFICATION: Using authCode from route params (passed from NotificationScreen)'
           );
         } else {
           // For notifications with parsed student data, we'll use parent's authCode for API calls
           try {
-            const userData = await AsyncStorage.getItem('userData');
-            if (userData) {
-              const user = JSON.parse(userData);
-              authCode = user.authCode || user.auth_code;
+            // Import getUserData to get user-type-specific data
+            const { getUserData } = require('../services/authService');
+            const parentData = await getUserData('parent', AsyncStorage);
+            if (parentData) {
+              navAuthCode = parentData.authCode || parentData.auth_code;
               console.log(
                 '📱 NOTIFICATION: Using parent authCode for API calls'
               );
@@ -313,10 +325,11 @@ const NotificationItem = ({ notification, onPress, userType }) => {
 
         // Get parent's authCode for context
         try {
-          const userData = await AsyncStorage.getItem('userData');
-          if (userData) {
-            const user = JSON.parse(userData);
-            parentAuthCode = user.authCode || user.auth_code;
+          // Import getUserData to get user-type-specific data
+          const { getUserData } = require('../services/authService');
+          const parentData = await getUserData('parent', AsyncStorage);
+          if (parentData) {
+            parentAuthCode = parentData.authCode || parentData.auth_code;
           }
         } catch (error) {
           console.log('Could not get parent authCode:', error);
@@ -334,7 +347,7 @@ const NotificationItem = ({ notification, onPress, userType }) => {
             const savedStudents = await AsyncStorage.getItem('studentAccounts');
             if (savedStudents) {
               const students = JSON.parse(savedStudents);
-              const student = students.find((s) => s.authCode === authCode);
+              const student = students.find((s) => s.authCode === navAuthCode);
               if (student) {
                 studentName = student.name;
                 console.log(
@@ -348,18 +361,49 @@ const NotificationItem = ({ notification, onPress, userType }) => {
           }
         }
       } else {
-        // Get the current user's authCode from AsyncStorage
-        const userData = await AsyncStorage.getItem('userData');
-        if (userData) {
-          const user = JSON.parse(userData);
-          authCode = user.authCode || user.auth_code;
-          studentName = user.name; // Use current user's name if available
+        // Use the authCode passed from NotificationScreen (route params) if available
+        if (authCode) {
+          navAuthCode = authCode;
+          console.log(
+            '📱 NOTIFICATION: Using authCode from route params for',
+            userType
+          );
+        } else {
+          // Get the current user's authCode from user-type-specific storage
+          try {
+            // Import getUserData to get user-type-specific data
+            const { getUserData } = require('../services/authService');
+            const userData = await getUserData(userType, AsyncStorage);
+            if (userData) {
+              navAuthCode = userData.authCode || userData.auth_code;
+              studentName = userData.name; // Use current user's name if available
+              console.log(
+                '📱 NOTIFICATION: Using authCode from user-type-specific storage for',
+                userType
+              );
+            }
+          } catch (error) {
+            console.log('Could not get user authCode:', error);
+          }
+        }
+
+        // Get user name if not already set
+        if (!studentName) {
+          try {
+            const { getUserData } = require('../services/authService');
+            const userData = await getUserData(userType, AsyncStorage);
+            if (userData) {
+              studentName = userData.name;
+            }
+          } catch (error) {
+            console.log('Could not get user name:', error);
+          }
         }
       }
 
       // Create navigation params object
       const params = {};
-      if (authCode) params.authCode = authCode;
+      if (navAuthCode) params.authCode = navAuthCode;
       if (studentName) params.studentName = studentName;
 
       // Add userType context for proper screen behavior
@@ -960,6 +1004,7 @@ NotificationItem.propTypes = {
   }).isRequired,
   onPress: PropTypes.func,
   userType: PropTypes.string,
+  authCode: PropTypes.string, // AuthCode passed from NotificationScreen route params
 };
 
 export default NotificationItem;

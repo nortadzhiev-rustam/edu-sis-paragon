@@ -407,9 +407,9 @@ export const createMediumShadow = (theme) => {
   if (Platform.OS === 'ios') {
     return {
       shadowColor: theme.colors.shadow,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
+      shadowOffset: { width: 3, height: 6 },
+      shadowOpacity: 0.6,
+      shadowRadius: 7,
     };
   }
   return {
@@ -426,9 +426,9 @@ export const createLargeShadow = (theme) => {
   if (Platform.OS === 'ios') {
     return {
       shadowColor: theme.colors.shadow,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.2,
-      shadowRadius: 16,
+      shadowOffset: { width: 5, height: 8 },
+      shadowOpacity: 0.5,
+      shadowRadius: 8,
     };
   }
   return {

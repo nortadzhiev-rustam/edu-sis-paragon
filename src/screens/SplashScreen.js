@@ -13,6 +13,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import useThemeLogo from '../hooks/useThemeLogo';
 import { isIPad } from '../utils/deviceDetection';
 import { lockOrientationForDevice } from '../utils/orientationLock';
+import {createMediumShadow} from "../utils/commonStyles";
 
 const { width, height } = Dimensions.get('window');
 const TYPING_SPEED = 30; // Faster typing animation
@@ -145,18 +146,8 @@ const createStyles = (theme) => {
     logo: {
       width: isIPadDevice ? Math.min(width * 0.4, 400) : width * 0.7,
       height: isIPadDevice ? Math.min(height * 0.4, 400) : height * 0.5,
-      // Add subtle shadow for better visibility in both themes
-      ...Platform.select({
-        ios: {
-          shadowColor: theme.mode === 'dark' ? '#ffffff' : '#000000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: theme.mode === 'dark' ? 0.1 : 0.05,
-          shadowRadius: 8,
-        },
-        android: {
-          elevation: theme.mode === 'dark' ? 2 : 1,
-        },
-      }),
+        padding: isIPadDevice ? 20 : 10,
+      ...createMediumShadow(theme),
     },
     text: {
       marginTop: isIPadDevice ? 30 : 20,

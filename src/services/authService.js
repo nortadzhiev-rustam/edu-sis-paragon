@@ -874,8 +874,19 @@ export const studentLogin = async (username, password, deviceToken) => {
           authCode: data.auth_code,
           userType: 'student', // For backward compatibility with existing code
           mobile_phone: data.mobile_phone,
-          photo: data.photo || data.student_photo || data.user_photo,
+          photo: data.photo || data.student_photo || data.user_photo || data.personal_info?.profile_photo,
           student_photo: data.student_photo, // Keep original field for reference
+          profile_photo: data.photo || data.student_photo || data.user_photo || data.personal_info?.profile_photo, // Add profile_photo for consistency
+          user_photo: data.user_photo, // Keep original field for reference
+
+          // Personal information (preserve for profile screen)
+          personal_info: data.personal_info,
+
+          // Academic information (preserve for profile screen)
+          academic_info: data.academic_info,
+
+          // System information (preserve for profile screen)
+          system_info: data.system_info,
 
           // Student-specific information
           is_student: true,
@@ -895,6 +906,14 @@ export const studentLogin = async (username, password, deviceToken) => {
           // Original API response for reference
           originalResponse: data,
         };
+
+        console.log('📸 STUDENT LOGIN: Photo fields in API response:', {
+          'data.photo': data.photo,
+          'data.student_photo': data.student_photo,
+          'data.user_photo': data.user_photo,
+          'data.personal_info?.profile_photo': data.personal_info?.profile_photo,
+          'transformedUserData.photo': transformedUserData.photo,
+        });
 
         return transformedUserData;
       } else {
@@ -1137,9 +1156,16 @@ export const unifiedLogin = async (
           authCode: data.auth_code,
           userType: userType,
           mobile_phone: data.mobile_phone,
-          photo: data.photo || data.parent_photo || data.user_photo,
-          // parent_photo: data.parent_info.parent_photo, // Keep original field for reference
+          photo: data.photo || data.parent_photo || data.user_photo || data.personal_info?.profile_photo,
+          profile_photo: data.photo || data.parent_photo || data.user_photo || data.personal_info?.profile_photo, // Add profile_photo for consistency
+          user_photo: data.user_photo, // Keep original field for reference
           parent_info: data.parent_info, // Keep original field for reference
+
+          // Personal information (preserve for profile screen)
+          personal_info: data.personal_info,
+
+          // System information (preserve for profile screen)
+          system_info: data.system_info,
 
           // Branch information
           branch: data.branch,
@@ -1175,6 +1201,14 @@ export const unifiedLogin = async (
           userType: transformedUserData.userType,
           authCode: transformedUserData.authCode ? '[PRESENT]' : '[MISSING]',
           hasChildren: transformedUserData.children?.length > 0,
+        });
+
+        console.log(`📸 UNIFIED LOGIN (${userType}): Photo fields in API response:`, {
+          'data.photo': data.photo,
+          'data.parent_photo': data.parent_photo,
+          'data.user_photo': data.user_photo,
+          'data.personal_info?.profile_photo': data.personal_info?.profile_photo,
+          'transformedUserData.photo': transformedUserData.photo,
         });
 
         return transformedUserData;

@@ -42,12 +42,22 @@ export default function StudentProfileScreen({ route, navigation }) {
       // Get updated student data from AsyncStorage
       const studentData = await getUserData('student', AsyncStorage);
 
+      console.log('📸 STUDENT PROFILE: Retrieved data from AsyncStorage:', {
+        hasData: !!studentData,
+        userType: studentData?.userType,
+        photo: studentData?.photo,
+        profile_photo: studentData?.profile_photo,
+        user_photo: studentData?.user_photo,
+        personal_info_photo: studentData?.personal_info?.profile_photo,
+      });
+
       if (studentData && studentData.userType === 'student') {
         console.log('✅ STUDENT PROFILE: Updated student data loaded');
         setStudent(studentData);
       } else {
         // Fallback to route params if no updated data
         console.log('⚠️ STUDENT PROFILE: Using route params as fallback');
+        console.log('📸 STUDENT PROFILE: Route params photo:', route.params?.student?.photo);
         setStudent(route.params?.student || {});
       }
     } catch (error) {

@@ -75,7 +75,7 @@ export default function TeacherScreen({route, navigation}) {
     const {theme} = useTheme();
     const {t, currentLanguage} = useLanguage();
     const {
-        refreshNotifications, clearAll: clearNotifications, notifications
+        refreshNotifications, clearNotificationsForCurrentUser, notifications
     } = useNotifications();
     const {cleanup: cleanupMessaging} = useMessaging();
     const fontSizes = getLanguageFontSizes(currentLanguage);
@@ -480,15 +480,16 @@ export default function TeacherScreen({route, navigation}) {
     const isRefreshingNotifications = React.useRef(false);
 
     useFocusEffect(React.useCallback(() => {
-        const now = Date.now();
-        // Only refresh notifications if:
-        // 1. It's been more than 30 seconds since last refresh
-        // 2. We're not currently refreshing notifications
-        if (now - lastNotificationRefresh.current > 30000 && !isRefreshingNotifications.current) {
-            lastNotificationRefresh.current = now;
-            isRefreshingNotifications.current = true;
+        // Always refresh notifications when screen comes into focus
+        // This ensures correct notifications are shown when switching between user types
+        console.log('🔔 TEACHER SCREEN: Screen focused, refreshing teacher notifications...');
 
-            refreshNotifications().finally(() => {
+        if (!isRefreshingNotifications.current) {
+            isRefreshingNotifications.current = true;
+            lastNotificationRefresh.current = Date.now();
+
+            // Explicitly pass 'teacher' userType to ensure teacher notifications are loaded
+            refreshNotifications('teacher').finally(() => {
                 isRefreshingNotifications.current = false;
             });
         }
@@ -752,7 +753,7 @@ export default function TeacherScreen({route, navigation}) {
                         clearDeviceToken: false, // Keep device token for future logins
                         clearAllData: false, // Keep device-specific settings
                         messagingCleanup: cleanupMessaging, // Clean up messaging context
-                        notificationCleanup: clearNotifications, // Clean up notification context
+                        notificationCleanup: clearNotificationsForCurrentUser, // Clean up notification context
                     });
 
                     if (result.success) {

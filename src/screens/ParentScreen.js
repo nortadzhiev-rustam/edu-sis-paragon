@@ -46,6 +46,7 @@ import {
 import {useTheme, getLanguageFontSizes} from '../contexts/ThemeContext';
 import {useLanguage} from '../contexts/LanguageContext';
 import {useParentNotifications} from '../hooks/useParentNotifications';
+import {useNotifications} from '../contexts/NotificationContext';
 import ParentNotificationBadge from '../components/ParentNotificationBadge';
 import MessageBadge from '../components/MessageBadge';
 import ProfileDropdownMenu from '../components/ProfileDropdownMenu';
@@ -227,6 +228,7 @@ const AnimatedPaginationDot = ({isActive, theme, onPress, dotStyle, touchableSty
 export default function ParentScreen({navigation}) {
     const {theme} = useTheme();
     const {t, currentLanguage} = useLanguage();
+    const {clearNotificationsForCurrentUser, refreshNotifications} = useNotifications();
     const fontSizes = getLanguageFontSizes(currentLanguage);
 
     // Device and orientation detection
@@ -262,22 +264,17 @@ export default function ParentScreen({navigation}) {
     // Refresh notifications when screen comes into focus
     useFocusEffect(
         React.useCallback(() => {
-            // Only refresh if we have students and they haven't been loaded recently
-            if (students.length > 0) {
-                const studentIds = students
-                    .map((s) => s.id)
-                    .sort()
-                    .join(',');
-                if (!notificationsLoadedRef.current.has(studentIds)) {
-                    // Add a small delay to prevent immediate execution
-                    const timeoutId = setTimeout(() => {
-                        refreshAllStudents(students);
-                    }, 500);
+            // Always refresh notifications when screen comes into focus
+            // This ensures correct notifications are shown when switching between user types
+            console.log('🔔 PARENT SCREEN: Screen focused, refreshing parent notifications...');
 
-                    return () => clearTimeout(timeoutId);
-                }
+            // Explicitly pass 'parent' userType to ensure parent notifications are loaded
+            refreshNotifications('parent');
+
+            if (students.length > 0) {
+                refreshAllStudents(students);
             }
-        }, [students, refreshAllStudents])
+        }, [students, refreshAllStudents, refreshNotifications])
     );
 
     useEffect(() => {
@@ -327,6 +324,7 @@ export default function ParentScreen({navigation}) {
                             userType: 'parent', // Specify that this is a parent logout
                             clearDeviceToken: false, // Keep device token for future logins
                             clearAllData: false, // Keep student accounts for parent dashboard
+                            notificationCleanup: clearNotificationsForCurrentUser, // Clean up notification context
                         });
 
                         if (logoutResult.success) {

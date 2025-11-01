@@ -714,17 +714,17 @@ export default function AssignmentsScreen({ navigation, route }) {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              showCompleted && styles.filterButtonActive,
+              !showCompleted && styles.filterButtonActive,
             ]}
             onPress={() => setShowCompleted(!showCompleted)}
           >
             <Text
               style={[
                 styles.filterButtonText,
-                showCompleted && styles.filterButtonTextActive,
+                !showCompleted && styles.filterButtonTextActive,
               ]}
             >
-              {showCompleted ? t('showAll') : t('showCompleted')}
+              {!showCompleted ? t('showAll') : t('showCompleted')}
             </Text>
           </TouchableOpacity>
         </View>

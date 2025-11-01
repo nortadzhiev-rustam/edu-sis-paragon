@@ -13,7 +13,18 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import {
+  faSchool,
+  faUser,
+  faCrosshairs,
+  faExpandArrowsAlt,
+  faMap,
+  faGlobe,
+  faLayerGroup,
+  faSearchPlus,
+  faSyncAlt,
+} from '@fortawesome/free-solid-svg-icons';
 import Constants from 'expo-constants';
 
 // Context and utilities
@@ -250,8 +261,8 @@ const PickupRequestMap = ({
                 showsPointsOfInterest={true}
                 mapType={mapType}
                 loadingEnabled={true}
-                loadingIndicatorColor={theme.colors.primary}
-                loadingBackgroundColor={theme.colors.background}
+                loadingIndicatorColor={theme.colors.primary || '#2c3b90'}
+                loadingBackgroundColor={theme.colors.background || '#FFFFFF'}
               >
                 {/* School Location Marker */}
                 {schoolLocation && (
@@ -264,21 +275,18 @@ const PickupRequestMap = ({
                       title={schoolLocation.branch_name || 'School Campus'}
                       description={schoolLocation.address || 'School location'}
                       onPress={handleSchoolLocationPress}
-                    >
-                      <View style={styles.schoolMarker}>
-                        <FontAwesome5 name='school' size={10} color='#fff' />
-                      </View>
-                    </Marker>
+                      pinColor='#007AFF'
+                    />
 
                     <Circle
                       center={{
                         latitude: schoolLocation.latitude,
                         longitude: schoolLocation.longitude,
                       }}
-                      radius={pickupRadius}
-                      strokeColor={theme.colors.primary}
+                      radius={pickupRadius || 150}
+                      strokeColor={theme.colors.primary || '#2c3b90'}
                       strokeWidth={2}
-                      fillColor={`${theme.colors.primary}20`}
+                      fillColor={`${theme.colors.primary || '#2c3b90'}20`}
                     />
                   </>
                 )}
@@ -296,20 +304,8 @@ const PickupRequestMap = ({
                         ? 'Within pickup range'
                         : 'Outside pickup range'
                     }
-                  >
-                    <View
-                      style={[
-                        styles.userMarker,
-                        {
-                          backgroundColor: isWithinRange
-                            ? '#34C759'
-                            : '#FF3B30',
-                        },
-                      ]}
-                    >
-                      <FontAwesome5 name='user' size={6} color='#fff' />
-                    </View>
-                  </Marker>
+                    pinColor={isWithinRange ? '#34C759' : '#FF3B30'}
+                  />
                 )}
               </MapView>
 
@@ -319,51 +315,57 @@ const PickupRequestMap = ({
                 <TouchableOpacity
                   style={[
                     styles.controlButton,
-                    { backgroundColor: theme.colors.card },
+                    { backgroundColor: theme.colors.card || '#FFFFFF' },
                   ]}
                   onPress={handleMyLocationPress}
                 >
-                  <FontAwesome5
-                    name='crosshairs'
-                    size={16}
-                    color={theme.colors.primary}
-                  />
+                  <View style={{ width: 16, height: 16, justifyContent: 'center', alignItems: 'center' }}>
+                    <FontAwesomeIcon
+                      icon={faCrosshairs}
+                      size={16}
+                      color={theme.colors.primary || '#2c3b90'}
+                    />
+                  </View>
                 </TouchableOpacity>
 
                 {/* Fit both locations */}
                 <TouchableOpacity
                   style={[
                     styles.controlButton,
-                    { backgroundColor: theme.colors.card },
+                    { backgroundColor: theme.colors.card || '#FFFFFF' },
                   ]}
                   onPress={handleFitToCoordinates}
                 >
-                  <FontAwesome5
-                    name='expand-arrows-alt'
-                    size={14}
-                    color={theme.colors.primary}
-                  />
+                  <View style={{ width: 14, height: 14, justifyContent: 'center', alignItems: 'center' }}>
+                    <FontAwesomeIcon
+                      icon={faExpandArrowsAlt}
+                      size={14}
+                      color={theme.colors.primary || '#2c3b90'}
+                    />
+                  </View>
                 </TouchableOpacity>
 
                 {/* Map type toggle */}
                 <TouchableOpacity
                   style={[
                     styles.controlButton,
-                    { backgroundColor: theme.colors.card },
+                    { backgroundColor: theme.colors.card || '#FFFFFF' },
                   ]}
                   onPress={handleMapTypeToggle}
                 >
-                  <FontAwesome5
-                    name={
-                      mapType === 'satellite'
-                        ? 'globe'
-                        : mapType === 'hybrid'
-                        ? 'layer-group'
-                        : 'map'
-                    }
-                    size={14}
-                    color={theme.colors.primary}
-                  />
+                  <View style={{ width: 14, height: 14, justifyContent: 'center', alignItems: 'center' }}>
+                    <FontAwesomeIcon
+                      icon={
+                        mapType === 'satellite'
+                          ? faGlobe
+                          : mapType === 'hybrid'
+                          ? faLayerGroup
+                          : faMap
+                      }
+                      size={14}
+                      color={theme.colors.primary || '#2c3b90'}
+                    />
+                  </View>
                 </TouchableOpacity>
 
                 {/* Zoom indicator */}
@@ -371,24 +373,28 @@ const PickupRequestMap = ({
                   <View
                     style={[
                       styles.zoomIndicator,
-                      { backgroundColor: theme.colors.success },
+                      { backgroundColor: theme.colors.success || '#7CB342' },
                     ]}
                   >
-                    <FontAwesome5 name='search-plus' size={12} color='#fff' />
+                    <View style={{ width: 12, height: 12, justifyContent: 'center', alignItems: 'center' }}>
+                      <FontAwesomeIcon icon={faSearchPlus} size={12} color='#fff' />
+                    </View>
                   </View>
                 )}
               </View>
 
               {/* Map Legend */}
               <View
-                style={[styles.legend, { backgroundColor: theme.colors.card }]}
+                style={[styles.legend, { backgroundColor: theme.colors.card || '#FFFFFF' }]}
               >
                 <View style={styles.legendItem}>
                   <View style={styles.schoolMarkerSmall}>
-                    <FontAwesome5 name='school' size={8} color='#fff' />
+                    <View style={{ width: 8, height: 8, justifyContent: 'center', alignItems: 'center' }}>
+                      <FontAwesomeIcon icon={faSchool} size={8} color='#fff' />
+                    </View>
                   </View>
                   <Text
-                    style={[styles.legendText, { color: theme.colors.text }]}
+                    style={[styles.legendText, { color: theme.colors.text || '#2c3b90' }]}
                   >
                     School
                   </Text>
@@ -401,10 +407,12 @@ const PickupRequestMap = ({
                       { backgroundColor: '#34C759' },
                     ]}
                   >
-                    <FontAwesome5 name='user' size={6} color='#fff' />
+                    <View style={{ width: 6, height: 6, justifyContent: 'center', alignItems: 'center' }}>
+                      <FontAwesomeIcon icon={faUser} size={6} color='#fff' />
+                    </View>
                   </View>
                   <Text
-                    style={[styles.legendText, { color: theme.colors.text }]}
+                    style={[styles.legendText, { color: theme.colors.text || '#2c3b90' }]}
                   >
                     You
                   </Text>
@@ -414,17 +422,21 @@ const PickupRequestMap = ({
                   <View
                     style={[
                       styles.radiusIndicator,
-                      { borderColor: theme.colors.primary },
+                      { borderColor: theme.colors.primary || '#2c3b90' },
                     ]}
                   />
                   <Text
-                    style={[styles.legendText, { color: theme.colors.text }]}
+                    style={[styles.legendText, { color: theme.colors.text || '#2c3b90' }]}
                   >
-                    {distance
-                      ? `${Math.round(
-                          distance < 1000 ? distance : distance / 1000
-                        )}${distance < 1000 ? 'm' : 'km'} away`
-                      : `Zone (${pickupRadius}m)`}
+                    {(() => {
+                      if (distance && distance > 0) {
+                        if (distance < 1000) {
+                          return `${Math.round(distance)}m away`;
+                        }
+                        return `${Math.round(distance / 1000)}km away`;
+                      }
+                      return `Zone (${pickupRadius || 150}m)`;
+                    })()}
                   </Text>
                 </View>
               </View>
@@ -463,16 +475,18 @@ const PickupRequestMap = ({
   if (isSimulator) {
     return (
       <View style={[styles.simulatorPlaceholder, style]}>
-        <FontAwesome5 name='map' size={48} color={theme.colors.textSecondary} />
+        <View style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}>
+          <FontAwesomeIcon icon={faMap} size={48} color={theme.colors.textSecondary || '#666666'} />
+        </View>
         <Text
-          style={[styles.simulatorText, { color: theme.colors.textSecondary }]}
+          style={[styles.simulatorText, { color: theme.colors.textSecondary || '#666666' }]}
         >
           Map not available
         </Text>
         <Text
           style={[
             styles.simulatorSubtext,
-            { color: theme.colors.textSecondary },
+            { color: theme.colors.textSecondary || '#666666' },
           ]}
         >
           Location information shown below
@@ -482,13 +496,13 @@ const PickupRequestMap = ({
         {userLocation && schoolLocation && (
           <View style={styles.locationInfo}>
             <Text
-              style={[styles.locationText, { color: theme.colors.onSurface }]}
+              style={[styles.locationText, { color: theme.colors.onSurface || '#2c3b90' }]}
             >
               📍 Your location: {userLocation.latitude.toFixed(4)},{' '}
               {userLocation.longitude.toFixed(4)}
             </Text>
             <Text
-              style={[styles.locationText, { color: theme.colors.onSurface }]}
+              style={[styles.locationText, { color: theme.colors.onSurface || '#2c3b90' }]}
             >
               🏫 {schoolLocation.branch_name || 'School'}:{' '}
               {schoolLocation.latitude.toFixed(4)},{' '}
@@ -502,8 +516,8 @@ const PickupRequestMap = ({
             >
               {isWithinRange
                 ? '✅ Within pickup range'
-                : '❌ Outside pickup range'}{' '}
-              ({pickupRadius}m)
+                : '❌ Outside pickup range'}
+              {' '}({pickupRadius || 150}m)
             </Text>
           </View>
         )}
@@ -512,11 +526,13 @@ const PickupRequestMap = ({
           <TouchableOpacity
             style={[
               styles.refreshButton,
-              { backgroundColor: theme.colors.primary },
+              { backgroundColor: theme.colors.primary || '#2c3b90' },
             ]}
             onPress={onLocationUpdate}
           >
-            <FontAwesome5 name='sync-alt' size={16} color='#fff' />
+            <View style={{ width: 16, height: 16, justifyContent: 'center', alignItems: 'center', marginRight: 8 }}>
+              <FontAwesomeIcon icon={faSyncAlt} size={16} color='#fff' />
+            </View>
             <Text style={styles.refreshButtonText}>Refresh Location</Text>
           </TouchableOpacity>
         )}
@@ -541,14 +557,16 @@ const PickupRequestMap = ({
   console.log('🗺️ MAP DEBUG: Rendering loading placeholder');
   return (
     <View style={[styles.simulatorPlaceholder, style]}>
-      <FontAwesome5 name='map' size={48} color={theme.colors.textSecondary} />
+      <View style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}>
+        <FontAwesomeIcon icon={faMap} size={48} color={theme.colors.textSecondary || '#666666'} />
+      </View>
       <Text
-        style={[styles.simulatorText, { color: theme.colors.textSecondary }]}
+        style={[styles.simulatorText, { color: theme.colors.textSecondary || '#666666' }]}
       >
         Map loading...
       </Text>
       <Text
-        style={[styles.simulatorSubtext, { color: theme.colors.textSecondary }]}
+        style={[styles.simulatorSubtext, { color: theme.colors.textSecondary || '#666666' }]}
       >
         Please wait while map initializes
       </Text>
@@ -557,13 +575,13 @@ const PickupRequestMap = ({
       {userLocation && schoolLocation && (
         <View style={styles.locationInfo}>
           <Text
-            style={[styles.locationText, { color: theme.colors.onSurface }]}
+            style={[styles.locationText, { color: theme.colors.onSurface || '#2c3b90' }]}
           >
             📍 Your location: {userLocation.latitude.toFixed(4)},{' '}
             {userLocation.longitude.toFixed(4)}
           </Text>
           <Text
-            style={[styles.locationText, { color: theme.colors.onSurface }]}
+            style={[styles.locationText, { color: theme.colors.onSurface || '#2c3b90' }]}
           >
             🏫 {schoolLocation.branch_name || 'School'}:{' '}
             {schoolLocation.latitude.toFixed(4)},{' '}
@@ -577,8 +595,8 @@ const PickupRequestMap = ({
           >
             {isWithinRange
               ? '✅ Within pickup range'
-              : '❌ Outside pickup range'}{' '}
-            ({pickupRadius}m)
+              : '❌ Outside pickup range'}
+            {' '}({pickupRadius || 150}m)
           </Text>
         </View>
       )}
@@ -587,11 +605,13 @@ const PickupRequestMap = ({
         <TouchableOpacity
           style={[
             styles.refreshButton,
-            { backgroundColor: theme.colors.primary },
+            { backgroundColor: theme.colors.primary || '#2c3b90' },
           ]}
           onPress={onLocationUpdate}
         >
-          <FontAwesome5 name='sync-alt' size={16} color='#fff' />
+          <View style={{ width: 16, height: 16, justifyContent: 'center', alignItems: 'center', marginRight: 8 }}>
+            <FontAwesomeIcon icon={faSyncAlt} size={16} color='#fff' />
+          </View>
           <Text style={styles.refreshButtonText}>Refresh Location</Text>
         </TouchableOpacity>
       )}

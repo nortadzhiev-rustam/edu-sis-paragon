@@ -27,6 +27,7 @@ import {
 import {
   getStudentNotifications,
   markStudentNotificationAsRead,
+  markAllStudentNotificationsAsRead,
   getStudentNotificationCategories,
 } from '../services/studentNotificationService';
 // Keep legacy service for backward compatibility
@@ -233,28 +234,24 @@ export const NotificationProvider = ({ children }) => {
 
   // Add debouncing to prevent excessive API calls
   const lastLoadTime = React.useRef(0);
+  const lastUserType = React.useRef(null);
   const isLoading = React.useRef(false);
 
   // Load notifications from API and local storage
-  const loadNotifications = async () => {
+  const loadNotifications = async (forcedUserType = null, forcedAuthCode = null) => {
     try {
       // Prevent multiple simultaneous calls
       if (isLoading.current) {
+        console.log('🔔 NOTIFICATION CONTEXT: Already loading, skipping...');
         return;
       }
 
-      // Debounce: only allow calls every 5 seconds
-      const now = Date.now();
-      if (now - lastLoadTime.current < 5000) {
-        return;
+      // Use forced user type if provided, otherwise detect from storage
+      let userType = forcedUserType;
+      if (!userType) {
+        userType = await detectUserType();
       }
 
-      lastLoadTime.current = now;
-      isLoading.current = true;
-      setLoading(true);
-
-      // Detect user type and get appropriate service
-      const userType = await detectUserType();
       if (!userType) {
         console.warn(
           '⚠️ NOTIFICATION CONTEXT: No user type detected, skipping API call'
@@ -263,6 +260,32 @@ export const NotificationProvider = ({ children }) => {
         isLoading.current = false;
         return;
       }
+
+      // Debounce: only allow calls every 5 seconds for the SAME user type
+      // If user type changes, bypass debounce to ensure fresh data
+      const now = Date.now();
+      const timeSinceLastLoad = now - lastLoadTime.current;
+      const isSameUserType = lastUserType.current === userType;
+
+      if (isSameUserType && timeSinceLastLoad < 5000) {
+        console.log(
+          `🔔 NOTIFICATION CONTEXT: Debouncing ${userType} notifications (${timeSinceLastLoad}ms since last load)`
+        );
+        return;
+      }
+
+      console.log('🔔 NOTIFICATION CONTEXT: Loading notifications for user type:', userType);
+      if (!isSameUserType) {
+        console.log('🔔 NOTIFICATION CONTEXT: User type changed from', lastUserType.current, 'to', userType, '- bypassing debounce');
+      }
+      if (forcedAuthCode) {
+        console.log('🔔 NOTIFICATION CONTEXT: Using forced authCode:', forcedAuthCode.substring(0, 8) + '...');
+      }
+
+      lastLoadTime.current = now;
+      lastUserType.current = userType;
+      isLoading.current = true;
+      setLoading(true);
 
       const service = getNotificationService(userType);
 
@@ -347,13 +370,19 @@ export const NotificationProvider = ({ children }) => {
   };
 
   // Refresh notifications (with debouncing)
-  const refreshNotifications = React.useCallback(async () => {
-    await loadNotifications();
+  // Can optionally pass userType and authCode to force loading for a specific user
+  const refreshNotifications = React.useCallback(async (userType = null, authCode = null) => {
+    await loadNotifications(userType, authCode);
   }, []);
 
   // Mark notification as read
-  const markAsRead = async (notificationId) => {
+  const markAsRead = async (notificationId, userType = null) => {
     try {
+      console.log('📱 NOTIFICATION CONTEXT: markAsRead called with:', {
+        notificationId,
+        userType,
+      });
+
       // First, check if this is a student notification (has studentAuthCode)
       let targetNotification = null;
       let isStudentNotification = false;
@@ -460,7 +489,22 @@ export const NotificationProvider = ({ children }) => {
       }
 
       if (!targetNotification) {
-        console.error('Notification not found:', notificationId);
+        console.error('❌ NOTIFICATION CONTEXT: Notification not found in local state:', notificationId);
+        console.log('📱 NOTIFICATION CONTEXT: Attempting to mark as read via API anyway...');
+
+        // Even if not found in local state, try to mark as read via API
+        // This handles the case where NotificationScreen uses contextNotifications
+        if (userType) {
+          try {
+            const apiResponse = await markAPINotificationAsRead(notificationId, userType);
+            if (apiResponse?.success) {
+              console.log('✅ NOTIFICATION CONTEXT: Notification marked as read via API (not found in local state)');
+              return true;
+            }
+          } catch (error) {
+            console.error('❌ NOTIFICATION CONTEXT: Failed to mark as read via API:', error);
+          }
+        }
         return false;
       }
 
@@ -479,7 +523,7 @@ export const NotificationProvider = ({ children }) => {
 
           // Use the user-type-specific service to mark as read
           console.log('📱 NOTIFICATION: Using user-type-specific mark as read');
-          apiResponse = await markAPINotificationAsRead(originalNotificationId);
+          apiResponse = await markAPINotificationAsRead(originalNotificationId, userType);
 
           if (apiResponse?.success) {
             // Update local state based on notification type
@@ -569,6 +613,32 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
+  // Clear notifications for current user (called during logout)
+  const clearNotificationsForCurrentUser = async () => {
+    try {
+      console.log('🧹 NOTIFICATION CONTEXT: Clearing notifications for current user');
+
+      // Clear all notification state
+      setNotifications([]);
+      setUnreadCount(0);
+      setStudentNotifications({});
+      setStudentUnreadCounts({});
+      setCurrentStudentAuthCode(null);
+
+      // Clear app icon badge
+      await updateAppIconBadge(0);
+
+      // Clear local storage
+      await clearNotificationHistory();
+
+      console.log('✅ NOTIFICATION CONTEXT: Notifications cleared successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ NOTIFICATION CONTEXT: Error clearing notifications:', error);
+      return false;
+    }
+  };
+
   // Get notifications by type
   const getNotificationsByType = (type) => {
     return notifications.filter((notification) => notification.type === type);
@@ -620,12 +690,19 @@ export const NotificationProvider = ({ children }) => {
   };
 
   // Mark API notification as read
-  const markAPINotificationAsRead = async (notificationId) => {
+  const markAPINotificationAsRead = async (notificationId, forcedUserType = null) => {
     try {
-      const userType = await detectUserType();
+      // Use forced user type if provided, otherwise detect from storage
+      let userType = forcedUserType;
+      if (!userType) {
+        userType = await detectUserType();
+      }
+
       if (!userType) {
         throw new Error('No user type detected');
       }
+
+      console.log('📱 NOTIFICATION CONTEXT: Marking notification as read for user type:', userType);
 
       const service = getNotificationService(userType);
       if (!service.markAsRead) {
@@ -636,8 +713,9 @@ export const NotificationProvider = ({ children }) => {
 
       const response = await service.markAsRead(notificationId);
       if (response?.success) {
+        console.log('✅ NOTIFICATION CONTEXT: Notification marked as read successfully');
         // Update local state if needed
-        await refreshNotifications();
+        await refreshNotifications(userType);
       }
       return response;
     } catch (error) {
@@ -647,9 +725,17 @@ export const NotificationProvider = ({ children }) => {
   };
 
   // Mark all API notifications as read
-  const markAllAPINotificationsAsRead = async (specificAuthCode = null) => {
+  const markAllAPINotificationsAsRead = async (forcedUserType = null) => {
     try {
-      const userType = await detectUserType();
+      console.log('📱 NOTIFICATION CONTEXT: markAllAPINotificationsAsRead called with forcedUserType:', forcedUserType);
+
+      // Use forced user type if provided, otherwise detect from storage
+      let userType = forcedUserType;
+      if (!userType) {
+        console.log('📱 NOTIFICATION CONTEXT: No forced userType, detecting from storage...');
+        userType = await detectUserType();
+      }
+
       if (!userType) {
         throw new Error('No user type detected');
       }
@@ -660,27 +746,44 @@ export const NotificationProvider = ({ children }) => {
       );
 
       const service = getNotificationService(userType);
+      console.log('📱 NOTIFICATION CONTEXT: Service for', userType, ':', {
+        hasGetNotifications: !!service.getNotifications,
+        hasMarkAsRead: !!service.markAsRead,
+        hasMarkAllAsRead: !!service.markAllAsRead,
+        markAllAsReadFunction: service.markAllAsRead?.name || 'undefined',
+      });
+
       if (!service.markAllAsRead) {
         throw new Error(
           `Mark all as read not supported for user type: ${userType}`
         );
       }
 
+      console.log('📱 NOTIFICATION CONTEXT: Calling service.markAllAsRead()...');
       const response = await service.markAllAsRead();
+      console.log('📱 NOTIFICATION CONTEXT: service.markAllAsRead() response:', response);
+
       if (response?.success) {
-        // Update local state
-        await refreshNotifications();
+        console.log('✅ NOTIFICATION CONTEXT: All notifications marked as read successfully');
+        // Update local state with the correct user type
+        await refreshNotifications(userType);
+      } else {
+        console.warn('⚠️ NOTIFICATION CONTEXT: service.markAllAsRead() returned success=false');
       }
       return response;
     } catch (error) {
-      console.error('Error marking all API notifications as read:', error);
+      console.error('❌ NOTIFICATION CONTEXT: Error marking all API notifications as read:', error);
+      console.error('❌ NOTIFICATION CONTEXT: Error stack:', error.stack);
       return null;
     }
   };
 
   // Mark all student notifications as read (for parent context)
-  const markAllStudentNotificationsAsRead = async (studentAuthCode) => {
+  // NOTE: This is a wrapper for parent viewing student notifications
+  // The actual student service function is imported and used in getNotificationService()
+  const markAllStudentNotificationsAsReadForParent = async (studentAuthCode) => {
     try {
+      console.log('📱 NOTIFICATION CONTEXT: markAllStudentNotificationsAsReadForParent called (parent context)');
       // For parent context, use parent service
       const response = await markAllParentNotificationsAsRead();
       if (response?.success) {
@@ -689,7 +792,7 @@ export const NotificationProvider = ({ children }) => {
       }
       return response;
     } catch (error) {
-      console.error('Error marking all student notifications as read:', error);
+      console.error('Error marking all student notifications as read (parent context):', error);
       return null;
     }
   };
@@ -863,6 +966,7 @@ export const NotificationProvider = ({ children }) => {
     refreshNotifications,
     markAsRead,
     clearAll,
+    clearNotificationsForCurrentUser,
     getNotificationsByType,
     getRecentNotifications,
     addNotification,
@@ -873,7 +977,9 @@ export const NotificationProvider = ({ children }) => {
     fetchNotificationsFromAPI,
     markAPINotificationAsRead,
     markAllAPINotificationsAsRead,
-    markAllStudentNotificationsAsRead,
+    // NOTE: Removed markAllStudentNotificationsAsRead from exports to avoid shadowing
+    // The actual student service function is used via getNotificationService()
+    // Parent context uses markAllStudentNotificationsAsReadForParent internally
     fetchNotificationCategories,
     sendNotificationToAPI,
     fetchNotificationStatistics,

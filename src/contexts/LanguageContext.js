@@ -83,6 +83,7 @@ const translations = {
     username: 'Username',
     password: 'Password',
     forgotPassword: 'Forgot Password?',
+      forgotPasswordMessage: 'Please contact support to reset your password.',
 
     // Dashboard
     teacher: 'Teacher',
@@ -939,6 +940,8 @@ const translations = {
       "You'll see your notifications here when you receive them.",
     loadingNotifications: 'Loading notifications...',
     loadingMore: 'Loading more...',
+    noMoreNotifications: 'No more notifications',
+    announcements: 'Announcements',
 
     // Calendar Screen
     loginRequired: 'Login Required',
@@ -1189,7 +1192,7 @@ const translations = {
     username: 'အသုံးပြုသူအမည်',
     password: 'စကားဝှက်',
     forgotPassword: 'စကားဝှက်မေ့နေသလား?',
-
+    forgotPasswordMessage: 'စကားဝှက်ပြန်တင်ရန်ကျေးဇူးပြု၍ ထိုးပါ။',
     // Dashboard
     teacher: 'ဆရာ/ဆရာမ',
     parent: 'မိဘ',
@@ -1781,6 +1784,8 @@ const translations = {
       'အကြောင်းကြားချက်များ ရရှိသောအခါ ဤနေရာတွင် မြင်ရမည်ဖြစ်သည်။',
     loadingNotifications: 'အကြောင်းကြားချက်များ ဖွင့်နေသည်...',
     loadingMore: 'နောက်ထပ်ဖွင့်နေသည်...',
+    noMoreNotifications: 'အကြောင်းကြားချက်များ နောက်ထပ်မရှိတော့ပါ',
+    announcements: 'ကြေညာချက်များ',
 
     // Calendar Screen
     loginRequired: 'လော့ဂ်အင် လိုအပ်သည်',
@@ -2086,6 +2091,7 @@ const translations = {
     username: '用户名',
     password: '密码',
     forgotPassword: '忘记密码？',
+      forgotPasswordMessage: '请联系支持以重置您的密码。',
 
     // Dashboard
     teacher: '教师',
@@ -2647,6 +2653,8 @@ const translations = {
     noNotificationsYet: '收到通知时，您将在此处看到它们。',
     loadingNotifications: '加载通知中...',
     loadingMore: '加载更多...',
+    noMoreNotifications: '没有更多通知',
+    announcements: '公告',
 
     // Calendar Screen
     loginRequired: '需要登录',
@@ -2921,6 +2929,7 @@ const translations = {
     username: 'ชื่อผู้ใช้',
     password: 'รหัสผ่าน',
     forgotPassword: 'ลืมรหัสผ่าน?',
+      forgotPasswordMessage: 'โปรดติดต่อฝ่ายสนับสนุนเพื่อรีเซ็ตรหัสผ่านของคุณ',
 
     // Dashboard
     teacher: 'ครู',
@@ -3502,6 +3511,8 @@ const translations = {
     noNotificationsYet: 'คุณจะเห็นการแจ้งเตือนที่นี่เมื่อได้รับ',
     loadingNotifications: 'กำลังโหลดการแจ้งเตือน...',
     loadingMore: 'กำลังโหลดเพิ่มเติม...',
+    noMoreNotifications: 'ไม่มีการแจ้งเตือนเพิ่มเติม',
+    announcements: 'ประกาศ',
 
     // Calendar Screen
     loginRequired: 'ต้องเข้าสู่ระบบ',
@@ -3786,6 +3797,7 @@ const translations = {
     username: 'ឈ្មោះអ្នកប្រើប្រាស់',
     password: 'ពាក្យសម្ងាត់',
     forgotPassword: 'ភ្លេចពាក្យសម្ងាត់?',
+      forgotPasswordMessage: 'សូមទាក់ទង់ការបំពេញពាក្យសម្ងាត់។',
 
     // Dashboard
     teacher: 'គ្រូ',
@@ -3866,6 +3878,21 @@ const translations = {
     noStudents: 'គ្មានសិស្ស',
     pleaseAddStudent: 'សូមបន្ថែមគណនីសិស្សម្នាក់ជាមុនដើម្បីមើលការជូនដំណឹង។',
     duplicateStudent: 'សិស្សស្ទួន',
+
+    // Notification Screen
+    clearAllNotifications: 'សម្អាតការជូនដំណឹងទាំងអស់',
+    clearAllNotificationsConfirm:
+      'តើអ្នកប្រាកដថាចង់សម្អាតការជូនដំណឹងទាំងអស់? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។',
+    allNotificationsCleared: 'ការជូនដំណឹងទាំងអស់ត្រូវបានសម្អាតរួចហើយ។',
+    failedToClearNotifications: 'មិនអាចសម្អាតការជូនដំណឹងបានទេ។',
+    allNotificationsMarkedRead: 'ការជូនដំណឹងទាំងអស់ត្រូវបានសម្គាល់ថាបានអានរួចហើយ។',
+    noUnreadNotifications: 'អ្នកបានអានអស់ហើយ! គ្មានការជូនដំណឹងដែលមិនទាន់អាន។',
+    noNotificationsYet:
+      'អ្នកនឹងឃើញការជូនដំណឹងរបស់អ្នកនៅទីនេះនៅពេលអ្នកទទួលបាន។',
+    loadingNotifications: 'កំពុងផ្ទុកការជូនដំណឹង...',
+    loadingMore: 'កំពុងផ្ទុកបន្ថែម...',
+    noMoreNotifications: 'គ្មានការជូនដំណឹងបន្ថែមទៀតទេ',
+    announcements: 'ប្រកាស',
 
     // Grades Screen
     loadingFormativeGrades: 'កំពុងផ្ទុកពិន្ទុសិក្សាអាល់ខ្លួន...',

@@ -129,38 +129,63 @@ export default function BehaviorScreen({ navigation, route }) {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 BPS: API response received:', {
+          success: data.success,
+          hasBpsRecords: !!data.data?.bps_records,
+          recordsCount: data.data?.bps_records?.length || 0,
+        });
 
         // Handle API response with both behavior and detention data
         let behaviorArray = [];
         let detentionArray = [];
 
         if (data && typeof data === 'object') {
-          // If data is directly an array, treat as behavior data
-          if (Array.isArray(data)) {
-            behaviorArray = data;
-          } else {
-            // Look through all properties to find arrays
+          // Check if response has success flag and data property (new API format)
+          if (data.success && data.data) {
+            // New API format: { success: true, data: { bps_records: [...], summary: {...} } }
+            if (Array.isArray(data.data.bps_records)) {
+              behaviorArray = data.data.bps_records;
+              console.log('📊 BPS: Using data.data.bps_records, count:', behaviorArray.length);
+            }
+            // Check for detention records in the data object
+            if (Array.isArray(data.data.detention_records)) {
+              detentionArray = data.data.detention_records;
+              console.log('📊 BPS: Using data.data.detention_records, count:', detentionArray.length);
+            }
+          }
+          // Legacy format: direct bps_records array
+          else if (Array.isArray(data.bps_records)) {
+            behaviorArray = data.bps_records;
+            console.log('📊 BPS: Using data.bps_records (legacy format), count:', behaviorArray.length);
+          }
+          // Fallback: look through all properties to find arrays
+          else {
             const dataKeys = Object.keys(data);
+            console.log('📊 BPS: Searching through data keys:', dataKeys);
 
             for (const key of dataKeys) {
               if (Array.isArray(data[key])) {
                 // Check if this array contains behavior data (has item_type field)
                 if (data[key].length > 0 && data[key][0].item_type) {
                   behaviorArray = data[key];
+                  console.log('📊 BPS: Found behavior data in key:', key);
                 }
                 // Check if this array contains detention data (has detention_type field)
                 else if (data[key].length > 0 && data[key][0].detention_type) {
                   detentionArray = data[key];
+                  console.log('📊 BPS: Found detention data in key:', key);
                 }
                 // If we don't have behavior data yet and this is the first array, use it
                 else if (behaviorArray.length === 0) {
                   behaviorArray = data[key];
+                  console.log('📊 BPS: Using first array found in key:', key);
                 }
               }
             }
           }
         }
 
+        console.log('📊 BPS: Final data set - Behavior records:', behaviorArray.length, 'Detention records:', detentionArray.length);
         setBehaviorData(behaviorArray);
         setDetentionData(detentionArray);
       } else {
@@ -292,24 +317,35 @@ export default function BehaviorScreen({ navigation, route }) {
     });
   };
 
+  // Helper function to get points from item (handles multiple field names)
+  const getItemPoints = (item) => {
+    // Priority: point (actual awarded points) > item_point (default points) > points (legacy)
+    const pointValue = item.point !== undefined && item.point !== null
+      ? item.point
+      : (item.item_point !== undefined && item.item_point !== null
+        ? item.item_point
+        : item.points);
+    return parseInt(pointValue) || 0;
+  };
+
   // Calculate total points
   const getTotalPoints = () => {
     return behaviorData.reduce((total, item) => {
-      const points = parseInt(item.item_point || item.points) || 0;
-      const typeCode = item.item_type?.toUpperCase() || ''; // Получаем код типа поведения
+      const points = getItemPoints(item);
+      const typeCode = item.item_type?.toUpperCase() || '';
 
-      // Суммируем только если тип 'PRS' и баллы положительные
+      // Sum only if type is 'PRS' and points are positive
       if (typeCode === 'PRS' && points > 0) {
         return total + points;
       }
-      return total; // В противном случае не добавляем к сумме
+      return total;
     }, 0);
   };
 
   // Get behavior statistics
   const getBehaviorStats = () => {
     const positive = behaviorData.reduce((total, item) => {
-      const points = parseInt(item.item_point || item.points) || 0;
+      const points = getItemPoints(item);
       const type = (item.item_type || item.type || '').toUpperCase();
       if (type === 'PRS' || points > 0) {
         return total + points;
@@ -318,7 +354,7 @@ export default function BehaviorScreen({ navigation, route }) {
     }, 0);
 
     const negative = behaviorData.reduce((total, item) => {
-      const points = parseInt(item.item_point || item.points) || 0;
+      const points = getItemPoints(item);
       const type = (item.item_type || item.type || '').toUpperCase();
       if (type === 'DPS' || points < 0) {
         return total + Math.abs(points); // Use absolute value for display
@@ -327,7 +363,7 @@ export default function BehaviorScreen({ navigation, route }) {
     }, 0);
 
     const neutral = behaviorData.filter((item) => {
-      const points = parseInt(item.item_point || item.points) || 0;
+      const points = getItemPoints(item);
       const type = (item.item_type || item.type || '').toUpperCase();
       return type !== 'PRS' && type !== 'DPS' && points === 0;
     }).length;
@@ -371,13 +407,13 @@ export default function BehaviorScreen({ navigation, route }) {
     if (selectedBehaviorType === 'PRS') {
       return behaviorData.filter((item) => {
         const type = (item.item_type || item.type || '').toUpperCase();
-        const points = parseInt(item.item_point || item.points) || 0;
+        const points = getItemPoints(item);
         return type === 'PRS' || points > 0;
       });
     } else if (selectedBehaviorType === 'DPS') {
       return behaviorData.filter((item) => {
         const type = (item.item_type || item.type || '').toUpperCase();
-        const points = parseInt(item.item_point || item.points) || 0;
+        const points = getItemPoints(item);
         return type === 'DPS' || points < 0;
       });
     }
@@ -649,78 +685,76 @@ export default function BehaviorScreen({ navigation, route }) {
                   </Text>
                 </View>
               ) : (
-                getFilteredBehaviorData().map((item) => (
-                  <View key={item.id} style={styles.behaviorDetailCard}>
-                    <View style={styles.behaviorDetailCardHeader}>
-                      <View style={styles.behaviorDetailLeft}>
-                        <Text style={styles.behaviorDetailItemTitle}>
-                          {item.item_title}
-                        </Text>
-                        <Text style={styles.behaviorDetailDate}>
-                          {formatDate(item.date)}
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.behaviorPointsBadge,
-                          {
-                            backgroundColor:
-                              parseInt(item.item_point || item.points) >= 0
-                                ? '#34C759'
-                                : '#FF3B30',
-                          },
-                        ]}
-                      >
-                        <Text style={styles.behaviorPointsText}>
-                          {item.item_point || item.points}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.behaviorDetailBody}>
-                      <View style={styles.behaviorDetailRow}>
-                        <Text style={styles.behaviorDetailLabel}>Type:</Text>
-                        <Text style={styles.behaviorDetailValue}>
-                          {item.item_type || item.type}
-                        </Text>
-                      </View>
-
-                      <View style={styles.behaviorDetailRow}>
-                        <Text style={styles.behaviorDetailLabel}>Points:</Text>
-                        <Text
+                getFilteredBehaviorData().map((item) => {
+                  const itemPoints = getItemPoints(item);
+                  return (
+                    <View key={item.record_id || item.id} style={styles.behaviorDetailCard}>
+                      <View style={styles.behaviorDetailCardHeader}>
+                        <View style={styles.behaviorDetailLeft}>
+                          <Text style={styles.behaviorDetailItemTitle}>
+                            {item.item_title}
+                          </Text>
+                          <Text style={styles.behaviorDetailDate}>
+                            {formatDate(item.date)}
+                          </Text>
+                        </View>
+                        <View
                           style={[
-                            styles.behaviorDetailValue,
+                            styles.behaviorPointsBadge,
                             {
-                              color:
-                                parseInt(item.item_point || item.points) >= 0
-                                  ? '#34C759'
-                                  : '#FF3B30',
-                              fontWeight: 'bold',
+                              backgroundColor:
+                                itemPoints >= 0 ? '#34C759' : '#FF3B30',
                             },
                           ]}
                         >
-                          {item.item_point || item.points}
-                        </Text>
-                      </View>
-
-                      <View style={styles.behaviorDetailRow}>
-                        <Text style={styles.behaviorDetailLabel}>Teacher:</Text>
-                        <Text style={styles.behaviorDetailValue}>
-                          {item.teacher_name}
-                        </Text>
-                      </View>
-
-                      {item.note && (
-                        <View style={styles.behaviorDetailRow}>
-                          <Text style={styles.behaviorDetailLabel}>Note:</Text>
-                          <Text style={styles.behaviorDetailValue}>
-                            {item.note}
+                          <Text style={styles.behaviorPointsText}>
+                            {itemPoints}
                           </Text>
                         </View>
-                      )}
+                      </View>
+
+                      <View style={styles.behaviorDetailBody}>
+                        <View style={styles.behaviorDetailRow}>
+                          <Text style={styles.behaviorDetailLabel}>Type:</Text>
+                          <Text style={styles.behaviorDetailValue}>
+                            {item.item_type || item.type}
+                          </Text>
+                        </View>
+
+                        <View style={styles.behaviorDetailRow}>
+                          <Text style={styles.behaviorDetailLabel}>Points:</Text>
+                          <Text
+                            style={[
+                              styles.behaviorDetailValue,
+                              {
+                                color: itemPoints >= 0 ? '#34C759' : '#FF3B30',
+                                fontWeight: 'bold',
+                              },
+                            ]}
+                          >
+                            {itemPoints}
+                          </Text>
+                        </View>
+
+                        <View style={styles.behaviorDetailRow}>
+                          <Text style={styles.behaviorDetailLabel}>Teacher:</Text>
+                          <Text style={styles.behaviorDetailValue}>
+                            {item.teacher_name}
+                          </Text>
+                        </View>
+
+                        {(item.notes || item.note) && (
+                          <View style={styles.behaviorDetailRow}>
+                            <Text style={styles.behaviorDetailLabel}>Note:</Text>
+                            <Text style={styles.behaviorDetailValue}>
+                              {item.notes || item.note}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
-                  </View>
-                ))
+                  );
+                })
               )}
             </ScrollView>
           </View>
@@ -1324,7 +1358,7 @@ const createStyles = (theme) =>
       borderRadius: 16,
       padding: 20,
       width: '48%',
-      ...createMediumShadow(theme),
+      ...theme.shadows.medium,
     },
     detentionCardHeader: {
       flexDirection: 'row',

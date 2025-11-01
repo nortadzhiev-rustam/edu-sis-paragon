@@ -121,20 +121,30 @@ export const markStudentNotificationAsRead = async (notificationId) => {
  */
 export const markAllStudentNotificationsAsRead = async () => {
   try {
+    console.log('🎓 STUDENT NOTIFICATION SERVICE: markAllStudentNotificationsAsRead called');
+
     const authCode = await getStudentAuthCode();
     if (!authCode) {
+      console.error('❌ STUDENT NOTIFICATION SERVICE: No student authentication code found');
       throw new Error('No student authentication code found');
     }
 
+    console.log('🎓 STUDENT NOTIFICATION SERVICE: Marking all notifications as read with authCode:', authCode.substring(0, 8) + '...');
+
     const url = buildApiUrl(Config.API_ENDPOINTS.MARK_ALL_NOTIFICATIONS_READ);
-    return await makeApiRequest(url, {
+    console.log('🎓 STUDENT NOTIFICATION SERVICE: API URL:', url);
+
+    const response = await makeApiRequest(url, {
       method: 'POST',
       body: JSON.stringify({
         authCode,
       }),
     });
+
+    console.log('✅ STUDENT NOTIFICATION SERVICE: Mark all as read response:', response);
+    return response;
   } catch (error) {
-    console.error('STUDENT NOTIFICATION SERVICE: Error marking all notifications as read:', error);
+    console.error('❌ STUDENT NOTIFICATION SERVICE: Error marking all notifications as read:', error);
     throw error;
   }
 };

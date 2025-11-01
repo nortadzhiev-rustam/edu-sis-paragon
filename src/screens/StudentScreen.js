@@ -159,7 +159,7 @@ export default function StudentScreen({navigation}) {
 
     const {theme} = useTheme();
     const {t, currentLanguage} = useLanguage();
-    const {refreshNotifications, unreadCount, notifications} = useNotifications();
+    const {refreshNotifications, unreadCount, notifications, clearNotificationsForCurrentUser} = useNotifications();
     const fontSizes = getLanguageFontSizes(currentLanguage);
 
     // Debug notification state
@@ -198,8 +198,12 @@ export default function StudentScreen({navigation}) {
     // Using only useFocusEffect to avoid duplicate calls
     useFocusEffect(
         React.useCallback(() => {
+            console.log('🔔 STUDENT SCREEN: Screen focused, loading student data and refreshing notifications...');
             loadStudentData();
-        }, [])
+            // Also refresh notifications immediately to ensure student notifications are shown
+            // Explicitly pass 'student' userType to ensure student notifications are loaded
+            refreshNotifications('student');
+        }, [refreshNotifications])
     );
 
     // Refresh notifications when studentData is loaded
@@ -568,6 +572,18 @@ export default function StudentScreen({navigation}) {
                 console.log('📸 STUDENT: normalizedStudentData.photo:', normalizedStudentData.photo);
                 console.log('📸 STUDENT: normalizedStudentData.profile_photo:', normalizedStudentData.profile_photo);
 
+                // If photo was found and it's different from what's stored, update AsyncStorage
+                // This is a one-time fix for existing users who logged in before the photo fix
+                if (profilePhoto && !parsedUserData.photo) {
+                    console.log('🔧 STUDENT: Updating AsyncStorage with corrected photo field...');
+                    const updatedUserData = {
+                        ...parsedUserData,
+                        photo: profilePhoto,
+                        profile_photo: profilePhoto,
+                    };
+                    await AsyncStorage.setItem(keyUsed, JSON.stringify(updatedUserData));
+                    console.log('✅ STUDENT: AsyncStorage updated with photo field');
+                }
 
                 setStudentData(normalizedStudentData);
                 console.log('📸 STUDENT: studentData state updated with photo:', normalizedStudentData.photo);
@@ -741,6 +757,7 @@ export default function StudentScreen({navigation}) {
                             userType: 'student', // Specify that this is a student logout
                             clearDeviceToken: false, // Keep device token for future logins
                             clearAllData: false, // Student-specific data will be cleared based on userType
+                            notificationCleanup: clearNotificationsForCurrentUser, // Clean up notification context
                         });
 
                         if (logoutResult.success) {
